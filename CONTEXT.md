@@ -109,15 +109,23 @@ L'arme de courte portée du canon, à partir du niveau 2. Un cône de flammes co
 _Éviter_ : lance-flamme, flammes, souffle
 
 **Bombe de feu** :
-Le carburant du jet de feu, à porter depuis la base. Le joueur touché la lâche.
+Le carburant du jet de feu, acheté à la pièce et porté depuis la base. Une bombe brûle six secondes de jet à pleine puissance. Elle ne tombe jamais : le joueur touché la garde.
+
+**Brassée** :
+Les bombes de feu que le joueur porte sur lui — trois au plus, soit exactement une soute. Visible au-dessus de sa tête, jamais dans le HUD.
+_Éviter_ : inventaire, sac, chargement
 
 **Soute** :
-La réserve de bombes de feu d'un canon. Visible sur le canon lui-même, jamais dans le HUD.
+La réserve de bombes de feu d'un canon : trois cases, ce qu'un seul trajet suffit à remplir. Visible sur le canon lui-même, jamais dans le HUD.
 _Éviter_ : stock, magasin, chargeur
 
 **Tapis roulant** :
-Le niveau 3 du canon, qui automatise le ravitaillement depuis la base. Il ne change rien d'autre : un canon de niveau 3 tire exactement comme un canon de niveau 2.
+Le niveau 3 du canon, qui automatise le ravitaillement depuis la base. Il ne change rien d'autre : un canon de niveau 3 tire exactement comme un canon de niveau 2. Il apparaît d'un coup à l'achat, ne se trace pas, ne se détruit pas, et n'atteint que les canons posés dans le halo.
 _Éviter_ : convoyeur, automatisation
+
+**Halo** :
+Les pavés clairs peints au sol et sur les toits, qui marquent jusqu'où le tapis roulant porte depuis la base. Un canon posé dehors ne passera jamais au niveau 3.
+_Éviter_ : zone, rayon, cercle
 
 **Ravitaillement** :
 Le fait d'apporter des bombes de feu de la base à un canon. Toujours un choix d'optimisation, jamais une obligation.
