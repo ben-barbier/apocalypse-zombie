@@ -101,13 +101,30 @@ L'unité de dégâts infligés aux constructions. Les points de vie de la mairie
 Une tourelle achetée avec l'argent gagné, posée là où le joueur se tient — sur un toit ou au sol. Trois niveaux. Au sol, elle ne bloque pas les zombies mais s'use sous leurs coups ; sur un toit, elle est intouchable.
 _Éviter_ : tourelle, tour, défense
 
+**Boulet** :
+L'arme de longue portée du canon, à tous les niveaux. Tir en cloche, munitions infinies, une cible à la fois. Sa portée grandit avec la hauteur du toit.
+
+**Jet de feu** :
+L'arme de courte portée du canon, à partir du niveau 2. Un cône de flammes continu qui brûle tout ce qui s'y trouve. Sa portée ne grandit jamais avec la hauteur : le feu est l'arme du sol et des toits bas. Il ne s'éteint jamais — à sec, il faiblit.
+_Éviter_ : lance-flamme, flammes, souffle
+
 **Bombe de feu** :
-La munition du canon de niveau 2, à porter depuis la base. Le joueur touché la lâche.
+Le carburant du jet de feu, à porter depuis la base. Le joueur touché la lâche.
+
+**Soute** :
+La réserve de bombes de feu d'un canon. Visible sur le canon lui-même, jamais dans le HUD.
+_Éviter_ : stock, magasin, chargeur
 
 **Tapis roulant** :
-Le niveau 3 du canon, qui automatise le ravitaillement depuis la base.
+Le niveau 3 du canon, qui automatise le ravitaillement depuis la base. Il ne change rien d'autre : un canon de niveau 3 tire exactement comme un canon de niveau 2.
 _Éviter_ : convoyeur, automatisation
 
 **Ravitaillement** :
 Le fait d'apporter des bombes de feu de la base à un canon. Toujours un choix d'optimisation, jamais une obligation.
 _Éviter_ : recharge, approvisionnement
+
+### L'argent
+
+**Pièce** :
+L'unité d'argent, et la seule. Elle tombe de chaque zombie tué, pour une valeur qui dépend de son type. Tout s'achète avec — canons, améliorations, bombes de feu, renforts de mairie — et rien d'autre ne les limite : on achète ce qu'on peut se payer.
+_Éviter_ : or, argent (comme unité), score
