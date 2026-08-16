@@ -319,12 +319,12 @@
   </div>
   <p class="glose" id="glose-cam"></p>
   <div class="champ">
-    <div class="etiquette"><span>distance</span><b id="v-dist">9,0</b></div>
-    <input type="range" id="r-dist" min="5" max="16" step="0.5" value="9">
+    <div class="etiquette"><span>distance</span><b id="v-dist">6,5</b></div>
+    <input type="range" id="r-dist" min="4" max="16" step="0.5" value="6.5">
   </div>
   <div class="champ">
-    <div class="etiquette"><span>hauteur de visée</span><b id="v-haut">4,5</b></div>
-    <input type="range" id="r-haut" min="2" max="9" step="0.5" value="4.5">
+    <div class="etiquette"><span>hauteur de visée</span><b id="v-haut">5,5</b></div>
+    <input type="range" id="r-haut" min="2" max="12" step="0.5" value="5.5">
   </div>
   <div class="champ">
     <div class="etiquette"><span>sensibilité</span><b id="v-sens">1,0</b></div>
@@ -4504,8 +4504,8 @@ const HALO = 16;           // #9 — portée du tapis roulant depuis la base
 
 const reglages = {
   cam: 'libre',
-  distance: 9,
-  hauteurVisee: 4.5,
+  distance: 6.5,        // 9 blocs ne tiennent pas : la place n'a que 8 blocs de dégagement
+  hauteurVisee: 5.5,
   sensibilite: 1,
   suitAutoCiblage: false,
   vitesse: 5,            // #6 — course, blocs/s
@@ -4838,7 +4838,7 @@ function boiteSimple(l, h, p, couleur) {
 }
 
 const joueur = {
-  x: 27.5, z: 38, y: 0, vy: 0,    // au pied de la base, face à la place
+  x: 26.5, z: 39, y: 0, vy: 0,    // au pied de la base, face à la place
   angle: Math.PI,          // 0 = regarde vers +Z
   etat: 'libre',           // libre | echelle
   echelle: null, tEchelle: 0,
@@ -5134,11 +5134,20 @@ pastille('poser', (on) => { if (on) entree.poserDemande = true; });
 
 /* ---- la manette : rien avant un appui, et jamais le bouton B (#3) ---- */
 
-let manetteVue = false;
+let manetteVue = false, manetteBloquee = false;
 const boutonsPrec = {};
 
 function lireManette() {
-  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  if (manetteBloquee) return;
+  let pads = [];
+  try {
+    // Dans une page intégrée en iframe sans `allow="gamepad"`, cet appel LÈVE.
+    // À retenir pour le déploiement : la manette meurt dès que le jeu est embarqué.
+    pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  } catch (e) {
+    manetteBloquee = true;
+    return;
+  }
   for (const p of pads) {
     if (!p) continue;
     manetteVue = true;
@@ -5240,21 +5249,28 @@ function majCamera(dt, court) {
   cam.repos = Math.max(0, cam.repos - dt);
 
   const cible = vTmp.set(joueur.x, joueur.y + 1.4, joueur.z);
-  let d = reglages.distance;
+  const d = reglages.distance;
   const dir = vTmp2.set(-Math.sin(cam.yaw), 0, -Math.cos(cam.yaw));
-  const voulue = new T.Vector3(cible.x + dir.x * d, joueur.y + cam.hauteur, cible.z + dir.z * d);
 
-  // occlusion : un bâtiment ne doit jamais passer entre la caméra et le joueur
-  const vers = voulue.clone().sub(cible);
-  const dist = vers.length();
-  rayon.set(cible, vers.normalize());
-  rayon.far = dist;
-  const touche = rayon.intersectObjects(villeMeshes, false);
-  if (touche.length && touche[0].distance < dist) {
-    // jamais plus près que 3,2 blocs : au-delà, la caméra est dans le dos du joueur
-    // et l'enfant ne voit plus rien. La ville est dense, ce cas est permanent.
-    voulue.copy(cible).addScaledVector(vers, Math.max(3.2, touche[0].distance - 0.45));
-    voulue.y += Math.max(0, dist - touche[0].distance) * 0.35;   // et elle se relève un peu
+  // L'occlusion est le vrai problème de caméra de cette ville : la place n'offre
+  // que 8 blocs entre la mairie et l'anneau, donc un recul de 6 finit presque
+  // toujours dans un mur. On grimpe AU-DESSUS du toit gênant avant de se résoudre
+  // à se rapprocher : une caméra qui monte reste lisible, une caméra collée non.
+  const voulue = new T.Vector3();
+  let degage = false, secours = null;
+  for (const bonus of [0, 4.5, 10]) {
+    voulue.set(cible.x + dir.x * d, joueur.y + cam.hauteur + bonus, cible.z + dir.z * d);
+    const vers = voulue.clone().sub(cible);
+    const dist = vers.length();
+    rayon.set(cible, vers.normalize());
+    rayon.far = dist;
+    const touche = rayon.intersectObjects(villeMeshes, false);
+    if (!touche.length || touche[0].distance >= dist - 0.05) { degage = true; break; }
+    if (!secours) secours = { vers, dist, obstacle: touche[0].distance };
+  }
+  if (!degage && secours) {
+    // rien ne dégage : on se rapproche, jamais sous 3,2 blocs
+    voulue.copy(cible).addScaledVector(secours.vers.normalize(), Math.max(3.2, secours.obstacle - 0.45));
   }
   camera.position.lerp(voulue, Math.min(1, dt * 14));
   camera.lookAt(cible.x, cible.y, cible.z);
@@ -5553,7 +5569,7 @@ const jIps = document.getElementById('j-ips'), jDraw = document.getElementById('
 function majJauges() {
   jCam.textContent = { libre: 'A · libre', assistee: 'B · assistée', crans: 'C · crans' }[reglages.cam];
   jCanons.textContent = canons.length + ' / ' + MAX_CANONS;
-  jEntree.textContent = entree.source + (manetteVue ? ' ·  🎮' : '');
+  jEntree.textContent = manetteBloquee ? 'sans manette' : entree.source + (manetteVue ? ' ·  🎮' : '');
 }
 
 function curseur(id, vid, cle, format) {
@@ -5629,8 +5645,23 @@ majJauges();
 
 let dernier = performance.now(), lissage = 60, compteur = 0, temps = 0;
 
+let panne = false;
+
 function boucle(maintenant) {
   requestAnimationFrame(boucle);
+  if (panne) return;
+  try {
+    image(maintenant);
+  } catch (e) {
+    // Un prototype qui meurt en silence ne sert à rien : il doit dire pourquoi.
+    panne = true;
+    cNote.textContent = 'le prototype s\'est arrêté : ' + (e && e.message ? e.message : e);
+    cNote.style.color = '#ff8a6b';
+    throw e;
+  }
+}
+
+function image(maintenant) {
   const dt = Math.min(0.05, (maintenant - dernier) / 1000);
   dernier = maintenant;
   temps += dt;
