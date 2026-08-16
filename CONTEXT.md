@@ -89,6 +89,19 @@ _Éviter_ : groupe, vague (réservé au cycle), salve
 **Escorte** :
 Les Costauds qui accompagnent le Colosse à la vague 10, ralentis à son pas et massés autour de lui.
 
+### Le joueur
+
+**Épée** :
+L'arme de corps-à-corps du joueur, la seule qu'il porte. Elle ne s'achète pas, ne s'améliore pas et ne se remplace pas : elle vaut un coup d'épée du début à la fin de la partie.
+
+**Fauchée** :
+La zone qu'un coup d'épée balaie devant le joueur : un secteur de 120° sur 3 blocs, haut de 1,5 bloc au-dessus et au-dessous de lui. Tout ce qui s'y trouve est touché d'un seul coup — on ne frappe jamais une cible unique.
+_Éviter_ : arc, cône (réservé au jet de feu), balayage
+
+**Étourdissement** :
+La seconde d'immobilité qui suit un contact avec un zombie, pendant laquelle le joueur ne frappe pas. Elle est suivie d'une seconde d'invulnérabilité : le joueur ne peut donc pas perdre plus d'un point de vie toutes les deux secondes.
+_Éviter_ : stun, KO, assommé
+
 ### Les défenses
 
 **Coup d'épée** :
@@ -136,3 +149,7 @@ _Éviter_ : recharge, approvisionnement
 **Pièce** :
 L'unité d'argent, et la seule. Elle tombe de chaque zombie tué, pour une valeur qui dépend de son type. Tout s'achète avec — canons, améliorations, bombes de feu, renforts de mairie — et rien d'autre ne les limite : on achète ce qu'on peut se payer.
 _Éviter_ : or, argent (comme unité), score
+
+**Prime de bravoure** :
+Le supplément de pièces gagné en tuant un zombie à l'épée plutôt qu'en le laissant aux canons. C'est ce qui garde le corps-à-corps rentable jusqu'à la dernière vague.
+_Éviter_ : bonus, multiplicateur, combo
