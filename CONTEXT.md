@@ -91,6 +91,9 @@ Les Costauds qui accompagnent le Colosse à la vague 10, ralentis à son pas et 
 
 ### Le joueur
 
+**Joueur** :
+Le personnage dirigé par l'enfant, suivi à la troisième personne. Bâti sur les six mêmes boîtes qu'un zombie — c'est la grammaire commune à tous les personnages — plus l'épée qu'il tient en main. Tunique bleue et acier clair : les seules couleurs froides portées par un personnage, pour qu'il ne soit jamais confondu avec un assaillant.
+
 **Épée** :
 L'arme de corps-à-corps du joueur, la seule qu'il porte. Elle ne s'achète pas, ne s'améliore pas et ne se remplace pas : elle vaut un coup d'épée du début à la fin de la partie.
 
@@ -143,6 +146,24 @@ _Éviter_ : zone, rayon, cercle
 **Ravitaillement** :
 Le fait d'apporter des bombes de feu de la base à un canon. Toujours un choix d'optimisation, jamais une obligation.
 _Éviter_ : recharge, approvisionnement
+
+### La lumière
+
+**Heure orange** :
+L'unique heure du jeu : un soleil couchant, rasant, qui ne bouge jamais — ni entre les vagues, ni pendant une partie. Elle pose la règle de couleur du jeu entier : **la ville est chaude, ce qui se joue est froid**. Un repère de jeu se distingue par sa température, jamais par un orange de plus.
+_Éviter_ : coucher de soleil, golden hour, ambiance
+
+**Soleil** :
+La seule lumière qui projette une ombre. Une directionnelle rasante, doublée d'une ambiante violette qui remplit les faces à contre-jour. Aucune lumière ponctuelle n'existe : rien, dans ce jeu, n'éclaire son voisinage.
+_Éviter_ : directionnelle, astre, lampe
+
+**Brume** :
+Le voile orange qui épaissit avec la distance et efface l'extérieur au-delà de l'anneau. Structurelle, pas décorative : c'est elle qui dispense de détailler ce qu'on ne joue pas.
+_Éviter_ : brouillard, fog, halo (réservé au tapis roulant)
+
+**Tuile** :
+L'image de 16 × 16 pixels qui habille une face de bloc, filtrée en `nearest` et répétée à chaque bloc. Dégradé vertical et grain, jamais de cerne. Elle doit rester lisible à ×3 — ce qu'un bloc mesure à l'écran en jeu.
+_Éviter_ : sprite, carreau, image
 
 ### L'argent
 
