@@ -121,7 +121,7 @@ _Éviter_ : tourelle, tour, défense
 L'arme de longue portée du canon, à tous les niveaux. Tir en cloche, munitions infinies, une cible à la fois. Sa portée grandit avec la hauteur du toit.
 
 **Jet de feu** :
-L'arme de courte portée du canon, à partir du niveau 2. Un cône de flammes continu qui brûle tout ce qui s'y trouve. Sa portée ne grandit jamais avec la hauteur : le feu est l'arme du sol et des toits bas. Il ne s'éteint jamais — à sec, il faiblit.
+L'arme de courte portée du canon, à partir du niveau 2. Un cône de flammes qui brûle tout ce qui s'y trouve. Sa portée ne grandit jamais avec la hauteur : le feu est l'arme du sol et des toits bas. Il ne consomme rien pour fonctionner et **ne s'allume qu'en présence d'un zombie dans son cône** — une flamme allumée signale donc, à elle seule, qu'un zombie est là. Il est toujours blanc-bleu : son état se lit à la longueur de la flamme, courte sans bombes et longue quand il est nourri, jamais à sa couleur.
 _Éviter_ : lance-flamme, flammes, souffle
 
 **Bombe de feu** :
@@ -160,6 +160,18 @@ _Éviter_ : directionnelle, astre, lampe
 **Brume** :
 Le voile orange qui épaissit avec la distance et efface l'extérieur au-delà de l'anneau. Structurelle, pas décorative : c'est elle qui dispense de détailler ce qu'on ne joue pas.
 _Éviter_ : brouillard, fog, halo (réservé au tapis roulant)
+
+**Éclat** :
+Le petit cube d'un quart de bloc, seule primitive d'effet du jeu. Tout ce qui est ponctuel et éphémère en est fait : les débris d'un zombie qui meurt, l'arc de la fauchée, le boulet et sa traînée, la pièce, la mire. Jamais transparent, jamais remplacé par une image : il s'efface en s'éclaircissant vers le blanc.
+_Éviter_ : particule, débris, sprite
+
+**Mire** :
+Les quatre éclats noirs posés à plat qui marquent où un boulet va tomber, et qui se resserrent pendant sa chute. C'est elle qui rend la trajectoire en cloche lisible, sans que l'enfant ait à suivre le boulet des yeux.
+_Éviter_ : viseur, réticule, cible
+
+**Cerne** :
+Le liseré noir qui entoure ce qui se ramasse — la pièce et la bombe de feu, rien d'autre. Seule exception au principe « aucune tuile n'est cernée » : un cerne noir veut dire « prends-moi ».
+_Éviter_ : contour, bordure, outline
 
 **Tuile** :
 L'image de 16 × 16 pixels qui habille une face de bloc, filtrée en `nearest` et répétée à chaque bloc. Dégradé vertical et grain, jamais de cerne. Elle doit rester lisible à ×3 — ce qu'un bloc mesure à l'écran en jeu.
