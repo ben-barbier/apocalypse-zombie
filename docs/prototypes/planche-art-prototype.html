@@ -96,6 +96,15 @@
   .jeton a { color: var(--encre); text-decoration: none; border-bottom: 1px solid var(--trait-fort); }
   .jeton a:hover, .jeton a:focus-visible { color: var(--actif); border-color: var(--actif); }
 
+  .jetons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .jeton.retenu {
+    color: #1d2126;
+    background: var(--actif);
+    border-color: var(--actif);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
   /* ---- sections ---- */
 
   section { display: flex; flex-direction: column; gap: 18px; }
@@ -357,8 +366,11 @@
       <h1 id="titre-variante">La ville en trois lumières</h1>
       <p class="chapo" id="chapo-variante"></p>
     </div>
-    <div class="jeton">
-      ticket <a href="https://github.com/ben-barbier/apocalypse-zombie/issues/12">#12</a> · jetable
+    <div class="jetons">
+      <div class="jeton" id="statut"></div>
+      <div class="jeton">
+        ticket <a href="https://github.com/ben-barbier/apocalypse-zombie/issues/12">#12</a> · jetable
+      </div>
     </div>
   </header>
 
@@ -483,6 +495,7 @@
 
     B: {
       cle: "B",
+      retenue: true,
       nom: "L'heure orange",
       titre: "Le soleil tombe sur la place",
       chapo:
@@ -1035,8 +1048,66 @@
     g.restore();
   }
 
-  function trie(boites) {
-    return boites.slice().sort((a, b) => a.x + a.z + a.y - (b.x + b.z + b.y));
+  /* Ordre de dessin. Trier sur x+y+z est faux dès que les boîtes n'ont pas la
+     même taille : le linteau d'un portique passait devant un zombie qui, lui,
+     était plus près de la caméra. On trie donc par la vraie relation « devant »
+     — deux boîtes séparées sur un axe se départagent sur cet axe — puis on
+     linéarise ce graphe par un parcours en profondeur. */
+  const EPS = 1e-6;
+  function devant(a, b) {
+    if (a.x >= b.x + b.w - EPS) return 1;
+    if (b.x >= a.x + a.w - EPS) return -1;
+    if (a.z >= b.z + b.d - EPS) return 1;
+    if (b.z >= a.z + a.d - EPS) return -1;
+    if (a.y >= b.y + b.h - EPS) return 1;
+    if (b.y >= a.y + a.h - EPS) return -1;
+    return 0; // elles s'interpénètrent : rien à départager
+  }
+
+  function trie(unites) {
+    const n = unites.length;
+    const prof = (b) => b.x + b.y + b.z;
+    const depart = unites.map((_, i) => i).sort((i, j) => prof(unites[i]) - prof(unites[j]));
+    const derriere = Array.from({ length: n }, () => []);
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const r = devant(unites[i], unites[j]);
+        if (r === 1) derriere[i].push(j);
+        else if (r === -1) derriere[j].push(i);
+      }
+    }
+    const etat = new Uint8Array(n); // 0 vierge, 1 en cours, 2 posée
+    const sortie = [];
+    const visite = (i) => {
+      if (etat[i] !== 0) return; // déjà posée, ou cycle : on lâche l'arête
+      etat[i] = 1;
+      for (const j of derriere[i]) visite(j);
+      etat[i] = 2;
+      sortie.push(unites[i]);
+    };
+    depart.forEach(visite);
+    return sortie;
+  }
+
+  /* On trie des OBJETS ENTIERS, pas des boîtes isolées. Une porte plaquée sur
+     une façade est devant le toit par un axe et derrière par un autre : entre
+     boîtes d'un même objet, la relation « devant » boucle, et un cycle fait
+     ressortir la corniche par-dessus tout le reste. À l'intérieur d'un objet,
+     l'ordre de déclaration fait foi — il est écrit du plus lointain au plus
+     proche dans chaque modèle. */
+  function emprise(boites) {
+    const x = Math.min(...boites.map((b) => b.x));
+    const y = Math.min(...boites.map((b) => b.y));
+    const z = Math.min(...boites.map((b) => b.z));
+    return {
+      x,
+      y,
+      z,
+      w: Math.max(...boites.map((b) => b.x + b.w)) - x,
+      h: Math.max(...boites.map((b) => b.y + b.h)) - y,
+      d: Math.max(...boites.map((b) => b.z + b.d)) - z,
+      boites
+    };
   }
 
   /* ==========================================================================
@@ -1055,13 +1126,14 @@
     const cj = rgbHex(melange(hexRgb(c), [0, 0, 0], 0.28));
     const u = 0.19 * echelle;
     const av = pose === "marche" ? 0.9 * u : 0;
+    // du plus lointain au plus proche : c'est cet ordre qui fait le dessin
     return [
-      boite(0.8 * u, 7.5 * u, 0.9 * u, 4.4 * u, 4.4 * u, 4.4 * u, c, "peau", role), // tête
-      boite(1 * u, 3.4 * u, 1.5 * u, 4 * u, 4.2 * u, 2.8 * u, c, "peau", role), // torse
       boite(-0.4 * u, 3.6 * u, 1.6 * u + av, 1.4 * u, 3.6 * u, 1.4 * u, cb), // bras gauche
-      boite(5 * u, 3.6 * u, 1.6 * u - av, 1.4 * u, 3.6 * u, 1.4 * u, cb), // bras droit
       boite(1.2 * u, 0, 1.8 * u + av, 1.5 * u, 3.5 * u, 1.5 * u, cj), // jambe gauche
-      boite(3.3 * u, 0, 1.8 * u - av, 1.5 * u, 3.5 * u, 1.5 * u, cj) // jambe droite
+      boite(3.3 * u, 0, 1.8 * u - av, 1.5 * u, 3.5 * u, 1.5 * u, cj), // jambe droite
+      boite(1 * u, 3.4 * u, 1.5 * u, 4 * u, 4.2 * u, 2.8 * u, c, "peau", role), // torse
+      boite(0.8 * u, 7.5 * u, 0.9 * u, 4.4 * u, 4.4 * u, 4.4 * u, c, "peau", role), // tête
+      boite(5 * u, 3.6 * u, 1.6 * u - av, 1.4 * u, 3.6 * u, 1.4 * u, cb) // bras droit
     ];
   }
 
@@ -1069,23 +1141,23 @@
     const m = pal["métal du canon"];
     const sombre = rgbHex(melange(hexRgb(m), [0, 0, 0], 0.32));
     const clair = rgbHex(melange(hexRgb(m), [255, 255, 255], 0.2));
-    const b = [
-      boite(0, 0, 0, 2.4, 0.4, 2.4, sombre), // socle
-      boite(0.35, 0.4, 0.35, 1.7, 1.1, 1.7, m, "metal"), // tourelle
-      boite(1.0, 0.9, 1.6, 0.7, 0.7, 1.5, clair) // tube du boulet
-    ];
+    const b = [];
+    if (niveau >= 3) {
+      // le tapis part vers la base, donc vers le fond : il se dessine en premier
+      for (let i = 4; i >= 1; i--) {
+        b.push(boite(-0.3 - i * 0.9, 0.05, 0.8, 0.85, 0.22, 0.9, pal["halo du tapis"]));
+      }
+    }
+    b.push(boite(0, 0, 0, 2.4, 0.4, 2.4, sombre)); // socle
+    b.push(boite(0.35, 0.4, 0.35, 1.7, 1.1, 1.7, m, "metal")); // tourelle
     if (niveau >= 2) {
-      b.push(boite(0.1, 0.9, 1.5, 0.7, 0.55, 1.1, pal["feu"])); // buse du jet de feu
       // soute : trois cases, jamais six
       for (let i = 0; i < 3; i++) {
         b.push(boite(0.4 + i * 0.6, 1.5, 0.5, 0.45, 0.5, 0.45, pal["feu"]));
       }
+      b.push(boite(0.1, 0.9, 1.5, 0.7, 0.55, 1.1, pal["feu"])); // buse du jet de feu
     }
-    if (niveau >= 3) {
-      for (let i = 1; i <= 4; i++) {
-        b.push(boite(-0.3 - i * 0.9, 0.05, 0.8, 0.85, 0.22, 0.9, pal["halo du tapis"]));
-      }
-    }
+    b.push(boite(1.0, 0.9, 1.6, 0.7, 0.7, 1.5, clair)); // tube du boulet
     return b;
   }
 
@@ -1116,14 +1188,15 @@
     const ac = pal["acier de l'épée"];
     const jambe = rgbHex(melange(hexRgb(t), [0, 0, 0], 0.38));
     return [
-      boite(0.8 * u, 7.5 * u, 0.9 * u, 4.4 * u, 4.4 * u, 4.4 * u, pe), // tête
-      boite(1 * u, 3.4 * u, 1.5 * u, 4 * u, 4.2 * u, 2.8 * u, t), // torse
-      boite(-0.4 * u, 3.6 * u, 1.6 * u, 1.4 * u, 3.6 * u, 1.4 * u, pe), // bras gauche
-      boite(5 * u, 4.8 * u, 1.6 * u, 1.4 * u, 2.6 * u, 1.4 * u, pe), // bras droit, levé
+      boite(-0.4 * u, 3.6 * u, 1.6 * u, 1.4 * u, 3.6 * u, 1.4 * u, pe), // bras gauche, le long du corps
       boite(1.2 * u, 0, 1.8 * u, 1.5 * u, 3.5 * u, 1.5 * u, jambe),
       boite(3.3 * u, 0, 1.8 * u, 1.5 * u, 3.5 * u, 1.5 * u, jambe),
-      boite(5.1 * u, 7 * u, -1.6 * u, 0.8 * u, 0.8 * u, 4.6 * u, ac), // lame
-      boite(4.8 * u, 6.6 * u, 2.6 * u, 1.4 * u, 1.4 * u, 1 * u, rgbHex(melange(hexRgb(ac), [40, 30, 20], 0.75))) // garde
+      boite(1 * u, 3.4 * u, 1.5 * u, 4 * u, 4.2 * u, 2.8 * u, t), // torse
+      boite(0.8 * u, 7.5 * u, 0.9 * u, 4.4 * u, 4.4 * u, 4.4 * u, pe), // tête
+      boite(4.6 * u, 5.6 * u, 1.6 * u, 3.2 * u, 1.4 * u, 1.4 * u, pe), // bras droit, tendu vers la fauchée
+      // l'épée part de la main, pas de l'épaule : garde au bout du bras, lame dans son prolongement
+      boite(7.8 * u, 4.9 * u, 0.9 * u, 0.7 * u, 2.8 * u, 2.8 * u, rgbHex(melange(hexRgb(ac), [40, 30, 20], 0.7))), // garde
+      boite(8.5 * u, 5.9 * u, 1.9 * u, 5 * u, 0.8 * u, 0.8 * u, ac) // lame
     ];
   }
 
@@ -1294,7 +1367,7 @@
     });
 
     // le joueur, épée levée, au contact du paquet
-    ajoute(decale(joueur(pal), 13.9, 0, 20.6));
+    ajoute(decale(joueur(pal), 2.4, 0, 13.5));
 
     // --- ombres portées : un seul tracé, pour qu'elles ne s'empilent pas,
     //     et clipées au sol pour ne pas déborder dans le ciel ---
@@ -1337,7 +1410,9 @@
       g.restore();
     }
 
-    trie(objets).forEach((b) => dessineBoite(g, b, look, o, { brume }));
+    trie(groupes.map(emprise)).forEach((u) =>
+      u.boites.forEach((b) => dessineBoite(g, b, look, o, { brume }))
+    );
 
     // --- voile de brouillard global sur le lointain ---
     const voile = g.createLinearGradient(0, 0, 0, H * 0.72);
@@ -1489,7 +1564,7 @@
 
     const socle = { x: minX, z: minZ, w: maxX - minX, d: maxZ - minZ, y: 0, h: maxY };
     dessineOmbre(g, socle, look, o, 0.02);
-    trie(boites).forEach((b) => dessineBoite(g, b, look, o, {}));
+    boites.forEach((b) => dessineBoite(g, b, look, o, {}));
   }
 
   /* ==========================================================================
@@ -1515,7 +1590,10 @@
     document.getElementById("chapo-variante").textContent = look.chapo;
     document.getElementById("cle-variante").textContent = look.cle;
     document.getElementById("nom-variante").textContent = look.nom;
-    document.getElementById("etiquette-scene").textContent = look.cle + " · " + look.nom;
+    document.getElementById("etiquette-scene").textContent =
+      look.cle + " · " + look.nom + (look.retenue ? " · retenue" : "");
+    document.getElementById("statut").textContent = look.retenue ? "variante retenue" : "écartée";
+    document.getElementById("statut").className = look.retenue ? "jeton retenu" : "jeton";
 
     // --- fiche ---
     const fiche = document.getElementById("fiche");
@@ -1663,7 +1741,7 @@
 
   function varianteCourante() {
     const p = new URLSearchParams(location.search).get("variant");
-    return CLES.includes((p || "").toUpperCase()) ? p.toUpperCase() : "A";
+    return CLES.includes((p || "").toUpperCase()) ? p.toUpperCase() : "B";
   }
 
   function va(cle) {
