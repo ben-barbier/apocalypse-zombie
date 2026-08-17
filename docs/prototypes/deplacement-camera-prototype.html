@@ -311,10 +311,11 @@
 <button id="engrenage" title="Réglages">⚙</button>
 
 <div id="reglages" class="plaque">
+  <p class="glose" style="margin:0 0 12px">Les valeurs par défaut sont celles <b>retenues au ticket #14</b>. Chaque réglage est là pour éprouver le contraire.</p>
   <h2>Caméra</h2>
   <div class="boutons" id="modes-cam">
-    <button data-cam="libre" class="retenu">A · libre</button>
-    <button data-cam="assistee">B · assistée</button>
+    <button data-cam="libre">A · libre</button>
+    <button data-cam="assistee" class="retenu">B · assistée</button>
     <button data-cam="crans">C · crans</button>
   </div>
   <p class="glose" id="glose-cam"></p>
@@ -350,11 +351,12 @@
     <input type="range" id="r-zomb" min="0" max="60" step="1" value="12">
   </div>
   <div class="champ">
-    <div class="etiquette"><span>hauteur du soleil (°)</span><b id="v-soleil">30</b></div>
-    <input type="range" id="r-soleil" min="12" max="60" step="1" value="30">
+    <div class="etiquette"><span>hauteur du soleil (°)</span><b id="v-soleil">60</b></div>
+    <input type="range" id="r-soleil" min="12" max="72" step="1" value="60">
   </div>
-  <p class="glose">À 30° — le « rasant » de la direction artistique — l'anneau met <b>toute la place</b> dans son ombre. Il faut monter vers 45° pour que le sol jouable reste chaud.</p>
-  <button class="bascule retenu" id="b-ombres">ombres : oui</button>
+  <p class="glose">Retenu : <b>60°</b>. Descends-le vers 30° — le « rasant » d'origine — pour voir ce qui a été abandonné : l'anneau met alors <b>toute la place</b> dans son ombre, et le sol jouable devient froid.</p>
+  <button class="bascule" id="b-ombres">ombres : non</button>
+  <p class="glose">Retenu : <b>aucune ombre portée</b>. Rallume-les pour voir le jeu qu'on ne fait pas — et ce qu'on y perd : sans ombre, un canon posé sur un toit ne « décolle » plus du sol.</p>
   <button class="bascule retenu" id="b-brume">brume : oui</button>
   <button class="bascule" id="b-tactile">contrôles tactiles : auto</button>
 
@@ -4503,18 +4505,18 @@ const ROUTE_L = 4;         // largeur d'une route
 const HALO = 16;           // #9 — portée du tapis roulant depuis la base
 
 const reglages = {
-  cam: 'libre',
+  cam: 'assistee',      // retenu au ticket #14
   distance: 6.5,        // 9 blocs ne tiennent pas : la place n'a que 8 blocs de dégagement
   hauteurVisee: 5.5,
   sensibilite: 1,
   suitAutoCiblage: false,
   vitesse: 5,            // #6 — course, blocs/s
-  dureeEchelle: 0.8,     // #10 dit 0,8 s, #6 disait ~3 s : c'est l'écart à trancher
+  dureeEchelle: 0.8,     // retenu : #6 disait ~3 s, rectifié à 0,8 s
   saut: false,
   zombies: 12,
-  ombres: true,
+  ombres: false,         // retenu : le jeu n'a AUCUNE ombre portée
   brume: true,
-  soleil: 30,            // #12 dit « rasant » : à 30°, l'anneau met toute la place à l'ombre
+  soleil: 60,            // retenu : 60°, plus rasant du tout — sinon l'anneau noie la place
 };
 
 /* ---------- petit générateur déterministe : la ville est la même à chaque fois ---------- */
@@ -4771,7 +4773,7 @@ const camera = new T.PerspectiveCamera(58, innerWidth / innerHeight, 0.2, 260);
 const renderer = new T.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(1);                 // #4 — le budget de performance l'impose
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = reglages.ombres;
 renderer.shadowMap.type = T.PCFShadowMap;   // PCFSoft est déprécié depuis r18x
 document.getElementById('scene').appendChild(renderer.domElement);
 
@@ -4787,8 +4789,9 @@ soleil.shadow.bias = -0.0012;
 soleil.shadow.camera.updateProjectionMatrix();
 scene.add(soleil, soleil.target);
 
-// Le seul réglage de lumière du prototype, et il n'est pas décoratif : plus le
-// soleil est rasant, plus l'anneau jette la place entière dans son ombre.
+// Le seul réglage de lumière du prototype, et il n'est pas décoratif : c'est en
+// le descendant vers 30° qu'on voit pourquoi le rasant a été abandonné — l'anneau
+// jette la place entière dans son ombre, et le sol jouable devient froid.
 function placerSoleil() {
   const el = reglages.soleil * Math.PI / 180, az = Math.PI * 1.18, d = 110;
   soleil.position.set(32 + Math.cos(az) * Math.cos(el) * d, Math.sin(el) * d, 32 + Math.sin(az) * Math.cos(el) * d);
@@ -4839,7 +4842,7 @@ function boiteSimple(l, h, p, couleur) {
 
 const joueur = {
   x: 26.5, z: 39, y: 0, vy: 0,    // au pied de la base, face à la place
-  angle: Math.PI,          // 0 = regarde vers +Z
+  angle: Math.PI * 0.75,   // 0 = regarde vers +Z ; au départ, vers la place
   etat: 'libre',           // libre | echelle
   echelle: null, tEchelle: 0,
   frappe: 0,               // temps restant de l'animation de coup
@@ -4972,9 +4975,11 @@ function canonProche(x, z, y) {
 }
 
 function verdictPose() {
+  // Retenu au ticket #14 : on améliore dès qu'on est à moins de 3 blocs d'un canon,
+  // et on pose au-delà. Aucune zone morte — tout appui fait quelque chose. La règle
+  // des 3 blocs d'écart de #8 tient : sous 3 blocs, on n'a jamais un canon de plus.
   const { canon, distance } = canonProche(joueur.x, joueur.z, joueur.y);
-  if (canon && distance < 2) return canon.niveau < 3 ? 'ameliore' : 'plein';
-  if (canon && distance < 3) return 'trop-pres';   // #8 — 3 blocs d'écart minimum
+  if (canon && distance < 3) return canon.niveau < 3 ? 'ameliore' : 'plein';
   if (canons.length >= MAX_CANONS) return 'plein';
   return 'pose';
 }
@@ -5198,7 +5203,7 @@ porte.addEventListener('pointerdown', ouvrirLaPorte);
    La caméra
    ========================================================================== */
 
-const cam = { yaw: Math.PI, hauteur: reglages.hauteurVisee, cran: 2, ecartYaw: 0, repos: 0 };
+const cam = { yaw: Math.PI * 0.75, hauteur: reglages.hauteurVisee, cran: 2, ecartYaw: 0, repos: 0 };
 const rayon = new T.Raycaster();
 const vTmp = new T.Vector3(), vTmp2 = new T.Vector3();
 
@@ -5639,7 +5644,7 @@ addEventListener('resize', () => {
    La boucle
    ========================================================================== */
 
-changerCamera('libre');
+changerCamera(reglages.cam);
 ajusterZombies();
 majJauges();
 
