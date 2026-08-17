@@ -9,22 +9,22 @@ Les termes s'y ajoutent **au fil des tickets**, quand ils sont réellement tranc
 ### La ville
 
 **Ville** :
-Le terrain de jeu entier, 64 × 64 blocs, fait à la main et figé. Une seule ville en v1.
+Le terrain de jeu entier, 136 × 136 blocs, fait à la main et figé. Une seule ville en v1. Elle a la forme d'une **étoile à trois branches** : tout ce qui se joue tient dans les trois rues, sur la place, et sur les toits qui les bordent — le reste est un décor que la brume efface.
 
 **Place** :
-L'esplanade centrale de 24 × 24 blocs, au milieu de la ville, où se dresse la mairie.
+Le moyeu de l'étoile, 32 blocs de bord à bord, au milieu duquel se dresse la mairie. C'est le **seul passage d'une rue à l'autre** : il n'existe aucun raccourci.
 _Éviter_ : centre-ville, esplanade
 
-**Anneau** :
-La ceinture continue de bâtiments qui entoure la place. Indestructible et infranchissable.
-_Éviter_ : mur, rempart, enceinte
+**Rue** :
+Une des trois avenues droites de 40 blocs, larges de 6, qui rayonnent de la place à 120° l'une de l'autre. C'est le terrain de jeu du tower defense : un Traînard y passe 27 secondes sous le feu des canons posés sur les toits qui la bordent.
+_Éviter_ : route (ancien nom), avenue, couloir
 
-**Route** :
-Une des trois brèches qui percent l'anneau. Seul chemin par lequel un zombie entre dans la place.
-_Éviter_ : rue, entrée, couloir
+**Front bâti** :
+La double rangée de bâtiments qui borde une rue sur 8 blocs de profondeur, et qui ferme la place entre deux rues. Continu, indestructible et infranchissable : on n'entre jamais dans un bâtiment, on monte sur son toit.
+_Éviter_ : anneau (ancien nom), mur, rempart, immeubles
 
 **Portique** :
-L'arche de couleur fixe qui surmonte une route et l'identifie toute la partie. Allumé et pulsant quand la route est active, éteint et barré sinon.
+L'arche de couleur fixe qui se dresse à l'entrée d'une rue, **du côté de la place**, et l'identifie toute la partie. Allumé et pulsant quand la rue est active, éteint et barré sinon. Jamais au fond de la rue : c'est depuis la place qu'il doit s'annoncer.
 _Éviter_ : arche, porte, balise
 
 **Mairie** :
@@ -40,7 +40,7 @@ L'accès extérieur qui relie le sol au toit d'un bâtiment ; il y en a une par 
 _Éviter_ : escalier, escalade, grimper
 
 **Extérieur** :
-Le décor sommaire au-delà de l'anneau, d'où sortent les zombies. Non praticable par le joueur.
+Le décor sommaire au-delà des fronts bâtis, d'où sortent les zombies. Non praticable par le joueur.
 
 ### Le rythme
 
@@ -80,14 +80,14 @@ L'unique zombie géant doré de la vague 10, très lent et très résistant, esc
 _Éviter_ : boss, chef, géant
 
 **Rail** :
-Le tracé fixe qu'un zombie suit, de son entrée jusqu'à la mairie. Un rail par route ; un zombie n'en sort jamais.
+Le tracé fixe qu'un zombie suit, de son entrée jusqu'à la mairie : tout droit, le long de sa rue. Un rail par rue ; un zombie n'en sort jamais, mais il s'en écarte latéralement pour que le paquet occupe la largeur de la rue.
 _Éviter_ : chemin, trajet, itinéraire
 
 **Avancement** :
 La progression d'un zombie le long de son rail. Elle ne décroît jamais — c'est la garantie qu'un assaut se termine toujours.
 
 **Paquet** :
-Le petit groupe de zombies qui entre d'un coup par une route. Un assaut est une suite de paquets, jamais un flot continu.
+Le petit groupe de zombies qui entre d'un coup par une rue, occupant sa largeur. Un assaut est une suite de paquets, jamais un flot continu.
 _Éviter_ : groupe, vague (réservé au cycle), salve
 
 **Escorte** :
@@ -152,7 +152,7 @@ Le niveau 3 du canon, qui automatise le ravitaillement depuis la base. Il ne cha
 _Éviter_ : convoyeur, automatisation
 
 **Halo** :
-Les pavés clairs peints au sol et sur les toits, qui marquent jusqu'où le tapis roulant porte depuis la base. Un canon posé dehors ne passera jamais au niveau 3.
+Les pavés clairs peints au sol et sur les toits, qui marquent jusqu'où le tapis roulant porte depuis la base. Un canon posé dehors ne passera jamais au niveau 3. Depuis une base au moyeu, ses 16 blocs couvrent la place et le **pied** des rues, jamais leur fond : un canon avancé se ravitaille à pied pour toute la partie.
 _Éviter_ : zone, rayon, cercle
 
 **Ravitaillement** :
@@ -170,7 +170,7 @@ La direction d'où vient la lumière, et rien de plus : **aucune ombre portée n
 _Éviter_ : directionnelle, astre, lampe, ombre portée
 
 **Brume** :
-Le voile orange qui épaissit avec la distance et efface l'extérieur au-delà de l'anneau. Structurelle, pas décorative : c'est elle qui dispense de détailler ce qu'on ne joue pas.
+Le voile orange qui épaissit avec la distance et efface l'extérieur au-delà des fronts bâtis. Elle laisse voir le fond d'une rue — c'est de là que sortent les zombies, il faut les voir venir. Structurelle, pas décorative : c'est elle qui dispense de détailler ce qu'on ne joue pas.
 _Éviter_ : brouillard, fog, halo (réservé au tapis roulant)
 
 **Éclat** :
