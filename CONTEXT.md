@@ -35,6 +35,10 @@ _Éviter_ : QG, base, hôtel de ville
 Le hangar du joueur, adossé à la mairie, où se prennent les bombes de feu. Distinct de la mairie.
 _Éviter_ : dépôt, stock, entrepôt
 
+**Échelle** :
+L'accès extérieur qui relie le sol au toit d'un bâtiment ; il y en a une par bâtiment. On y monte **automatiquement** : marcher dessus en poussant vers le bâtiment suffit, l'épée se range, et on ressort en haut prêt à frapper — 0,8 seconde, rien à doser. Elle redescend de la même manière.
+_Éviter_ : escalier, escalade, grimper
+
 **Extérieur** :
 Le décor sommaire au-delà de l'anneau, d'où sortent les zombies. Non praticable par le joueur.
 
@@ -94,6 +98,14 @@ Les Costauds qui accompagnent le Colosse à la vague 10, ralentis à son pas et 
 **Joueur** :
 Le personnage dirigé par l'enfant, suivi à la troisième personne. Bâti sur les six mêmes boîtes qu'un zombie — c'est la grammaire commune à tous les personnages — plus l'épée qu'il tient en main. Tunique bleue et acier clair : les seules couleurs froides portées par un personnage, pour qu'il ne soit jamais confondu avec un assaillant.
 
+**Course** :
+La seule allure du joueur : 5 blocs par seconde, toujours. Il n'y a ni marche, ni sprint, ni saut. C'est elle qui chiffre le ravitaillement — un aller-retour jusqu'au toit le plus lointain coûte 12 secondes, et une préparation en autorise deux.
+_Éviter_ : vitesse, marche, sprint
+
+**Caméra** :
+La vue de dos : 6,5 blocs derrière le joueur, 5,5 au-dessus de son sol. Elle se replace derrière lui dès qu'il court, et **grimpe** au-dessus du bâtiment qui s'interpose plutôt que de se coller à son dos — jamais moins de 3,2 blocs de recul. Elle ignore l'auto-ciblage : le joueur pivote, elle non.
+_Éviter_ : vue, point de vue, angle
+
 **Épée** :
 L'arme de corps-à-corps du joueur, la seule qu'il porte. Elle ne s'achète pas, ne s'améliore pas et ne se remplace pas : elle vaut un coup d'épée du début à la fin de la partie.
 
@@ -150,12 +162,12 @@ _Éviter_ : recharge, approvisionnement
 ### La lumière
 
 **Heure orange** :
-L'unique heure du jeu : un soleil couchant, rasant, qui ne bouge jamais — ni entre les vagues, ni pendant une partie. Elle pose la règle de couleur du jeu entier : **la ville est chaude, ce qui se joue est froid**. Un repère de jeu se distingue par sa température, jamais par un orange de plus.
-_Éviter_ : coucher de soleil, golden hour, ambiance
+L'unique lumière du jeu : un soleil haut de 60° qui ne bouge jamais — ni entre les vagues, ni pendant une partie. Elle pose la règle de couleur du jeu entier : **la ville est chaude, ce qui se joue est froid**. Un repère de jeu se distingue par sa température, jamais par un orange de plus. Le nom lui reste de sa palette et de sa brume, pas d'une heure du jour : à 30°, l'anneau mettait la place entière à l'ombre et le sol jouable devenait froid.
+_Éviter_ : coucher de soleil, golden hour, heure rasante, ambiance
 
 **Soleil** :
-La seule lumière qui projette une ombre. Une directionnelle rasante, doublée d'une ambiante violette qui remplit les faces à contre-jour. Aucune lumière ponctuelle n'existe : rien, dans ce jeu, n'éclaire son voisinage.
-_Éviter_ : directionnelle, astre, lampe
+La direction d'où vient la lumière, et rien de plus : **aucune ombre portée n'existe dans ce jeu**. Une directionnelle à 60°, doublée d'une ambiante violette qui remplit les faces à contre-jour. Aucune lumière ponctuelle n'existe non plus : rien, ici, n'éclaire son voisinage. Le relief se lit donc à la valeur des faces et à la brume — jamais à une ombre.
+_Éviter_ : directionnelle, astre, lampe, ombre portée
 
 **Brume** :
 Le voile orange qui épaissit avec la distance et efface l'extérieur au-delà de l'anneau. Structurelle, pas décorative : c'est elle qui dispense de détailler ce qu'on ne joue pas.
@@ -172,6 +184,10 @@ _Éviter_ : viseur, réticule, cible
 **Cerne** :
 Le liseré noir qui entoure ce qui se ramasse — la pièce et la bombe de feu, rien d'autre. Seule exception au principe « aucune tuile n'est cernée » : un cerne noir veut dire « prends-moi ».
 _Éviter_ : contour, bordure, outline
+
+**Losange** :
+Le repère posé au sol sous les pieds du joueur, qui dit ce que fera le bouton d'action : blanc et large, on pose un canon ; blanc, serré et pulsant, on améliore celui qui est là ; noir et élargi, c'est impossible. Il vit dans le monde, jamais dans le HUD.
+_Éviter_ : curseur, indicateur, marqueur
 
 **Tuile** :
 L'image de 16 × 16 pixels qui habille une face de bloc, filtrée en `nearest` et répétée à chaque bloc. Dégradé vertical et grain, jamais de cerne. Elle doit rester lisible à ×3 — ce qu'un bloc mesure à l'écran en jeu.
