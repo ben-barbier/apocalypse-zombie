@@ -347,16 +347,15 @@
   <button class="bascule" id="b-saut">saut : non</button>
   <p class="glose">Sans saut, on descend d'un toit en marchant dans le vide : le joueur tombe et se reçoit sans dégât.</p>
 
-  <h2>Taille de la ville</h2>
-  <div class="boutons" id="tailles">
-    <button data-taille="64" class="retenu">64²</button>
-    <button data-taille="96">96²</button>
-    <button data-taille="128">128²</button>
+  <h2>Longueur des rues</h2>
+  <div class="boutons" id="longueurs">
+    <button data-longueur="30">30 bl</button>
+    <button data-longueur="40" class="retenu">40 bl</button>
+    <button data-longueur="55">55 bl</button>
   </div>
   <p class="glose">
-    <b>64²</b> est la ville décidée en #6 : place de 24, anneau de 6, donc <b>36² praticables</b> — le reste est du décor où l'on n'entre pas.
-    <b>96²</b> : place de 36, anneau de 8, 52² praticables. <b>128²</b> : place de 48, anneau de 10, 68² praticables.<br>
-    Regarde la jauge <b>A/R le plus long</b> : c'est l'aller-retour base ↔ toit le plus lointain à la vitesse courante. #6 voulait qu'il remplisse les 30 s de préparation.
+    Le plan est une <b>étoile à trois branches</b> : trois rues droites à 120°, larges de 6 blocs, bordées de bâtiments sur 8 blocs de profondeur, et une place de 32 blocs au moyeu. <b>Aucun raccourci</b> : on repasse toujours par la place.<br>
+    À 40 blocs, un Traînard passe <b>27 secondes</b> dans la rue, sous le feu des canons. Regarde la jauge <b>A/R le plus long</b> : c'est l'aller-retour base ↔ toit le plus lointain, à comparer aux 30 s de préparation.
   </p>
 
   <h2>Monde</h2>
@@ -4507,29 +4506,36 @@ void main() {
    cellules plus hautes, et c'est ce qui rend « poser un canon là où l'on se
    tient » identique au sol et sur un toit.
 
-   La ville se reconstruit à chaud en trois tailles : c'est la question posée
-   après le premier essai — 64 × 64 semble trop petit.
+   LE PLAN EST UNE ÉTOILE À TROIS BRANCHES, d'après le dessin du propriétaire :
+   trois longues rues droites qui rayonnent à 120° depuis la place de la mairie,
+   bordées de bâtiments sur toute leur longueur. Ce sont les rues qui sont le
+   terrain de jeu — les zombies les descendent sous le feu des canons posés sur
+   les toits qui les bordent. La place n'est qu'un moyeu : c'est là qu'on
+   bascule d'une rue à l'autre, et il n'y a aucun raccourci.
    ========================================================================== */
 
 const T = THREE;
 
-/* ---------- constantes du monde, reprises des tickets déjà tranchés ---------- */
+/* ---------- le plan, tel qu'il a été tranché ---------- */
 
-const ROUTE_L = 4;         // largeur d'une route (#6)
-const HALO = 16;           // #9 — portée du tapis roulant depuis la base
+const RUES = [0, 120, 240];        // trois branches à 120°, 0 = vers +Z
+const LARGEUR_RUE = 6;             // assez large pour qu'on ne bloque pas une rue seul
+const RAYON_PLACE = 16;            // la place fait 32 blocs de bord à bord
+const PROFONDEUR_BATIE = 8;        // le front bâti de part et d'autre d'une rue
+const ILOT = 6;                    // un bâtiment fait 5 à 7 blocs de façade
+const HALO = 16;                   // #9 — portée du tapis roulant depuis la base
 
-// Trois villes comparables. Seules changent la taille du terrain, celle de la
-// place et l'épaisseur de l'anneau : la mairie, la base, les routes, le halo et
-// les bâtiments gardent leurs dimensions, ce sont les distances qui bougent.
-const TAILLES = {
-  64: { ville: 64, place: 24, anneau: 6, nom: 'décidée en #6' },
-  96: { ville: 96, place: 36, anneau: 8, nom: 'une place et demie' },
-  128: { ville: 128, place: 48, anneau: 10, nom: 'le double' },
+// Trois longueurs de rue comparables. C'est le seul paramètre de plan qui reste
+// ouvert : tout le reste (place, largeur, front bâti) est fixé.
+const LONGUEURS = {
+  30: 'nerveuse',
+  40: 'retenue',
+  55: 'longue avenue',
 };
 
 const reglages = {
   cam: 'assistee',      // retenu au ticket #14
-  distance: 6.5,        // 9 blocs ne tiennent pas : la place n'a que 8 blocs de dégagement
+  distance: 6.5,
   hauteurVisee: 5.5,
   sensibilite: 1,
   suitAutoCiblage: false,
@@ -4539,11 +4545,11 @@ const reglages = {
   zombies: 12,
   ombres: false,         // retenu : le jeu n'a AUCUNE ombre portée
   brume: true,
-  soleil: 60,            // retenu : 60°, plus rasant du tout — sinon l'anneau noie la place
-  taille: 64,            // la taille de #6, celle qui est en question
+  soleil: 60,            // retenu : 60°, plus rasant du tout
+  longueur: 40,          // longueur d'une rue, en blocs
 };
 
-/* ---------- petit générateur déterministe : une taille donnée, une même ville ---------- */
+/* ---------- petit générateur déterministe : une longueur, une même ville ---------- */
 
 function graine(a) {
   return function () {
@@ -4553,11 +4559,10 @@ function graine(a) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-let alea = graine(20260816);
+let alea = graine(20260817);
 
 /* ==========================================================================
    Textures : 16 × 16, dégradé vertical + grain, filtrage nearest (#12)
-   Créées une seule fois — elles ne dépendent pas de la taille de la ville.
    ========================================================================== */
 
 function tuile(hautHex, basHex, grain = 0.12) {
@@ -4568,8 +4573,7 @@ function tuile(hautHex, basHex, grain = 0.12) {
   for (let y = 0; y < 16; y++) {
     const m = new T.Color().lerpColors(haut, bas, y / 15);
     for (let x = 0; x < 16; x++) {
-      const bruit = (alea() - 0.5) * grain;
-      const p = m.clone().offsetHSL(0, 0, bruit);
+      const p = m.clone().offsetHSL(0, 0, (alea() - 0.5) * grain);
       g.fillStyle = '#' + p.getHexString();
       g.fillRect(x, y, 1, 1);
     }
@@ -4585,7 +4589,7 @@ function tuile(hautHex, basHex, grain = 0.12) {
 const MAT = {
   sol:      new T.MeshLambertMaterial({ map: tuile(0x8a7d6b, 0x6d6255) }),
   place:    new T.MeshLambertMaterial({ map: tuile(0xb8a488, 0x9a8770) }),
-  route:    new T.MeshLambertMaterial({ map: tuile(0x6b6157, 0x554d45) }),
+  route:    new T.MeshLambertMaterial({ map: tuile(0xa2937f, 0x857a69) }),
   halo:     new T.MeshLambertMaterial({ map: tuile(0xd9c9a4, 0xc9b78e) }),
   mur:      new T.MeshLambertMaterial({ map: tuile(0xc0906a, 0x8e6a4e) }),
   murB:     new T.MeshLambertMaterial({ map: tuile(0xa88a72, 0x7c6352) }),
@@ -4596,20 +4600,20 @@ const MAT = {
   decor:    new T.MeshLambertMaterial({ map: tuile(0x8a6a52, 0x634c3c) }),
 };
 
+const MURS = ['mur', 'murB'];
+
 /* ==========================================================================
    Chantier : on empile des boîtes, on les fusionne par matériau.
-   Une ville entière en une poignée de draw calls — c'est la contrainte de #4,
-   et c'est ce qui permet de quadrupler la surface sans payer un seul appel.
+   Une ville entière en une poignée de draw calls — la contrainte de #4.
    ========================================================================== */
 
 const chantier = new Map();
 
 function boite(mat, x, y, z, l, h, p) {
-  // x,y,z = coin bas-arrière-gauche, en blocs
   const g = new T.BoxGeometry(l, h, p);
   const uv = g.attributes.uv;
-  // Les six faces d'une BoxGeometry arrivent dans l'ordre +X,-X,+Y,-Y,+Z,-Z,
-  // quatre sommets chacune. On étire les UV pour que la tuile fasse un bloc.
+  // Les six faces arrivent dans l'ordre +X,-X,+Y,-Y,+Z,-Z, quatre sommets
+  // chacune. On étire les UV pour qu'une tuile fasse exactement un bloc.
   const facteurs = [[p, h], [p, h], [l, p], [l, p], [l, h], [l, h]];
   for (let f = 0; f < 6; f++) {
     const [su, sv] = facteurs[f];
@@ -4651,16 +4655,16 @@ function fusionner(geos) {
 
 const scene = new T.Scene();
 scene.background = new T.Color(0xd98a4a);
-const brume = new T.FogExp2(0xd98a4a, 0.017);
+const brume = new T.FogExp2(0xd98a4a, 0.011);
 scene.fog = brume;
 
-const camera = new T.PerspectiveCamera(58, innerWidth / innerHeight, 0.2, 260);
+const camera = new T.PerspectiveCamera(58, innerWidth / innerHeight, 0.2, 400);
 
 const renderer = new T.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(1);                 // #4 — le budget de performance l'impose
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = reglages.ombres;
-renderer.shadowMap.type = T.PCFShadowMap;   // PCFSoft est déprécié depuis r18x
+renderer.shadowMap.type = T.PCFShadowMap;
 document.getElementById('scene').appendChild(renderer.domElement);
 
 // #12 rectifié par #14 — un seul soleil, à 60°, et AUCUNE ombre portée
@@ -4675,14 +4679,14 @@ scene.add(new T.AmbientLight(0x7a63a8, 1.7));
    L'état du monde — tout est reconstruit par construireVille()
    ========================================================================== */
 
-let VILLE, PLACE, ANNEAU, CENTRE, PLACE0, PLACE1, R0, R1;
+let VILLE, CENTRE, LONGUEUR;
 let hauteur, ouvert;
 let echelles = [];
 let ROUTES = [];
 let MAIRIE, BASE, BASE_CENTRE;
 let villeMeshes = [];
 let portiques = [];
-let mesures = { praticable: 0, toitLoin: 0 };
+let mesures = {};
 
 const idx = (i, j) => j * VILLE + i;
 const dansVille = (i, j) => i >= 0 && j >= 0 && i < VILLE && j < VILLE;
@@ -4691,14 +4695,13 @@ function ouvertEn(i, j) { return dansVille(i, j) ? ouvert[idx(i, j)] === 1 : fal
 
 function poserBatiment(x0, z0, l, p, h, matMur, matToit) {
   boite(matMur, x0, 0, z0, l, h, p);
-  boite(matToit, x0 - 0.15, h, z0 - 0.15, l + 0.3, 0.3, p + 0.3);  // corniche
-  for (let i = x0; i < x0 + l; i++) {
+  boite(matToit, x0, h, z0, l, 0.3, p);
+  for (let i = x0; i < x0 + l; i++)
     for (let j = z0; j < z0 + p; j++) {
       if (!dansVille(i, j)) continue;
       hauteur[idx(i, j)] = h + 0.3;
       ouvert[idx(i, j)] = 1;   // #6 — tous les toits sont constructibles
     }
-  }
 }
 
 function poserEchelle(i, j, vers, dir) {
@@ -4710,51 +4713,13 @@ function poserEchelle(i, j, vers, dir) {
   boite('echelle', x - l / 2, 0, z - p / 2, l, vers, p);
 }
 
-const MURS = ['mur', 'murB'];
+/* --------------------------------------------------------------------------
+   construireVille — le plan en étoile, entièrement dérivé de la longueur
+   -------------------------------------------------------------------------- */
 
-function decouperBande(debut, fin, horizontal, bande0, trous) {
-  // la bande moins les routes, puis chaque morceau découpé en bâtiments
-  const morceaux = [];
-  let cur = debut;
-  for (const [a, b] of trous) {
-    if (a > cur) morceaux.push([cur, a]);
-    cur = Math.max(cur, b);
-  }
-  if (cur < fin) morceaux.push([cur, fin]);
+function construireVille(longueur) {
+  LONGUEUR = +longueur || 40;
 
-  for (const [d0, d1] of morceaux) {
-    let x = d0;
-    while (x < d1) {
-      let l = 4 + Math.floor(alea() * 4);
-      if (x + l > d1 || d1 - (x + l) < 3) l = d1 - x;
-      poserSegment(x, l);
-      x += l;
-    }
-  }
-
-  function poserSegment(x0, larg) {
-    if (larg < 2) return;
-    const h = 6 + Math.floor(alea() * 7);          // #6 — bâtiments de 6 à 12 blocs
-    const matMur = MURS[Math.floor(alea() * MURS.length)];
-    if (horizontal) poserBatiment(x0, bande0, larg, ANNEAU, h, matMur, 'toit');
-    else poserBatiment(bande0, x0, ANNEAU, larg, h, matMur, 'toit');
-    // une échelle par bâtiment, sur la face côté place (#6)
-    if (horizontal) {
-      const i = x0 + Math.floor(larg / 2);
-      if (bande0 < PLACE0) poserEchelle(i, PLACE0, h + 0.3, [0, -1]);
-      else poserEchelle(i, PLACE1 - 1, h + 0.3, [0, 1]);
-    } else {
-      const j = x0 + Math.floor(larg / 2);
-      if (bande0 < PLACE0) poserEchelle(PLACE0, j, h + 0.3, [-1, 0]);
-      else poserEchelle(PLACE1 - 1, j, h + 0.3, [1, 0]);
-    }
-  }
-}
-
-function construireVille(cle) {
-  const t = TAILLES[cle] || TAILLES[64];
-
-  // on démonte l'ancienne ville : géométries fusionnées et portiques
   for (const m of villeMeshes) { scene.remove(m); m.geometry.dispose(); }
   for (const g of portiques) {
     scene.remove(g);
@@ -4762,82 +4727,158 @@ function construireVille(cle) {
   }
   villeMeshes = []; portiques = []; echelles = []; chantier.clear();
 
-  VILLE = t.ville; PLACE = t.place; ANNEAU = t.anneau;
+  const rayonUtile = RAYON_PLACE + LONGUEUR;
+  VILLE = 2 * Math.ceil(rayonUtile + PROFONDEUR_BATIE + 4);   // la grille doit contenir le rayon entier
   CENTRE = VILLE / 2;
-  PLACE0 = CENTRE - PLACE / 2; PLACE1 = CENTRE + PLACE / 2;
-  R0 = CENTRE - ROUTE_L / 2; R1 = CENTRE + ROUTE_L / 2;
   hauteur = new Float32Array(VILLE * VILLE);
   ouvert = new Uint8Array(VILLE * VILLE);
-  alea = graine(20260816);   // même graine : la même taille redonne la même ville
+  alea = graine(20260817);
 
-  /* ---------- le sol, la place ---------- */
+  // les trois axes de rue : u le long de la rue, n en travers
+  const axes = RUES.map((deg) => {
+    const a = deg * Math.PI / 180;
+    return { angle: a, ux: Math.sin(a), uz: Math.cos(a), nx: Math.cos(a), nz: -Math.sin(a) };
+  });
 
-  boite('sol', 0, -1, 0, VILLE, 1, VILLE);
-  boite('place', PLACE0, -0.02, PLACE0, PLACE, 0.06, PLACE);
+  /* ---------- 1. on classe chaque cellule : place, rue, ou front bâti ---------- */
 
-  for (let i = 0; i < VILLE; i++)
-    for (let j = 0; j < VILLE; j++)
-      ouvert[idx(i, j)] = (i >= PLACE0 - ANNEAU && i < PLACE1 + ANNEAU && j >= PLACE0 - ANNEAU && j < PLACE1 + ANNEAU) ? 1 : 0;
+  const SOL = new Uint8Array(VILLE * VILLE);      // 0 rien · 1 place · 2 rue
+  const MATIERE = new Int8Array(VILLE * VILLE).fill(-1);
+  const ILOTS = new Map();                        // clé → { h, mat, bord: [] }
 
-  /* ---------- les trois routes : nord, est, sud (#6) ---------- */
-
-  ROUTES = [
-    { nom: 'nord', couleur: 0x5ad8e6, x0: R0, z0: PLACE0 - ANNEAU - 3, l: ROUTE_L, p: ANNEAU + 3 },
-    { nom: 'est', couleur: 0x9d7fe8, x0: PLACE1, z0: R0, l: ANNEAU + 3, p: ROUTE_L },
-    { nom: 'sud', couleur: 0x6fe8b0, x0: R0, z0: PLACE1, l: ROUTE_L, p: ANNEAU + 3 },
-  ];
-  for (const r of ROUTES) {
-    boite('route', r.x0, -0.02, r.z0, r.l, 0.06, r.p);
-    for (let i = r.x0; i < r.x0 + r.l; i++)
-      for (let j = r.z0; j < r.z0 + r.p; j++)
-        if (dansVille(i, j)) ouvert[idx(i, j)] = 1;
-  }
-
-  /* ---------- l'anneau : une ceinture continue, percée par les routes ---------- */
-
-  decouperBande(PLACE0 - ANNEAU, PLACE1 + ANNEAU, true, PLACE0 - ANNEAU, [[R0, R1]]);   // nord
-  decouperBande(PLACE0 - ANNEAU, PLACE1 + ANNEAU, true, PLACE1, [[R0, R1]]);            // sud
-  decouperBande(PLACE0, PLACE1, false, PLACE0 - ANNEAU, []);                            // ouest
-  decouperBande(PLACE0, PLACE1, false, PLACE1, [[R0, R1]]);                             // est
-
-  /* ---------- la mairie et la base : dimensions fixes, au centre ---------- */
-
-  MAIRIE = { x: CENTRE - 4, z: CENTRE - 5, l: 8, p: 8, h: 7 };
-  poserBatiment(MAIRIE.x, MAIRIE.z, MAIRIE.l, MAIRIE.p, MAIRIE.h, 'mairie', 'toit');
-  boite('mairie', CENTRE - 1.5, MAIRIE.h + 0.3, CENTRE - 2.5, 3, 2.6, 3);   // beffroi
-
-  BASE = { x: CENTRE - 3, z: MAIRIE.z + MAIRIE.p + 1, l: 6, p: 4, h: 3 };
-  poserBatiment(BASE.x, BASE.z, BASE.l, BASE.p, BASE.h, 'base', 'toit');
-  poserEchelle(BASE.x + 2, BASE.z + BASE.p, BASE.h + 0.3, [0, -1]);
-  BASE_CENTRE = [BASE.x + BASE.l / 2, BASE.z + BASE.p / 2];
-
-  // halo du tapis roulant : 16 blocs autour de la base (#9), au sol seulement
   for (let i = 0; i < VILLE; i++) {
     for (let j = 0; j < VILLE; j++) {
-      if (hauteur[idx(i, j)] > 0.1 || !ouvert[idx(i, j)]) continue;
-      const d = Math.hypot(i + 0.5 - BASE_CENTRE[0], j + 0.5 - BASE_CENTRE[1]);
-      if (d <= HALO) boite('halo', i, 0.04, j, 1, 0.02, 1);
+      const dx = i + 0.5 - CENTRE, dz = j + 0.5 - CENTRE;
+      const r = Math.hypot(dx, dz);
+      const c = idx(i, j);
+
+      if (r <= RAYON_PLACE) { SOL[c] = 1; ouvert[c] = 1; continue; }
+
+      let rue = null, front = null;
+      for (let k = 0; k < axes.length; k++) {
+        const ax = axes[k];
+        const t = dx * ax.ux + dz * ax.uz;          // avancée le long de la rue
+        const w = dx * ax.nx + dz * ax.nz;          // écart en travers
+        if (t < 0 || t > rayonUtile) continue;
+        if (Math.abs(w) <= LARGEUR_RUE / 2) { rue = k; break; }
+        if (Math.abs(w) <= LARGEUR_RUE / 2 + PROFONDEUR_BATIE) {
+          const cle = 'r' + k + (w > 0 ? '+' : '-') + Math.floor(t / ILOT);
+          if (!front || Math.abs(w) < Math.abs(front.w)) front = { cle, w };
+        }
+      }
+
+      if (rue !== null) { SOL[c] = 2; ouvert[c] = 1; continue; }
+
+      // le pourtour de la place : ce qui ferme le moyeu entre deux rues
+      if (!front && r <= RAYON_PLACE + PROFONDEUR_BATIE) {
+        const secteur = Math.floor((Math.atan2(dz, dx) + Math.PI) / (Math.PI / 6));
+        front = { cle: 'p' + secteur, w: 0 };
+      }
+      if (!front) continue;
+
+      let ilot = ILOTS.get(front.cle);
+      if (!ilot) {
+        ilot = { h: 6 + Math.floor(alea() * 7), mat: Math.floor(alea() * MURS.length), cellules: [] };
+        ILOTS.set(front.cle, ilot);
+      }
+      ilot.cellules.push(c);
+      hauteur[c] = ilot.h + 0.3;
+      ouvert[c] = 1;                                // les toits se construisent
+      MATIERE[c] = ilot.mat;
     }
   }
 
-  /* ---------- l'extérieur : décor sommaire que la brume avale ---------- */
+  /* ---------- 2. la mairie et la base, au moyeu ---------- */
 
-  const combien = Math.round(46 * (VILLE / 64) ** 2);
-  for (let k = 0; k < combien; k++) {
-    const bord = Math.floor(alea() * 4);
-    let x, z;
-    const l = 3 + Math.floor(alea() * 5), p = 3 + Math.floor(alea() * 5);
-    const marge = PLACE0 - ANNEAU - 1;
-    if (marge < 4) break;
-    if (bord === 0) { x = alea() * (VILLE - l); z = alea() * (marge - p); }
-    else if (bord === 1) { x = alea() * (VILLE - l); z = PLACE1 + ANNEAU + 1 + alea() * (VILLE - PLACE1 - ANNEAU - p - 1); }
-    else if (bord === 2) { x = alea() * (marge - l); z = alea() * (VILLE - p); }
-    else { x = PLACE1 + ANNEAU + 1 + alea() * (VILLE - PLACE1 - ANNEAU - l - 1); z = alea() * (VILLE - p); }
-    if (!(x >= 0 && z >= 0)) continue;
-    boite('decor', Math.floor(x), 0, Math.floor(z), l, 4 + Math.floor(alea() * 6), p);
+  MAIRIE = { x: CENTRE - 4, z: CENTRE - 4, l: 8, p: 8, h: 7 };
+  BASE = { x: CENTRE - 3, z: CENTRE - 8, l: 6, p: 4, h: 3 };   // adossée à la mairie (#6)
+  for (const b of [MAIRIE, BASE])
+    for (let i = b.x; i < b.x + b.l; i++)
+      for (let j = b.z; j < b.z + b.p; j++)
+        MATIERE[idx(i, j)] = -2;                    // posées à part, pas par le remplissage
+  BASE_CENTRE = [BASE.x + BASE.l / 2, BASE.z + BASE.p / 2];
+
+  /* ---------- 3. le halo du tapis roulant (#9), au sol seulement ---------- */
+
+  const HALO_G = new Uint8Array(VILLE * VILLE);
+  for (let i = 0; i < VILLE; i++)
+    for (let j = 0; j < VILLE; j++) {
+      const c = idx(i, j);
+      if (!SOL[c] || hauteur[c] > 0.1) continue;
+      if (Math.hypot(i + 0.5 - BASE_CENTRE[0], j + 0.5 - BASE_CENTRE[1]) <= HALO) HALO_G[c] = 1;
+    }
+
+  /* ---------- 4. la géométrie : des rubans de cellules identiques ---------- */
+
+  boite('sol', 0, -1, 0, VILLE, 1, VILLE);
+
+  // Un bâtiment n'est pas un rectangle : le long d'une rue en diagonale, son
+  // emprise est en escalier. On émet donc des rubans de cellules voisines de
+  // même hauteur et même matériau — quelques centaines de boîtes au lieu de
+  // quelques milliers, et une seule après fusion.
+  const ruban = (grille, valeur, emettre) => {
+    for (let j = 0; j < VILLE; j++) {
+      let i = 0;
+      while (i < VILLE) {
+        const v = valeur(idx(i, j));
+        if (v === null) { i++; continue; }
+        let k = i + 1;
+        while (k < VILLE && valeur(idx(k, j)) === v) k++;
+        emettre(i, j, k - i, v);
+        i = k;
+      }
+    }
+  };
+
+  ruban(null, (c) => (MATIERE[c] >= 0 ? MATIERE[c] + ':' + hauteur[c] : null), (i, j, l, v) => {
+    const [mat, h] = v.split(':');
+    const haut = parseFloat(h) - 0.3;
+    boite(MURS[+mat], i, 0, j, l, haut, 1);
+    boite('toit', i, haut, j, l, 0.3, 1);
+  });
+  ruban(null, (c) => (SOL[c] ? SOL[c] : null), (i, j, l, v) => {
+    boite(v === 1 ? 'place' : 'route', i, -0.02, j, l, 0.06, 1);
+  });
+  ruban(null, (c) => (HALO_G[c] ? 1 : null), (i, j, l) => {
+    boite('halo', i, 0.04, j, l, 0.02, 1);
+  });
+
+  poserBatiment(MAIRIE.x, MAIRIE.z, MAIRIE.l, MAIRIE.p, MAIRIE.h, 'mairie', 'toit');
+  boite('mairie', CENTRE - 1.5, MAIRIE.h + 0.3, CENTRE - 1.5, 3, 2.6, 3);   // beffroi
+  poserBatiment(BASE.x, BASE.z, BASE.l, BASE.p, BASE.h, 'base', 'toit');
+  poserEchelle(BASE.x + 2, BASE.z - 1, BASE.h + 0.3, [0, 1]);
+
+  /* ---------- 5. une échelle par bâtiment, côté rue ---------- */
+
+  for (const ilot of ILOTS.values()) {
+    let choix = null;
+    for (const c of ilot.cellules) {
+      const i = c % VILLE, j = (c - i) / VILLE;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const vi = i + di, vj = j + dj;
+        if (!dansVille(vi, vj)) continue;
+        if (!SOL[idx(vi, vj)] || hauteur[idx(vi, vj)] > 0.1) continue;
+        // on préfère la cellule la plus proche du milieu de la façade
+        const score = Math.abs(ilot.cellules.length / 2 - ilot.cellules.indexOf(c));
+        if (!choix || score < choix.score) choix = { i: vi, j: vj, dir: [-di, -dj], score };
+      }
+    }
+    if (choix) poserEchelle(choix.i, choix.j, ilot.h + 0.3, choix.dir);
   }
 
-  /* ---------- on fusionne, et la ville existe ---------- */
+  /* ---------- 6. l'extérieur : décor sommaire que la brume avale ---------- */
+
+  for (let k = 0; k < Math.round(28 * (VILLE / 64) ** 2); k++) {
+    const i = Math.floor(alea() * (VILLE - 8)), j = Math.floor(alea() * (VILLE - 8));
+    let libre = true;
+    for (let a = -1; a < 7 && libre; a++)
+      for (let b = -1; b < 7 && libre; b++)
+        if (dansVille(i + a, j + b) && (SOL[idx(i + a, j + b)] || MATIERE[idx(i + a, j + b)] !== -1)) libre = false;
+    if (!libre) continue;
+    boite('decor', i, 0, j, 3 + Math.floor(alea() * 4), 4 + Math.floor(alea() * 6), 3 + Math.floor(alea() * 4));
+  }
+
+  /* ---------- 7. on fusionne, et la ville existe ---------- */
 
   for (const [nom, geos] of chantier) {
     const m = new T.Mesh(fusionner(geos), MAT[nom]);
@@ -4847,76 +4888,80 @@ function construireVille(cle) {
     villeMeshes.push(m);
   }
 
-  // les portiques (#7) : une arche de couleur au-dessus de chaque route
+  /* ---------- 8. les rues : rails, portiques ---------- */
+
+  const COULEURS = [0x5ad8e6, 0x9d7fe8, 0x6fe8b0];
+  ROUTES = axes.map((ax, k) => {
+    const bout = [CENTRE + ax.ux * (rayonUtile - 1), CENTRE + ax.uz * (rayonUtile - 1)];
+    const seuil = [CENTRE + ax.ux * (RAYON_PLACE - 0.5), CENTRE + ax.uz * (RAYON_PLACE - 0.5)];
+    const pied = [CENTRE + ax.ux * 5.2, CENTRE + ax.uz * 5.2];
+    return {
+      nom: ['un', 'deux', 'trois'][k],
+      couleur: COULEURS[k],
+      angle: ax.angle,
+      // #7 — un rail par rue : tout droit, du bout de la rue jusqu'à la mairie
+      rail: [bout, seuil, pied].map(([x, z]) => new T.Vector2(x, z)),
+    };
+  });
+
+  // Le portique se dresse à la jonction rue / place, pas au fond de la rue :
+  // il doit s'annoncer depuis la place, où le joueur se trouve entre deux vagues.
   for (const r of ROUTES) {
     const mat = new T.MeshBasicMaterial({ color: r.couleur });
     const grp = new T.Group();
-    const vertical = r.l === ROUTE_L;
-    const larg = vertical ? ROUTE_L + 1.6 : 0.7;
-    const prof = vertical ? 0.7 : ROUTE_L + 1.6;
-    const px = vertical ? r.x0 + r.l / 2 : (r.nom === 'est' ? r.x0 + r.l - 1 : r.x0 + 1);
-    const pz = vertical ? (r.nom === 'nord' ? r.z0 + 1 : r.z0 + r.p - 1) : r.z0 + r.p / 2;
-    const linteau = new T.Mesh(new T.BoxGeometry(larg, 0.7, prof), mat);
-    linteau.position.set(px, 6, pz);
+    const larg = LARGEUR_RUE + 1.6;
+    const linteau = new T.Mesh(new T.BoxGeometry(larg, 0.7, 0.7), mat);
+    linteau.position.y = 6;
     grp.add(linteau);
     for (const s of [-1, 1]) {
       const pied = new T.Mesh(new T.BoxGeometry(0.7, 6, 0.7), mat);
-      pied.position.set(px + (vertical ? s * (ROUTE_L / 2 + 0.45) : 0), 3, pz + (vertical ? 0 : s * (ROUTE_L / 2 + 0.45)));
+      pied.position.set(s * (LARGEUR_RUE / 2 + 0.45), 3, 0);
       grp.add(pied);
     }
+    grp.position.set(CENTRE + Math.sin(r.angle) * (RAYON_PLACE + 1), 0, CENTRE + Math.cos(r.angle) * (RAYON_PLACE + 1));
+    grp.rotation.y = r.angle;
     scene.add(grp);
     portiques.push(grp);
     r.portique = grp;
   }
 
-  /* ---------- les rails (#7) : de l'entrée d'une route jusqu'à la mairie ---------- */
-
-  const bordEst = MAIRIE.x + MAIRIE.l + 1.4;
-  const contour = BASE.x + BASE.l + 3.5;
-  const RAILS = {
-    nord: [[CENTRE, PLACE0 - ANNEAU - 3], [CENTRE, PLACE0], [CENTRE, MAIRIE.z - 1.4]],
-    est: [[PLACE1 + ANNEAU + 3, CENTRE], [PLACE1, CENTRE], [bordEst, CENTRE]],
-    // le rail sud contourne la base par l'est — un rail est un tracé, pas une ligne droite
-    sud: [[CENTRE, PLACE1 + ANNEAU + 3], [CENTRE, BASE.z + BASE.p + 1.5], [contour, BASE.z + 1], [contour, MAIRIE.z + 6], [bordEst, CENTRE]],
-  };
-  for (const r of ROUTES) r.rail = RAILS[r.nom].map(([x, z]) => new T.Vector2(x, z));
-
-  /* ---------- la lumière et la portée de vue suivent la taille ---------- */
+  /* ---------- 9. lumière, portée de vue, et les chiffres du plan ---------- */
 
   soleil.target.position.set(CENTRE, 0, CENTRE);
-  soleil.shadow.camera.left = -VILLE * 0.72; soleil.shadow.camera.right = VILLE * 0.72;
-  soleil.shadow.camera.top = VILLE * 0.72; soleil.shadow.camera.bottom = -VILLE * 0.72;
+  const demi = VILLE * 0.72;
+  soleil.shadow.camera.left = -demi; soleil.shadow.camera.right = demi;
+  soleil.shadow.camera.top = demi; soleil.shadow.camera.bottom = -demi;
   soleil.shadow.camera.near = 1; soleil.shadow.camera.far = VILLE * 4;
   soleil.shadow.camera.updateProjectionMatrix();
   placerSoleil();
 
-  // La brume est structurelle : elle doit effacer l'extérieur juste derrière
-  // l'anneau, donc sa densité se cale sur la distance du centre à l'anneau.
-  brume.density = 0.017 * 18 / (PLACE / 2 + ANNEAU);
+  // La brume est structurelle : elle doit effacer l'extérieur sans masquer le
+  // fond d'une rue — c'est de là que sortent les zombies, il faut les voir venir.
+  brume.density = 0.45 / rayonUtile;
   camera.far = VILLE * 4;
   camera.updateProjectionMatrix();
 
-  /* ---------- ce que cette taille donne, en chiffres ---------- */
-
-  let praticable = 0;
-  for (let i = 0; i < VILLE; i++) for (let j = 0; j < VILLE; j++) if (ouvert[idx(i, j)]) praticable++;
-  let loin = 0;
+  let praticable = 0, rue = 0, loin = 0;
+  for (let c = 0; c < VILLE * VILLE; c++) {
+    if (ouvert[c]) praticable++;
+    if (SOL[c] === 2) rue++;
+  }
   for (const e of echelles) {
     const d = Math.hypot(e.i + 0.5 - BASE_CENTRE[0], e.j + 0.5 - BASE_CENTRE[1]);
     if (d > loin) loin = d;
   }
-  mesures = { praticable, toitLoin: loin, cote: PLACE + 2 * ANNEAU, nom: t.nom };
+  mesures = { praticable, rue, toitLoin: loin, longueur: LONGUEUR, batiments: ILOTS.size, nom: LONGUEURS[LONGUEUR] || '' };
 }
 
 // Le seul réglage de lumière du prototype, et il n'est pas décoratif : c'est en
-// le descendant vers 30° qu'on voit pourquoi le rasant a été abandonné — l'anneau
-// jette la place entière dans son ombre, et le sol jouable devient froid.
+// le descendant vers 30° qu'on voit pourquoi le rasant a été abandonné — les
+// bâtiments jettent alors la rue entière dans leur ombre.
 function placerSoleil() {
   const el = reglages.soleil * Math.PI / 180, az = Math.PI * 1.18, d = VILLE * 1.7;
   soleil.position.set(CENTRE + Math.cos(az) * Math.cos(el) * d, Math.sin(el) * d, CENTRE + Math.sin(az) * Math.cos(el) * d);
 }
 
-construireVille(reglages.taille);
+construireVille(reglages.longueur);
 /* ==========================================================================
    Le joueur — les six mêmes boîtes qu'un zombie, plus l'épée en main (#12)
    ========================================================================== */
@@ -4930,8 +4975,8 @@ function boiteSimple(l, h, p, couleur) {
 }
 
 const joueur = {
-  x: CENTRE - 5.5, z: BASE.z + 3, y: 0, vy: 0,   // au pied de la base, face à la place
-  angle: Math.PI * 0.75,   // 0 = regarde vers +Z ; au départ, vers la place
+  x: CENTRE + 5.5, z: CENTRE - 6, y: 0, vy: 0,    // au pied de la base, face à la rue sud
+  angle: 0,                // 0 = regarde vers +Z, donc vers la rue sud
   etat: 'libre',           // libre | echelle
   echelle: null, tEchelle: 0,
   frappe: 0,               // temps restant de l'animation de coup
@@ -4940,12 +4985,14 @@ const joueur = {
 };
 
 function replacerJoueur() {
-  joueur.x = CENTRE - 5.5;
-  joueur.z = BASE.z + 3;
+  // au pied de la base, tourné vers une rue : la première chose qu'on voit est
+  // celle par où les zombies arrivent, et la caméra a la place de reculer.
+  joueur.x = CENTRE + 5.5;
+  joueur.z = CENTRE - 6;
   joueur.y = 0; joueur.vy = 0;
   joueur.etat = 'libre';
-  joueur.angle = Math.PI * 0.75;
-  cam.yaw = Math.PI * 0.75;
+  joueur.angle = 0;
+  cam.yaw = 0;
   cam.cran = Math.round(cam.yaw / (Math.PI / 2));
   cam.hauteur = reglages.hauteurVisee;
 }
@@ -5016,7 +5063,9 @@ const zombies = [];
 function naitreZombie(k) {
   const r = ROUTES[k % ROUTES.length];
   const type = NOMS_TYPES[k % NOMS_TYPES.length];
-  return { route: r, type, s: -alea() * 14, mort: 0, x: 0, z: 0, angle: 0, pas: alea() * 6 };
+  // un écart latéral fixe : un paquet occupe la largeur de la rue, il ne défile
+  // pas en file indienne sur l'axe du rail (#7)
+  return { route: r, type, s: -alea() * 14, ecart: (alea() - 0.5) * 3.6, mort: 0, x: 0, z: 0, angle: 0, pas: alea() * 6 };
 }
 function ajusterZombies() {
   while (zombies.length < reglages.zombies) zombies.push(naitreZombie(zombies.length));
@@ -5543,7 +5592,9 @@ function majZombies(dt) {
     z.s += t.vitesse * dt;
     const p = pointDuRail(z.route.rail, z.s);
     if (p.fini) z.s = -alea() * 6;
-    z.x = p.x; z.z = p.z; z.y = 0; z.angle = p.angle;
+    z.x = p.x + Math.cos(p.angle) * z.ecart;
+    z.z = p.z - Math.sin(p.angle) * z.ecart;
+    z.y = 0; z.angle = p.angle;
     z.pas += dt * t.vitesse * 2.2;
 
     const balance = Math.sin(z.pas) * 0.8;
@@ -5672,7 +5723,7 @@ function allerRetourLong() {
 }
 
 function majJauges() {
-  jVille.textContent = VILLE + '² · ' + mesures.cote + '² jouable';
+  jVille.textContent = '3 rues de ' + mesures.longueur + ' bl · ' + mesures.batiments + ' bâtiments';
   const ar = allerRetourLong();
   jAr.textContent = ar.toFixed(1).replace('.', ',') + ' s';
   jAr.classList.toggle('chaud', ar > 30);
@@ -5717,24 +5768,24 @@ bascule('b-brume', 'brume', (v) => `brume : ${v ? 'oui' : 'non'}`, () => {
   scene.traverse((o) => { if (o.isMesh) o.material.needsUpdate = true; });
 });
 
-// Changer de taille reconstruit la ville, replace le joueur, et remet à zéro ce
-// qui n'a plus de sens : les canons posés ailleurs, les zombies sur les anciens
-// rails, les chronos d'une ville qui n'existe plus.
-function changerTaille(cle) {
-  reglages.taille = +cle;
-  construireVille(reglages.taille);
+// Changer la longueur des rues reconstruit la ville, replace le joueur, et remet
+// à zéro ce qui n'a plus de sens : les canons posés ailleurs, les zombies sur les
+// anciens rails, les chronos d'une ville qui n'existe plus.
+function changerLongueur(cle) {
+  reglages.longueur = +cle;
+  construireVille(reglages.longueur);
   replacerJoueur();
   canons.length = 0;
   vivants.length = 0;
   zombies.length = 0;
   ajusterZombies();
   chrono.dehors = false; chrono.t = 0; chrono.dernier = null; chrono.meilleur = null;
-  document.querySelectorAll('#tailles button').forEach((b) =>
-    b.classList.toggle('retenu', +b.dataset.taille === reglages.taille));
+  document.querySelectorAll('#longueurs button').forEach((b) =>
+    b.classList.toggle('retenu', +b.dataset.longueur === reglages.longueur));
   majJauges();
 }
-document.querySelectorAll('#tailles button').forEach((b) =>
-  b.addEventListener('click', () => changerTaille(b.dataset.taille)));
+document.querySelectorAll('#longueurs button').forEach((b) =>
+  b.addEventListener('click', () => changerLongueur(b.dataset.longueur)));
 
 const tactileEl = document.getElementById('tactile');
 let modeTactile = 'auto';
