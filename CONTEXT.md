@@ -9,14 +9,14 @@ Les termes s'y ajoutent **au fil des tickets**, quand ils sont réellement tranc
 ### La ville
 
 **Ville** :
-Le terrain de jeu entier, 136 × 136 blocs, fait à la main et figé. Une seule ville en v1. Elle a la forme d'une **étoile à trois branches** : tout ce qui se joue tient dans les trois rues, sur la place, et sur les toits qui les bordent — le reste est un décor que la brume efface.
+Le terrain de jeu entier, 176 × 176 blocs, fait à la main et figé. Une seule ville en v1. Elle a la forme d'une **étoile à trois branches** : tout ce qui se joue tient dans les trois rues, sur la place, et sur les toits qui les bordent — le reste est un décor que la brume efface.
 
 **Place** :
 Le moyeu de l'étoile, 32 blocs de bord à bord, au milieu duquel se dresse la mairie. C'est le **seul passage d'une rue à l'autre** : il n'existe aucun raccourci.
 _Éviter_ : centre-ville, esplanade
 
 **Rue** :
-Une des trois avenues droites de 40 blocs, larges de 6, qui rayonnent de la place à 120° l'une de l'autre. C'est le terrain de jeu du tower defense : un Traînard y passe 27 secondes sous le feu des canons posés sur les toits qui la bordent.
+Une des trois avenues droites de 60 blocs, larges de 6, qui rayonnent de la place à 120° l'une de l'autre. C'est le terrain de jeu du tower defense : un Traînard y passe 40 secondes sous le feu des canons posés sur les toits qui la bordent, un Costaud une minute.
 _Éviter_ : route (ancien nom), avenue, couloir
 
 **Front bâti** :
@@ -99,7 +99,7 @@ Les Costauds qui accompagnent le Colosse à la vague 10, ralentis à son pas et 
 Le personnage dirigé par l'enfant, suivi à la troisième personne. Bâti sur les six mêmes boîtes qu'un zombie — c'est la grammaire commune à tous les personnages — plus l'épée qu'il tient en main. Tunique bleue et acier clair : les seules couleurs froides portées par un personnage, pour qu'il ne soit jamais confondu avec un assaillant.
 
 **Course** :
-La seule allure du joueur : 5 blocs par seconde, toujours. Il n'y a ni marche, ni sprint, ni saut. C'est elle qui chiffre le ravitaillement — un aller-retour jusqu'au toit le plus lointain coûte 12 secondes, et une préparation en autorise deux.
+La seule allure du joueur : 5 blocs par seconde, toujours. Il n'y a ni marche, ni sprint, ni saut. C'est elle qui chiffre le ravitaillement, et elle en fait un **gradient** le long d'une rue : gratuit au pied (le halo y suffit), un aller-retour de la préparation au milieu, et un aller-retour qui déborde sur l'assaut au fond — 34 secondes pour le toit le plus lointain, quand la préparation en dure 30.
 _Éviter_ : vitesse, marche, sprint
 
 **Caméra** :
@@ -152,7 +152,7 @@ Le niveau 3 du canon, qui automatise le ravitaillement depuis la base. Il ne cha
 _Éviter_ : convoyeur, automatisation
 
 **Halo** :
-Les pavés clairs peints au sol et sur les toits, qui marquent jusqu'où le tapis roulant porte depuis la base. Un canon posé dehors ne passera jamais au niveau 3. Depuis une base au moyeu, ses 16 blocs couvrent la place et le **pied** des rues, jamais leur fond : un canon avancé se ravitaille à pied pour toute la partie.
+Les pavés clairs peints au sol et sur les toits, qui marquent jusqu'où le tapis roulant porte depuis la base. Un canon posé dehors ne passera jamais au niveau 3. Depuis une base au moyeu, ses 16 blocs couvrent la place et le **pied** des rues, jamais leur fond : un canon avancé se ravitaille à pied pour toute la partie, et celui du fond d'une rue se ravitaille sous le feu.
 _Éviter_ : zone, rayon, cercle
 
 **Ravitaillement** :
