@@ -349,13 +349,14 @@
 
   <h2>Longueur des rues</h2>
   <div class="boutons" id="longueurs">
-    <button data-longueur="30">30 bl</button>
-    <button data-longueur="40" class="retenu">40 bl</button>
-    <button data-longueur="55">55 bl</button>
+    <button data-longueur="40">40 bl</button>
+    <button data-longueur="60" class="retenu">60 bl</button>
+    <button data-longueur="80">80 bl</button>
   </div>
   <p class="glose">
     Le plan est une <b>étoile à trois branches</b> : trois rues droites à 120°, larges de 6 blocs, bordées de bâtiments sur 8 blocs de profondeur, et une place de 32 blocs au moyeu. <b>Aucun raccourci</b> : on repasse toujours par la place.<br>
-    À 40 blocs, un Traînard passe <b>27 secondes</b> dans la rue, sous le feu des canons. Regarde la jauge <b>A/R le plus long</b> : c'est l'aller-retour base ↔ toit le plus lointain, à comparer aux 30 s de préparation.
+    Retenu : <b>60 blocs</b>. Un Traînard y passe <b>40 secondes</b> sous le feu des canons, et la ville compte 78 toits constructibles.<br>
+    La jauge <b>A/R le plus long</b> passe alors à <b>34 s</b>, au-delà des 30 s de préparation : ravitailler un canon du <b>fond</b> d'une rue déborde forcément sur l'assaut. C'est voulu — le prix d'un canon avancé.
   </p>
 
   <h2>Monde</h2>
@@ -4528,9 +4529,9 @@ const HALO = 16;                   // #9 — portée du tapis roulant depuis la 
 // Trois longueurs de rue comparables. C'est le seul paramètre de plan qui reste
 // ouvert : tout le reste (place, largeur, front bâti) est fixé.
 const LONGUEURS = {
-  30: 'nerveuse',
-  40: 'retenue',
-  55: 'longue avenue',
+  40: 'la première version, trop courte',
+  60: 'retenue',
+  80: 'pour voir plus loin',
 };
 
 const reglages = {
@@ -4546,7 +4547,7 @@ const reglages = {
   ombres: false,         // retenu : le jeu n'a AUCUNE ombre portée
   brume: true,
   soleil: 60,            // retenu : 60°, plus rasant du tout
-  longueur: 40,          // longueur d'une rue, en blocs
+  longueur: 60,          // longueur d'une rue, en blocs — retenu au ticket #25
 };
 
 /* ---------- petit générateur déterministe : une longueur, une même ville ---------- */
@@ -5704,7 +5705,7 @@ function majChrono(dt) {
   cEtat.textContent = chrono.dehors ? 'hors de la base' : 'à la base';
   cTemps.style.color = chrono.t > 30 ? '#ff8a6b' : '';
   cNote.textContent = chrono.dernier === null
-    ? "la préparation dure 30 s : un aller-retour doit tenir dedans (#6)"
+    ? "la préparation dure 30 s : le pied d'une rue passe, son fond déborde (#25)"
     : `dernier aller-retour ${chrono.dernier.toFixed(1).replace('.', ',')} s · meilleur ${chrono.meilleur.toFixed(1).replace('.', ',')} s · la préparation en dure 30`;
 }
 
