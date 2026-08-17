@@ -301,6 +301,8 @@
   <div class="ligne"><span class="cle">caméra</span><span class="val chaud" id="j-cam">—</span></div>
   <div class="ligne"><span class="cle">entrée</span><span class="val" id="j-entree">clavier</span></div>
   <div class="ligne"><span class="cle">canons</span><span class="val" id="j-canons">0</span></div>
+  <div class="ligne"><span class="cle">ville</span><span class="val" id="j-ville">—</span></div>
+  <div class="ligne"><span class="cle">A/R le plus long</span><span class="val" id="j-ar">—</span></div>
 </div>
 
 <div id="chrono" class="plaque">
@@ -344,6 +346,18 @@
   </div>
   <button class="bascule" id="b-saut">saut : non</button>
   <p class="glose">Sans saut, on descend d'un toit en marchant dans le vide : le joueur tombe et se reçoit sans dégât.</p>
+
+  <h2>Taille de la ville</h2>
+  <div class="boutons" id="tailles">
+    <button data-taille="64" class="retenu">64²</button>
+    <button data-taille="96">96²</button>
+    <button data-taille="128">128²</button>
+  </div>
+  <p class="glose">
+    <b>64²</b> est la ville décidée en #6 : place de 24, anneau de 6, donc <b>36² praticables</b> — le reste est du décor où l'on n'entre pas.
+    <b>96²</b> : place de 36, anneau de 8, 52² praticables. <b>128²</b> : place de 48, anneau de 10, 68² praticables.<br>
+    Regarde la jauge <b>A/R le plus long</b> : c'est l'aller-retour base ↔ toit le plus lointain à la vitesse courante. #6 voulait qu'il remplisse les 30 s de préparation.
+  </p>
 
   <h2>Monde</h2>
   <div class="champ">
@@ -4487,22 +4501,31 @@ void main() {
    Apocalypse Zombie — prototype de déplacement et de caméra (ticket #14)
 
    Tout est en blocs : 1 unité Three.js = 1 bloc du jeu.
-   Le monde est une GRILLE DE HAUTEURS 64 × 64. C'est la seule structure de
-   collision du prototype : une cellule dit à quelle hauteur on marche, et si
-   l'on a le droit d'y être. Les toits ne sont donc pas un cas particulier —
-   ce sont des cellules plus hautes, et c'est ce qui rend « poser un canon là
-   où l'on se tient » identique au sol et sur un toit.
+   Le monde est une GRILLE DE HAUTEURS. C'est la seule structure de collision
+   du prototype : une cellule dit à quelle hauteur on marche, et si l'on a le
+   droit d'y être. Les toits ne sont donc pas un cas particulier — ce sont des
+   cellules plus hautes, et c'est ce qui rend « poser un canon là où l'on se
+   tient » identique au sol et sur un toit.
+
+   La ville se reconstruit à chaud en trois tailles : c'est la question posée
+   après le premier essai — 64 × 64 semble trop petit.
    ========================================================================== */
 
 const T = THREE;
 
 /* ---------- constantes du monde, reprises des tickets déjà tranchés ---------- */
 
-const VILLE = 64;          // #6 — la ville entière
-const PLACE0 = 20, PLACE1 = 44;   // #6 — la place, 24 × 24 au centre
-const ANNEAU = 6;          // épaisseur de la ceinture de bâtiments
-const ROUTE_L = 4;         // largeur d'une route
+const ROUTE_L = 4;         // largeur d'une route (#6)
 const HALO = 16;           // #9 — portée du tapis roulant depuis la base
+
+// Trois villes comparables. Seules changent la taille du terrain, celle de la
+// place et l'épaisseur de l'anneau : la mairie, la base, les routes, le halo et
+// les bâtiments gardent leurs dimensions, ce sont les distances qui bougent.
+const TAILLES = {
+  64: { ville: 64, place: 24, anneau: 6, nom: 'décidée en #6' },
+  96: { ville: 96, place: 36, anneau: 8, nom: 'une place et demie' },
+  128: { ville: 128, place: 48, anneau: 10, nom: 'le double' },
+};
 
 const reglages = {
   cam: 'assistee',      // retenu au ticket #14
@@ -4510,16 +4533,17 @@ const reglages = {
   hauteurVisee: 5.5,
   sensibilite: 1,
   suitAutoCiblage: false,
-  vitesse: 5,            // #6 — course, blocs/s
+  vitesse: 5,            // retenu au ticket #14 — course, blocs/s
   dureeEchelle: 0.8,     // retenu : #6 disait ~3 s, rectifié à 0,8 s
   saut: false,
   zombies: 12,
   ombres: false,         // retenu : le jeu n'a AUCUNE ombre portée
   brume: true,
   soleil: 60,            // retenu : 60°, plus rasant du tout — sinon l'anneau noie la place
+  taille: 64,            // la taille de #6, celle qui est en question
 };
 
-/* ---------- petit générateur déterministe : la ville est la même à chaque fois ---------- */
+/* ---------- petit générateur déterministe : une taille donnée, une même ville ---------- */
 
 function graine(a) {
   return function () {
@@ -4529,13 +4553,14 @@ function graine(a) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-const alea = graine(20260816);
+let alea = graine(20260816);
 
 /* ==========================================================================
    Textures : 16 × 16, dégradé vertical + grain, filtrage nearest (#12)
+   Créées une seule fois — elles ne dépendent pas de la taille de la ville.
    ========================================================================== */
 
-function tuile(hautHex, basHex, grain = 0.12, mailles = 1) {
+function tuile(hautHex, basHex, grain = 0.12) {
   const c = document.createElement('canvas');
   c.width = c.height = 16;
   const g = c.getContext('2d');
@@ -4554,7 +4579,6 @@ function tuile(hautHex, basHex, grain = 0.12, mailles = 1) {
   tex.minFilter = T.NearestMipmapNearestFilter;
   tex.wrapS = tex.wrapT = T.RepeatWrapping;
   tex.colorSpace = T.SRGBColorSpace;
-  tex.repeat.set(mailles, mailles);
   return tex;
 }
 
@@ -4574,7 +4598,8 @@ const MAT = {
 
 /* ==========================================================================
    Chantier : on empile des boîtes, on les fusionne par matériau.
-   Une ville entière en une poignée de draw calls — c'est la contrainte de #4.
+   Une ville entière en une poignée de draw calls — c'est la contrainte de #4,
+   et c'est ce qui permet de quadrupler la surface sans payer un seul appel.
    ========================================================================== */
 
 const chantier = new Map();
@@ -4585,18 +4610,17 @@ function boite(mat, x, y, z, l, h, p) {
   const uv = g.attributes.uv;
   // Les six faces d'une BoxGeometry arrivent dans l'ordre +X,-X,+Y,-Y,+Z,-Z,
   // quatre sommets chacune. On étire les UV pour que la tuile fasse un bloc.
-  const echelles = [[p, h], [p, h], [l, p], [l, p], [l, h], [l, h]];
+  const facteurs = [[p, h], [p, h], [l, p], [l, p], [l, h], [l, h]];
   for (let f = 0; f < 6; f++) {
-    const [su, sv] = echelles[f];
+    const [su, sv] = facteurs[f];
     for (let k = 0; k < 4; k++) {
       const i = f * 4 + k;
       uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
     }
   }
   g.translate(x + l / 2, y + h / 2, z + p / 2);
-  const nom = mat;
-  if (!chantier.has(nom)) chantier.set(nom, []);
-  chantier.get(nom).push(g.toNonIndexed());
+  if (!chantier.has(mat)) chantier.set(mat, []);
+  chantier.get(mat).push(g.toNonIndexed());
   g.dispose();
 }
 
@@ -4622,12 +4646,43 @@ function fusionner(geos) {
 }
 
 /* ==========================================================================
-   La grille de hauteurs
+   La scène — créée une fois, la ville s'y remplace
    ========================================================================== */
 
-const hauteur = new Float32Array(VILLE * VILLE);   // hauteur du sol praticable
-const ouvert = new Uint8Array(VILLE * VILLE);      // 1 = le joueur a le droit d'y être
-const echelles = [];                               // { i, j, vers, dir }
+const scene = new T.Scene();
+scene.background = new T.Color(0xd98a4a);
+const brume = new T.FogExp2(0xd98a4a, 0.017);
+scene.fog = brume;
+
+const camera = new T.PerspectiveCamera(58, innerWidth / innerHeight, 0.2, 260);
+
+const renderer = new T.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+renderer.setPixelRatio(1);                 // #4 — le budget de performance l'impose
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = reglages.ombres;
+renderer.shadowMap.type = T.PCFShadowMap;   // PCFSoft est déprécié depuis r18x
+document.getElementById('scene').appendChild(renderer.domElement);
+
+// #12 rectifié par #14 — un seul soleil, à 60°, et AUCUNE ombre portée
+const soleil = new T.DirectionalLight(0xffc98a, 2.9);
+soleil.castShadow = true;
+soleil.shadow.mapSize.set(2048, 2048);
+soleil.shadow.bias = -0.0012;
+scene.add(soleil, soleil.target);
+scene.add(new T.AmbientLight(0x7a63a8, 1.7));
+
+/* ==========================================================================
+   L'état du monde — tout est reconstruit par construireVille()
+   ========================================================================== */
+
+let VILLE, PLACE, ANNEAU, CENTRE, PLACE0, PLACE1, R0, R1;
+let hauteur, ouvert;
+let echelles = [];
+let ROUTES = [];
+let MAIRIE, BASE, BASE_CENTRE;
+let villeMeshes = [];
+let portiques = [];
+let mesures = { praticable: 0, toitLoin: 0 };
 
 const idx = (i, j) => j * VILLE + i;
 const dansVille = (i, j) => i >= 0 && j >= 0 && i < VILLE && j < VILLE;
@@ -4655,33 +4710,8 @@ function poserEchelle(i, j, vers, dir) {
   boite('echelle', x - l / 2, 0, z - p / 2, l, vers, p);
 }
 
-/* ---------- le sol, la place, les routes, le halo ---------- */
-
-boite('sol', 0, -1, 0, VILLE, 1, VILLE);
-boite('place', PLACE0, -0.02, PLACE0, PLACE1 - PLACE0, 0.06, PLACE1 - PLACE0);
-
-for (let i = 0; i < VILLE; i++)
-  for (let j = 0; j < VILLE; j++)
-    ouvert[idx(i, j)] = (i >= PLACE0 - ANNEAU && i < PLACE1 + ANNEAU && j >= PLACE0 - ANNEAU && j < PLACE1 + ANNEAU) ? 1 : 0;
-
-// Les trois routes : nord, est, sud (#6). Une brèche de 4 blocs dans l'anneau.
-const R0 = 30, R1 = 34;
-const ROUTES = [
-  { nom: 'nord', couleur: 0x5ad8e6, x0: R0, z0: PLACE0 - ANNEAU - 3, l: ROUTE_L, p: ANNEAU + 3, entree: [32, PLACE0 - ANNEAU - 3] },
-  { nom: 'est',  couleur: 0x9d7fe8, x0: PLACE1, z0: R0, l: ANNEAU + 3, p: ROUTE_L, entree: [PLACE1 + ANNEAU + 3, 32] },
-  { nom: 'sud',  couleur: 0x6fe8b0, x0: R0, z0: PLACE1, l: ROUTE_L, p: ANNEAU + 3, entree: [32, PLACE1 + ANNEAU + 3] },
-];
-
-for (const r of ROUTES) {
-  boite('route', r.x0, -0.02, r.z0, r.l, 0.06, r.p);
-  for (let i = r.x0; i < r.x0 + r.l; i++)
-    for (let j = r.z0; j < r.z0 + r.p; j++)
-      if (dansVille(i, j)) ouvert[idx(i, j)] = 1;
-}
-
-/* ---------- l'anneau : une ceinture continue, percée par les routes ---------- */
-
 const MURS = ['mur', 'murB'];
+
 function decouperBande(debut, fin, horizontal, bande0, trous) {
   // la bande moins les routes, puis chaque morceau découpé en bâtiments
   const morceaux = [];
@@ -4721,113 +4751,172 @@ function decouperBande(debut, fin, horizontal, bande0, trous) {
   }
 }
 
-decouperBande(PLACE0 - ANNEAU, PLACE1 + ANNEAU, true, PLACE0 - ANNEAU, [[R0, R1]]);            // nord
-decouperBande(PLACE0 - ANNEAU, PLACE1 + ANNEAU, true, PLACE1, [[R0, R1]]);                     // sud
-decouperBande(PLACE0, PLACE1, false, PLACE0 - ANNEAU, []);                                     // ouest
-decouperBande(PLACE0, PLACE1, false, PLACE1, [[R0, R1]]);                                      // est
+function construireVille(cle) {
+  const t = TAILLES[cle] || TAILLES[64];
 
-/* ---------- la mairie et la base ---------- */
-
-const MAIRIE = { x: 28, z: 27, l: 8, p: 8, h: 7 };
-poserBatiment(MAIRIE.x, MAIRIE.z, MAIRIE.l, MAIRIE.p, MAIRIE.h, 'mairie', 'toit');
-boite('mairie', 30.5, 7.3, 29.5, 3, 2.6, 3);   // beffroi, pour la silhouette
-
-const BASE = { x: 29, z: 36, l: 6, p: 4, h: 3 };
-poserBatiment(BASE.x, BASE.z, BASE.l, BASE.p, BASE.h, 'base', 'toit');
-poserEchelle(BASE.x + 2, BASE.z + BASE.p, BASE.h + 0.3, [0, -1]);
-const BASE_CENTRE = [BASE.x + BASE.l / 2, BASE.z + BASE.p / 2];
-
-// halo du tapis roulant : 16 blocs autour de la base (#9), au sol seulement
-for (let i = 0; i < VILLE; i++) {
-  for (let j = 0; j < VILLE; j++) {
-    if (hauteur[idx(i, j)] > 0.1 || !ouvert[idx(i, j)]) continue;
-    const d = Math.hypot(i + 0.5 - BASE_CENTRE[0], j + 0.5 - BASE_CENTRE[1]);
-    if (d <= HALO) boite('halo', i, 0.04, j, 1, 0.02, 1);
+  // on démonte l'ancienne ville : géométries fusionnées et portiques
+  for (const m of villeMeshes) { scene.remove(m); m.geometry.dispose(); }
+  for (const g of portiques) {
+    scene.remove(g);
+    g.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
   }
+  villeMeshes = []; portiques = []; echelles = []; chantier.clear();
+
+  VILLE = t.ville; PLACE = t.place; ANNEAU = t.anneau;
+  CENTRE = VILLE / 2;
+  PLACE0 = CENTRE - PLACE / 2; PLACE1 = CENTRE + PLACE / 2;
+  R0 = CENTRE - ROUTE_L / 2; R1 = CENTRE + ROUTE_L / 2;
+  hauteur = new Float32Array(VILLE * VILLE);
+  ouvert = new Uint8Array(VILLE * VILLE);
+  alea = graine(20260816);   // même graine : la même taille redonne la même ville
+
+  /* ---------- le sol, la place ---------- */
+
+  boite('sol', 0, -1, 0, VILLE, 1, VILLE);
+  boite('place', PLACE0, -0.02, PLACE0, PLACE, 0.06, PLACE);
+
+  for (let i = 0; i < VILLE; i++)
+    for (let j = 0; j < VILLE; j++)
+      ouvert[idx(i, j)] = (i >= PLACE0 - ANNEAU && i < PLACE1 + ANNEAU && j >= PLACE0 - ANNEAU && j < PLACE1 + ANNEAU) ? 1 : 0;
+
+  /* ---------- les trois routes : nord, est, sud (#6) ---------- */
+
+  ROUTES = [
+    { nom: 'nord', couleur: 0x5ad8e6, x0: R0, z0: PLACE0 - ANNEAU - 3, l: ROUTE_L, p: ANNEAU + 3 },
+    { nom: 'est', couleur: 0x9d7fe8, x0: PLACE1, z0: R0, l: ANNEAU + 3, p: ROUTE_L },
+    { nom: 'sud', couleur: 0x6fe8b0, x0: R0, z0: PLACE1, l: ROUTE_L, p: ANNEAU + 3 },
+  ];
+  for (const r of ROUTES) {
+    boite('route', r.x0, -0.02, r.z0, r.l, 0.06, r.p);
+    for (let i = r.x0; i < r.x0 + r.l; i++)
+      for (let j = r.z0; j < r.z0 + r.p; j++)
+        if (dansVille(i, j)) ouvert[idx(i, j)] = 1;
+  }
+
+  /* ---------- l'anneau : une ceinture continue, percée par les routes ---------- */
+
+  decouperBande(PLACE0 - ANNEAU, PLACE1 + ANNEAU, true, PLACE0 - ANNEAU, [[R0, R1]]);   // nord
+  decouperBande(PLACE0 - ANNEAU, PLACE1 + ANNEAU, true, PLACE1, [[R0, R1]]);            // sud
+  decouperBande(PLACE0, PLACE1, false, PLACE0 - ANNEAU, []);                            // ouest
+  decouperBande(PLACE0, PLACE1, false, PLACE1, [[R0, R1]]);                             // est
+
+  /* ---------- la mairie et la base : dimensions fixes, au centre ---------- */
+
+  MAIRIE = { x: CENTRE - 4, z: CENTRE - 5, l: 8, p: 8, h: 7 };
+  poserBatiment(MAIRIE.x, MAIRIE.z, MAIRIE.l, MAIRIE.p, MAIRIE.h, 'mairie', 'toit');
+  boite('mairie', CENTRE - 1.5, MAIRIE.h + 0.3, CENTRE - 2.5, 3, 2.6, 3);   // beffroi
+
+  BASE = { x: CENTRE - 3, z: MAIRIE.z + MAIRIE.p + 1, l: 6, p: 4, h: 3 };
+  poserBatiment(BASE.x, BASE.z, BASE.l, BASE.p, BASE.h, 'base', 'toit');
+  poserEchelle(BASE.x + 2, BASE.z + BASE.p, BASE.h + 0.3, [0, -1]);
+  BASE_CENTRE = [BASE.x + BASE.l / 2, BASE.z + BASE.p / 2];
+
+  // halo du tapis roulant : 16 blocs autour de la base (#9), au sol seulement
+  for (let i = 0; i < VILLE; i++) {
+    for (let j = 0; j < VILLE; j++) {
+      if (hauteur[idx(i, j)] > 0.1 || !ouvert[idx(i, j)]) continue;
+      const d = Math.hypot(i + 0.5 - BASE_CENTRE[0], j + 0.5 - BASE_CENTRE[1]);
+      if (d <= HALO) boite('halo', i, 0.04, j, 1, 0.02, 1);
+    }
+  }
+
+  /* ---------- l'extérieur : décor sommaire que la brume avale ---------- */
+
+  const combien = Math.round(46 * (VILLE / 64) ** 2);
+  for (let k = 0; k < combien; k++) {
+    const bord = Math.floor(alea() * 4);
+    let x, z;
+    const l = 3 + Math.floor(alea() * 5), p = 3 + Math.floor(alea() * 5);
+    const marge = PLACE0 - ANNEAU - 1;
+    if (marge < 4) break;
+    if (bord === 0) { x = alea() * (VILLE - l); z = alea() * (marge - p); }
+    else if (bord === 1) { x = alea() * (VILLE - l); z = PLACE1 + ANNEAU + 1 + alea() * (VILLE - PLACE1 - ANNEAU - p - 1); }
+    else if (bord === 2) { x = alea() * (marge - l); z = alea() * (VILLE - p); }
+    else { x = PLACE1 + ANNEAU + 1 + alea() * (VILLE - PLACE1 - ANNEAU - l - 1); z = alea() * (VILLE - p); }
+    if (!(x >= 0 && z >= 0)) continue;
+    boite('decor', Math.floor(x), 0, Math.floor(z), l, 4 + Math.floor(alea() * 6), p);
+  }
+
+  /* ---------- on fusionne, et la ville existe ---------- */
+
+  for (const [nom, geos] of chantier) {
+    const m = new T.Mesh(fusionner(geos), MAT[nom]);
+    m.castShadow = true;
+    m.receiveShadow = true;
+    scene.add(m);
+    villeMeshes.push(m);
+  }
+
+  // les portiques (#7) : une arche de couleur au-dessus de chaque route
+  for (const r of ROUTES) {
+    const mat = new T.MeshBasicMaterial({ color: r.couleur });
+    const grp = new T.Group();
+    const vertical = r.l === ROUTE_L;
+    const larg = vertical ? ROUTE_L + 1.6 : 0.7;
+    const prof = vertical ? 0.7 : ROUTE_L + 1.6;
+    const px = vertical ? r.x0 + r.l / 2 : (r.nom === 'est' ? r.x0 + r.l - 1 : r.x0 + 1);
+    const pz = vertical ? (r.nom === 'nord' ? r.z0 + 1 : r.z0 + r.p - 1) : r.z0 + r.p / 2;
+    const linteau = new T.Mesh(new T.BoxGeometry(larg, 0.7, prof), mat);
+    linteau.position.set(px, 6, pz);
+    grp.add(linteau);
+    for (const s of [-1, 1]) {
+      const pied = new T.Mesh(new T.BoxGeometry(0.7, 6, 0.7), mat);
+      pied.position.set(px + (vertical ? s * (ROUTE_L / 2 + 0.45) : 0), 3, pz + (vertical ? 0 : s * (ROUTE_L / 2 + 0.45)));
+      grp.add(pied);
+    }
+    scene.add(grp);
+    portiques.push(grp);
+    r.portique = grp;
+  }
+
+  /* ---------- les rails (#7) : de l'entrée d'une route jusqu'à la mairie ---------- */
+
+  const bordEst = MAIRIE.x + MAIRIE.l + 1.4;
+  const contour = BASE.x + BASE.l + 3.5;
+  const RAILS = {
+    nord: [[CENTRE, PLACE0 - ANNEAU - 3], [CENTRE, PLACE0], [CENTRE, MAIRIE.z - 1.4]],
+    est: [[PLACE1 + ANNEAU + 3, CENTRE], [PLACE1, CENTRE], [bordEst, CENTRE]],
+    // le rail sud contourne la base par l'est — un rail est un tracé, pas une ligne droite
+    sud: [[CENTRE, PLACE1 + ANNEAU + 3], [CENTRE, BASE.z + BASE.p + 1.5], [contour, BASE.z + 1], [contour, MAIRIE.z + 6], [bordEst, CENTRE]],
+  };
+  for (const r of ROUTES) r.rail = RAILS[r.nom].map(([x, z]) => new T.Vector2(x, z));
+
+  /* ---------- la lumière et la portée de vue suivent la taille ---------- */
+
+  soleil.target.position.set(CENTRE, 0, CENTRE);
+  soleil.shadow.camera.left = -VILLE * 0.72; soleil.shadow.camera.right = VILLE * 0.72;
+  soleil.shadow.camera.top = VILLE * 0.72; soleil.shadow.camera.bottom = -VILLE * 0.72;
+  soleil.shadow.camera.near = 1; soleil.shadow.camera.far = VILLE * 4;
+  soleil.shadow.camera.updateProjectionMatrix();
+  placerSoleil();
+
+  // La brume est structurelle : elle doit effacer l'extérieur juste derrière
+  // l'anneau, donc sa densité se cale sur la distance du centre à l'anneau.
+  brume.density = 0.017 * 18 / (PLACE / 2 + ANNEAU);
+  camera.far = VILLE * 4;
+  camera.updateProjectionMatrix();
+
+  /* ---------- ce que cette taille donne, en chiffres ---------- */
+
+  let praticable = 0;
+  for (let i = 0; i < VILLE; i++) for (let j = 0; j < VILLE; j++) if (ouvert[idx(i, j)]) praticable++;
+  let loin = 0;
+  for (const e of echelles) {
+    const d = Math.hypot(e.i + 0.5 - BASE_CENTRE[0], e.j + 0.5 - BASE_CENTRE[1]);
+    if (d > loin) loin = d;
+  }
+  mesures = { praticable, toitLoin: loin, cote: PLACE + 2 * ANNEAU, nom: t.nom };
 }
-
-/* ---------- l'extérieur : décor sommaire que la brume avale ---------- */
-
-for (let k = 0; k < 46; k++) {
-  const bord = Math.floor(alea() * 4);
-  let x, z;
-  const l = 3 + Math.floor(alea() * 5), p = 3 + Math.floor(alea() * 5);
-  if (bord === 0) { x = alea() * (VILLE - l); z = alea() * (PLACE0 - ANNEAU - p - 1); }
-  else if (bord === 1) { x = alea() * (VILLE - l); z = PLACE1 + ANNEAU + 1 + alea() * (VILLE - PLACE1 - ANNEAU - p - 1); }
-  else if (bord === 2) { x = alea() * (PLACE0 - ANNEAU - l - 1); z = alea() * (VILLE - p); }
-  else { x = PLACE1 + ANNEAU + 1 + alea() * (VILLE - PLACE1 - ANNEAU - l - 1); z = alea() * (VILLE - p); }
-  boite('decor', Math.floor(x), 0, Math.floor(z), l, 4 + Math.floor(alea() * 6), p);
-}
-
-/* ==========================================================================
-   La scène
-   ========================================================================== */
-
-const scene = new T.Scene();
-scene.background = new T.Color(0xd98a4a);
-const brume = new T.FogExp2(0xd98a4a, 0.017);
-scene.fog = brume;
-
-const camera = new T.PerspectiveCamera(58, innerWidth / innerHeight, 0.2, 260);
-
-const renderer = new T.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(1);                 // #4 — le budget de performance l'impose
-renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = reglages.ombres;
-renderer.shadowMap.type = T.PCFShadowMap;   // PCFSoft est déprécié depuis r18x
-document.getElementById('scene').appendChild(renderer.domElement);
-
-// #12 — l'heure orange : un seul soleil rasant, une ambiante violette, rien d'autre
-const soleil = new T.DirectionalLight(0xffc98a, 2.9);
-soleil.target.position.set(32, 0, 32);
-soleil.castShadow = true;
-soleil.shadow.mapSize.set(2048, 2048);
-soleil.shadow.camera.left = -46; soleil.shadow.camera.right = 46;
-soleil.shadow.camera.top = 46; soleil.shadow.camera.bottom = -46;
-soleil.shadow.camera.near = 1; soleil.shadow.camera.far = 260;
-soleil.shadow.bias = -0.0012;
-soleil.shadow.camera.updateProjectionMatrix();
-scene.add(soleil, soleil.target);
 
 // Le seul réglage de lumière du prototype, et il n'est pas décoratif : c'est en
 // le descendant vers 30° qu'on voit pourquoi le rasant a été abandonné — l'anneau
 // jette la place entière dans son ombre, et le sol jouable devient froid.
 function placerSoleil() {
-  const el = reglages.soleil * Math.PI / 180, az = Math.PI * 1.18, d = 110;
-  soleil.position.set(32 + Math.cos(az) * Math.cos(el) * d, Math.sin(el) * d, 32 + Math.sin(az) * Math.cos(el) * d);
-}
-placerSoleil();
-scene.add(new T.AmbientLight(0x7a63a8, 1.7));
-
-const villeMeshes = [];
-for (const [nom, geos] of chantier) {
-  const m = new T.Mesh(fusionner(geos), MAT[nom]);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  scene.add(m);
-  villeMeshes.push(m);
+  const el = reglages.soleil * Math.PI / 180, az = Math.PI * 1.18, d = VILLE * 1.7;
+  soleil.position.set(CENTRE + Math.cos(az) * Math.cos(el) * d, Math.sin(el) * d, CENTRE + Math.sin(az) * Math.cos(el) * d);
 }
 
-// les portiques (#7) : une arche de couleur au-dessus de chaque route
-for (const r of ROUTES) {
-  const mat = new T.MeshBasicMaterial({ color: r.couleur });
-  const grp = new T.Group();
-  const vertical = r.l === ROUTE_L;
-  const larg = vertical ? ROUTE_L + 1.6 : 0.7;
-  const prof = vertical ? 0.7 : ROUTE_L + 1.6;
-  const px = vertical ? r.x0 + r.l / 2 : (r.nom === 'est' ? r.x0 + r.l - 1 : r.x0 + 1);
-  const pz = vertical ? (r.nom === 'nord' ? r.z0 + 1 : r.z0 + r.p - 1) : r.z0 + r.p / 2;
-  const linteau = new T.Mesh(new T.BoxGeometry(larg, 0.7, prof), mat);
-  linteau.position.set(px, 6, pz);
-  grp.add(linteau);
-  for (const s of [-1, 1]) {
-    const pied = new T.Mesh(new T.BoxGeometry(0.7, 6, 0.7), mat);
-    pied.position.set(px + (vertical ? s * (ROUTE_L / 2 + 0.45) : 0), 3, pz + (vertical ? 0 : s * (ROUTE_L / 2 + 0.45)));
-    grp.add(pied);
-  }
-  scene.add(grp);
-  r.portique = grp;
-}
+construireVille(reglages.taille);
 /* ==========================================================================
    Le joueur — les six mêmes boîtes qu'un zombie, plus l'épée en main (#12)
    ========================================================================== */
@@ -4841,7 +4930,7 @@ function boiteSimple(l, h, p, couleur) {
 }
 
 const joueur = {
-  x: 26.5, z: 39, y: 0, vy: 0,    // au pied de la base, face à la place
+  x: CENTRE - 5.5, z: BASE.z + 3, y: 0, vy: 0,   // au pied de la base, face à la place
   angle: Math.PI * 0.75,   // 0 = regarde vers +Z ; au départ, vers la place
   etat: 'libre',           // libre | echelle
   echelle: null, tEchelle: 0,
@@ -4849,6 +4938,17 @@ const joueur = {
   cadence: 0,              // temps avant le prochain coup possible
   pas: 0,
 };
+
+function replacerJoueur() {
+  joueur.x = CENTRE - 5.5;
+  joueur.z = BASE.z + 3;
+  joueur.y = 0; joueur.vy = 0;
+  joueur.etat = 'libre';
+  joueur.angle = Math.PI * 0.75;
+  cam.yaw = Math.PI * 0.75;
+  cam.cran = Math.round(cam.yaw / (Math.PI / 2));
+  cam.hauteur = reglages.hauteurVisee;
+}
 
 const corps = new T.Group();
 const bassin = new T.Group();            // tout ce qui pivote avec le joueur
@@ -4910,14 +5010,7 @@ zombieMesh.castShadow = true;
 zombieMesh.count = 0;
 scene.add(zombieMesh);
 
-// Les rails (#7) : de l'entrée d'une route jusqu'à la mairie, jamais quittés.
-// Le rail sud contourne la base par l'est — un rail est un tracé, pas une ligne droite.
-const RAILS = {
-  nord: [[32, 11], [32, PLACE0], [32, MAIRIE.z - 1.4]],
-  est: [[52, 32], [PLACE1, 32], [MAIRIE.x + MAIRIE.l + 1.4, 32]],
-  sud: [[32, 52], [32, 41.5], [38.5, 41], [38.5, 33], [MAIRIE.x + MAIRIE.l + 1.4, 32]],
-};
-for (const r of ROUTES) r.rail = RAILS[r.nom].map(([x, z]) => new T.Vector2(x, z));
+// Les rails sont tracés par construireVille() : ils dépendent de la taille de la ville.
 
 const zombies = [];
 function naitreZombie(k) {
@@ -5569,9 +5662,20 @@ function majChrono(dt) {
    ========================================================================== */
 
 const jIps = document.getElementById('j-ips'), jDraw = document.getElementById('j-draw'),
-  jCam = document.getElementById('j-cam'), jEntree = document.getElementById('j-entree'), jCanons = document.getElementById('j-canons');
+  jCam = document.getElementById('j-cam'), jEntree = document.getElementById('j-entree'), jCanons = document.getElementById('j-canons'),
+  jVille = document.getElementById('j-ville'), jAr = document.getElementById('j-ar');
+
+// L'aller-retour le plus long que la ville impose, à la vitesse courante : c'est
+// le chiffre que #6 voulait caler sur les 30 s de préparation.
+function allerRetourLong() {
+  return 2 * mesures.toitLoin / reglages.vitesse + 2 * reglages.dureeEchelle;
+}
 
 function majJauges() {
+  jVille.textContent = VILLE + '² · ' + mesures.cote + '² jouable';
+  const ar = allerRetourLong();
+  jAr.textContent = ar.toFixed(1).replace('.', ',') + ' s';
+  jAr.classList.toggle('chaud', ar > 30);
   jCam.textContent = { libre: 'A · libre', assistee: 'B · assistée', crans: 'C · crans' }[reglages.cam];
   jCanons.textContent = canons.length + ' / ' + MAX_CANONS;
   jEntree.textContent = manetteBloquee ? 'sans manette' : entree.source + (manetteVue ? ' ·  🎮' : '');
@@ -5613,6 +5717,25 @@ bascule('b-brume', 'brume', (v) => `brume : ${v ? 'oui' : 'non'}`, () => {
   scene.traverse((o) => { if (o.isMesh) o.material.needsUpdate = true; });
 });
 
+// Changer de taille reconstruit la ville, replace le joueur, et remet à zéro ce
+// qui n'a plus de sens : les canons posés ailleurs, les zombies sur les anciens
+// rails, les chronos d'une ville qui n'existe plus.
+function changerTaille(cle) {
+  reglages.taille = +cle;
+  construireVille(reglages.taille);
+  replacerJoueur();
+  canons.length = 0;
+  vivants.length = 0;
+  zombies.length = 0;
+  ajusterZombies();
+  chrono.dehors = false; chrono.t = 0; chrono.dernier = null; chrono.meilleur = null;
+  document.querySelectorAll('#tailles button').forEach((b) =>
+    b.classList.toggle('retenu', +b.dataset.taille === reglages.taille));
+  majJauges();
+}
+document.querySelectorAll('#tailles button').forEach((b) =>
+  b.addEventListener('click', () => changerTaille(b.dataset.taille)));
+
 const tactileEl = document.getElementById('tactile');
 let modeTactile = 'auto';
 const bTactile = document.getElementById('b-tactile');
@@ -5644,6 +5767,7 @@ addEventListener('resize', () => {
    La boucle
    ========================================================================== */
 
+replacerJoueur();
 changerCamera(reglages.cam);
 ajusterZombies();
 majJauges();
