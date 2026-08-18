@@ -58,6 +58,14 @@ _Éviter_ : attaque, combat, manche
 La phase entre deux assauts, de durée fixe, dont la barre s'écoule automatiquement. Aucun bouton ne la déclenche ni ne l'allonge.
 _Éviter_ : pause, entracte, intervalle
 
+**Sas** :
+L'unique écran hors-jeu : accueil au chargement, pause d'interruption et pause voulue à la fois. La partie s'y fige et s'assombrit derrière deux tuiles sans un mot de texte — reprendre, d'un appui, ou recommencer, d'un appui **maintenu une seconde**. Rien ne reprend jamais tout seul : c'est l'appui qui sort du Sas qui rend la manette, le son et le verrou de veille.
+_Éviter_ : pause, menu, accueil, écran-titre
+
+**Instantané** :
+La copie de l'état de partie écrite à chaque entrée en préparation, et à chaque achat de cette préparation. Elle décrit une **frontière de vague**, jamais un assaut : si la page meurt, on reprend au début de la préparation en cours, barre pleine, et jamais au milieu d'un combat. Elle ne conserve rien d'une partie à l'autre — elle disparaît avec la partie qu'elle décrit.
+_Éviter_ : sauvegarde, checkpoint, état
+
 ### Les zombies
 
 **Zombie** :
