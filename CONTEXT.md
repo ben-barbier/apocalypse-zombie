@@ -28,7 +28,7 @@ L'arche de couleur fixe qui se dresse à l'entrée d'une rue, **du côté de la 
 _Éviter_ : arche, porte, balise
 
 **Mairie** :
-Le bâtiment à défendre, au centre de la place. Ses points de vie ne se régénèrent jamais ; à zéro, la partie s'achève.
+Le bâtiment à défendre, au centre de la place. Elle vaut **200 coups de Traînard**, soit dix canons au sol, et ses points de vie ne se régénèrent jamais : chacun est perdu définitivement, et seul un **renfort** les rend. À zéro, la partie s'achève. Elle offre au moins trois faces libres depuis la place, le hangar de la base n'en occupant qu'une.
 _Éviter_ : QG, base, hôtel de ville
 
 **Base** :
@@ -158,6 +158,10 @@ _Éviter_ : zone, rayon, cercle
 **Ravitaillement** :
 Le fait d'apporter des bombes de feu de la base à un canon. Toujours un choix d'optimisation, jamais une obligation.
 _Éviter_ : recharge, approvisionnement
+
+**Renfort** :
+Le seul achat qui porte sur la mairie. Il la remet **entièrement à neuf** et monte son plafond de points de vie — c'est la règle du canon qu'on améliore, appliquée au bâtiment : il n'existe ni réparation séparée, ni armure. Trois paliers, puis un rachat qui ne fait plus que remettre à neuf, indéfiniment. Son prix ne bouge pas, sa valeur si : elle se lit dans la barre, pas dans un tableau. S'achète en plein assaut, contre la mairie, comme on améliore un canon.
+_Éviter_ : réparation, amélioration de mairie, armure, bouclier
 
 ### La lumière
 
