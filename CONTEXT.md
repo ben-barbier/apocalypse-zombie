@@ -220,9 +220,13 @@ _Éviter_ : sprite, carreau, image
 ### L'argent
 
 **Pièce** :
-L'unité d'argent, et la seule. Elle tombe de chaque zombie tué, pour une valeur qui dépend de son type. Tout s'achète avec — canons, améliorations, bombes de feu, renforts de mairie — et rien d'autre ne les limite : on achète ce qu'on peut se payer.
+L'unité d'argent, et la seule. Il en tombe **une par zombie tué**, dont la **taille dit la valeur** — un Costaud en lâche une plus grosse qu'un Traînard, et un zombie tué à l'épée une plus grosse encore. Elle est **aimantée** : à moins de 4 blocs, elle file vers le joueur. Elle **ne périme jamais** — courir la chercher, c'est l'avoir tout de suite, donc pouvoir acheter en plein assaut ; ne pas courir ne coûte rien, la prime de fin d'assaut la ramassera. Tout s'achète avec — canons, améliorations, bombes de feu, renforts de mairie — et rien d'autre ne les limite : on achète ce qu'on peut se payer, à n'importe quel moment.
 _Éviter_ : or, argent (comme unité), score
 
 **Prime de bravoure** :
-Le supplément de pièces gagné en tuant un zombie à l'épée plutôt qu'en le laissant aux canons. C'est ce qui garde le corps-à-corps rentable jusqu'à la dernière vague.
+Le **doublement** de la valeur d'un zombie tué à l'épée plutôt que laissé aux canons. Elle ne s'affiche nulle part : elle se lit à la **taille de la pièce**, plus grosse, et c'est tout son enseignement. C'est ce qui garde le corps-à-corps rentable jusqu'à la dernière vague — et, parce qu'elle **substitue au lieu d'ajouter** (c'est le même zombie), c'est aussi elle qui empêche la ville de se couvrir de canons : chaque canon posé vole des kills à l'épée et rabote le revenu qui achèterait le suivant.
 _Éviter_ : bonus, multiplicateur, combo
+
+**Prime de fin d'assaut** :
+Les pièces que la mairie verse à la mort du dernier zombie, avec tout ce qui traîne encore au sol, crédité sans rien avoir à ramasser. C'est la **seule ponctuation d'un assaut**, qui n'a aucun chrono : rien d'autre ne dit « tu as tenu ». Fixe d'une vague à l'autre, donc énorme à la vague 1 et négligeable à la vague 10 — elle finance le premier canon et disparaît d'elle-même ensuite.
+_Éviter_ : bonus de vague, récompense, score
