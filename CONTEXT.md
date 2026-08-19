@@ -84,7 +84,7 @@ Le zombie résistant, bleu-violet et plus grand, apparu à la vague 7. C'est lui
 _Éviter_ : tank, gros, blindé
 
 **Colosse** :
-L'unique zombie géant doré de la vague 10, très lent et très résistant, escorté.
+L'unique zombie géant doré de la vague 10, très lent et très résistant, escorté. Il entre **en premier**, visible d'emblée au bout de sa rue, et met une minute et demie à la descendre.
 _Éviter_ : boss, chef, géant
 
 **Rail** :
@@ -95,11 +95,23 @@ _Éviter_ : chemin, trajet, itinéraire
 La progression d'un zombie le long de son rail. Elle ne décroît jamais — c'est la garantie qu'un assaut se termine toujours.
 
 **Paquet** :
-Le petit groupe de zombies qui entre d'un coup par une rue, occupant sa largeur. Un assaut est une suite de paquets, jamais un flot continu.
+Les **quatre zombies d'un même type** qui entrent d'un coup par une rue, occupant sa largeur. Un assaut est une suite de paquets, jamais un flot continu, et un paquet ne mélange jamais deux types : un paquet est une menace, et une réponse.
 _Éviter_ : groupe, vague (réservé au cycle), salve
 
+**Cadence** :
+Le rythme d'entrée des paquets : **un paquet toutes les six secondes, dans chaque rue active**. Elle ne varie d'aucune vague — c'est l'effectif de la vague qui dit combien de paquets, donc quelle longueur de colonne. Six secondes valent neuf blocs entre deux paquets : sept paquets tiennent dans une rue.
+_Éviter_ : débit, fréquence, spawn rate
+
+**Colonne** :
+La vague entière étirée le long de sa rue, du paquet de tête à celui qui entre encore. C'est la forme d'un assaut : la rue **est** pleine, parce qu'une vague entre plus vite qu'elle ne se vide — un Traînard met quarante-huit secondes à rejoindre la mairie, une vague en met trente-huit à entrer. Le nombre de zombies vivants ne peut donc jamais dépasser l'effectif de la vague.
+_Éviter_ : file, flot, horde
+
+**Fuite** :
+Un zombie qui atteint la mairie et se met à frapper. Elle se compte en **points de vie de mairie**, jamais en zombies : sa durée est celle du retour du joueur — six secondes depuis la place, quatorze depuis le fond d'une rue. C'est le même gradient que le ravitaillement, appliqué aux dégâts : jouer en avant coûte plus cher quand ça passe.
+_Éviter_ : passage, percée, leak
+
 **Escorte** :
-Les Costauds qui accompagnent le Colosse à la vague 10, ralentis à son pas et massés autour de lui.
+Les Costauds qui accompagnent le Colosse à la vague 10, ralentis à son pas et massés autour de lui. Ils entrent avec lui, dès la première seconde de l'assaut, et **occupent une rue à eux seuls** — tout le reste de la vague descend l'autre.
 
 ### Le joueur
 
