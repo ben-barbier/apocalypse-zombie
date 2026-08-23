@@ -4,6 +4,8 @@ Tower defense 3D en style voxel, vue à la 3e personne, pour un enfant de 8 ans.
 
 Les termes s'y ajoutent **au fil des tickets**, quand ils sont réellement tranchés.
 
+Le code, lui, est écrit **en anglais** : la correspondance entre chaque terme de ce glossaire et son identifiant est fixée une fois pour toutes dans [`docs/adr/0002`](docs/adr/0002-code-en-anglais-conception-en-francais.md). Les listes _Éviter_ ci-dessous gouvernent le **français** — elles ne se traduisent pas.
+
 ## Language
 
 ### La ville
