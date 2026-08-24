@@ -4276,7 +4276,7 @@ const RAIL = LONGUEUR + (RAYON_PLACE - MAIRIE_COTE / 2);   // 92 blocs (#35)
 
 const reglages = {
   place: 'hexagone',      // ronde · octogone · hexagone
-  module: 8,              // largeur de façade d'un bâtiment : 8 ou 6 blocs
+  module: 6,              // largeur de façade d'un bâtiment : 6 ou 8 blocs
   vis: 'decale',          // face · decale — les deux côtés d'une rue
   profil: 'dessine',      // plat · versLeFond · versLePied · ruban · ilots · marches · dessine
   base: 'rue1',           // rue1 · entre — la face de la mairie où la base s'adosse
@@ -4321,12 +4321,25 @@ const PROFILS = {
   // endroit — on ne traverse pas une rue de 6 blocs, les deux chemins de toits
   // sont donc indépendants.
   dessine: {
-    nom: 'le plan dessiné', dit: 'trois tronçons 4-6-8 par côté, coupés à des endroits différents, et un 8 au fond',
-    suite: { '-1': [4, 6, 8, 4, 6, 8, 4, 6, 8, 8], '1': [4, 6, 8, 8, 4, 6, 8, 4, 6, 8] },
-    h: (i, n, cote) => {
-      const s = PROFILS.dessine.suite[cote === 1 ? '1' : '-1'];
-      return s[Math.min(i, s.length - 1)];
+    nom: 'le plan dessiné', dit: 'des tronçons 4-6-8, coupés à des endroits différents d\'un côté à l\'autre, et un 8 au fond',
+    suite: (n, cote) => {
+      // Un tronçon monte 4 · 6 · 8 puis retombe à 4 : la chute de 4 blocs ne
+      // se saute pas (#15), donc chaque tronçon est un morceau de toit isolé
+      // et son sommet de 8 est un poste de tir. Le côté droit ouvre par un
+      // tronçon long, le gauche le referme — les coupures ne se font jamais
+      // face à face, et le fond d'une rue est toujours un 8.
+      const s = [];
+      let premier = true;
+      while (s.length < n) {
+        const t = premier && cote === 1 ? [4, 6, 8, 8] : [4, 6, 8];
+        premier = false;
+        if (s.length + t.length > n) break;
+        s.push(...t);
+      }
+      while (s.length < n) s.push(8);
+      return s;
     },
+    h: (i, n, cote) => PROFILS.dessine.suite(n, cote)[i],
   },
 };
 
@@ -4950,8 +4963,8 @@ function majReglages() {
   elReglages.innerHTML = [
     groupe('A · la place', 'Trois pans droits épousent trois branches ; un cercle, sur une grille de blocs, est un escalier. La mairie garde ses quatre faces dans tous les cas.', 'place',
       [['hexagone', 'hexagonale'], ['octogone', 'octogonale'], ['ronde', 'ronde']]),
-    groupe('B · le module', 'La largeur de façade d\'un bâtiment. 8 divise les 80 blocs d\'une rue exactement ; 6 laisse 2 blocs au dernier.', 'module',
-      [[8, '8 blocs'], [6, '6 blocs']]),
+    groupe('B · le module', 'La largeur de façade d\'un bâtiment, donc le nombre de toits et d\'échelles par rue. 8 divise les 80 blocs exactement ; 6 en laisse 2 au bâtiment du fond, et donne un tronçon de toits de plus par côté.', 'module',
+      [[6, '6 blocs'], [8, '8 blocs']]),
     groupe('C · les deux côtés', 'En vis-à-vis, la rue est un couloir symétrique. Décalés d\'un demi-module, les façades ne se répondent plus — et ça ne coûte pas un bloc.', 'vis',
       [['decale', 'décalés'], ['face', 'en vis-à-vis']]),
     groupe('D · le profil des hauteurs', 'Le vrai contenu du ticket : la silhouette d\'une rue <b>est</b> la carte de ses emplacements de tir, et elle décide si l\'on circule sur les toits.', 'profil',
