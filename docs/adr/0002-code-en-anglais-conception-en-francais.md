@@ -54,6 +54,7 @@ Les `_Éviter_` du glossaire ne sont **pas** traduites : elles gouvernent le fra
 | `tower`, `turret`, `defense` | `cannon` | « tower defense » est le genre, pas l'objet |
 | `boss`, `tank` | `colossus`, `bruiser` | le défaut de sens se transporte de l'interdit français |
 | `score`, `points` | `coins` | ce jeu n'a pas de score, il a des pièces |
+| `record`, `highScore`, `best`, `bestWave` | *rien* | **rien ne survit à une partie** ([#42](https://github.com/ben-barbier/apocalypse-zombie/issues/42)) — pas même un octet |
 | `damage` seul | `swordHits`, `shamblerHits`, `contacts` | **trois** unités de dégâts ([#7](https://github.com/ben-barbier/apocalypse-zombie/issues/7), [#22](https://github.com/ben-barbier/apocalypse-zombie/issues/22)) — un `damage: number` les confond |
 | `health`, `life` | `hp` | un seul nom pour les PV du joueur, de la mairie et d'un canon au sol |
 | `ammo` | `magazine` (contenant), `firebomb` (contenu) | |

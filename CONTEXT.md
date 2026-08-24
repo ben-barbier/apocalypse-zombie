@@ -73,7 +73,7 @@ L'unique écran hors-jeu : accueil au chargement, pause d'interruption et pause 
 _Éviter_ : pause, menu, accueil, écran-titre
 
 **Instantané** :
-La copie de l'état de partie écrite à chaque entrée en préparation, et à chaque achat de cette préparation. Elle décrit une **frontière de vague**, jamais un assaut : si la page meurt, on reprend au début de la préparation en cours, barre pleine, et jamais au milieu d'un combat. Elle ne conserve rien d'une partie à l'autre — elle disparaît avec la partie qu'elle décrit.
+La copie de l'état de partie écrite à chaque entrée en préparation, et à chaque achat de cette préparation. Elle décrit une **frontière de vague**, jamais un assaut : si la page meurt, on reprend au début de la préparation en cours, barre pleine, et jamais au milieu d'un combat. Elle ne conserve rien d'une partie à l'autre — elle disparaît avec la partie qu'elle décrit. C'est la **seule** chose que le jeu écrive sur l'appareil, sous **une clé et une seule**, gelée : ni record, ni médaille, ni réglage ne lui tiennent compagnie.
 _Éviter_ : sauvegarde, checkpoint, état
 
 ### Les zombies
