@@ -38,7 +38,9 @@ Le cahier, le glossaire, les tickets, les commits et le texte affiché dans le j
 | Pastille | `pip` | | Flèche | `arrow` |
 | Vignette | `badge` | | Porte | `door` |
 | Liseré | `reach` | | Tache | `blot` |
-| Manche | `stick` | | | |
+| Manche | `stick` | | Mur | `wall` |
+| Toit | `roof` | | Corniche | `cornice` |
+| Planche | `atlas` | | | |
 
 **La règle qui gouverne cette table** : en anglais, un terme du glossaire reçoit un mot et un seul, qui ne soit ni déjà pris par un autre terme du glossaire, ni pris par l'API Three.js. C'est le flou que les listes `_Éviter_` de `CONTEXT.md` combattent, pas la racine des mots — `sweep`, `breach` et `magazine` sont retenus bien que « balayage », « percée » et « chargeur » soient bannis en français, parce qu'aucun n'a de concurrent en anglais.
 
@@ -58,6 +60,9 @@ Les `_Éviter_` du glossaire ne sont **pas** traduites : elles gouvernent le fra
 | `particle`, `sprite` | `shard` | |
 | `fog` | `haze` | `scene.fog` appartient à Three.js |
 | `pause`, `menu`, `title` | `airlock` | il n'existe qu'un écran hors-jeu |
+| `band` | `hud` (interface), `cornice` (bâtiment) | « bandeau » a deux sens en français, un mot chacun en code |
+| `plaza`, `outside`, `depot` | `square`, `outskirts`, `base` | traductions naturelles, et fausses ici — la table seule fait foi |
+| `spritesheet`, `texture` seul | `atlas` | il n'y a qu'une planche, et `tile` est ce qu'elle contient |
 | `round`, `level`, `stage` | `wave` | |
 | `endless`, `survival`, `infinite` | `overtime` | la Rallonge prolonge la partie, elle n'ouvre pas un second mode |
 | `update`, `tick` | `step` | un seul nom pour le pas de simulation |
