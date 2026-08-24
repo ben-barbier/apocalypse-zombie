@@ -18,7 +18,7 @@ Le moyeu de l'étoile, 32 blocs de bord à bord, au milieu duquel se dresse la m
 _Éviter_ : centre-ville, esplanade
 
 **Rue** :
-Une des trois avenues droites de 80 blocs, larges de 6, qui rayonnent de la place à 120° l'une de l'autre. C'est le terrain de jeu du tower defense : un zombie y descend assez longtemps sous le feu des canons posés sur les toits qui la bordent pour qu'un canon serve à quelque chose — c'est ce qui a fait abandonner l'anneau, dont les 6 blocs de couloir se franchissaient en quatre secondes. Les durées de traversée par type se déduisent de la longueur, et elles sont en révision depuis que celle-ci est passée de 60 à 80 blocs.
+Une des trois avenues droites de 80 blocs, larges de 6, qui rayonnent de la place à 120° l'une de l'autre. C'est le terrain de jeu du tower defense : un zombie y descend assez longtemps sous le feu des canons posés sur les toits qui la bordent pour qu'un canon serve à quelque chose — c'est ce qui a fait abandonner l'anneau, dont les 6 blocs de couloir se franchissaient en quatre secondes. Les durées de traversée par type se déduisent de la longueur : sur le **rail de 92 blocs** — les 80 de la rue, plus les 12 qui séparent sa bouche de la face de la mairie —, un Traînard met 61 secondes, un Sprinteur 23, un Costaud 92, le Colosse 115.
 _Éviter_ : route (ancien nom), avenue, couloir
 
 **Front bâti** :
@@ -105,7 +105,7 @@ Les **quatre zombies d'un même type** qui entrent d'un coup par une rue, occupa
 _Éviter_ : groupe, vague (réservé au cycle), salve
 
 **Cadence** :
-Le rythme d'entrée des paquets : **un paquet toutes les six secondes, dans chaque rue active**. Elle ne varie d'aucune vague — c'est l'effectif de la vague qui dit combien de paquets, donc quelle longueur de colonne. Six secondes valent neuf blocs entre deux paquets : sept paquets tiennent dans une rue.
+Le rythme d'entrée des paquets : **un paquet toutes les six secondes, dans chaque rue active**. Elle ne varie d'aucune vague — c'est l'effectif de la vague qui dit combien de paquets, donc quelle longueur de colonne. Six secondes valent neuf blocs entre deux paquets : **neuf paquets tiennent dans une rue**, soit trente-six zombies, et soixante-douze sur deux rues. Ce que porte une rue ne borne donc pas la population — c'est le total de la vague, et lui seul, qui la borne.
 _Éviter_ : débit, fréquence, spawn rate
 
 **Colonne** :
@@ -113,7 +113,7 @@ La vague entière étirée le long de sa rue, du paquet de tête à celui qui en
 _Éviter_ : file, flot, horde
 
 **Fuite** :
-Un zombie qui atteint la mairie et se met à frapper. Elle se compte en **points de vie de mairie**, jamais en zombies : sa durée est celle du retour du joueur — six secondes depuis la place, quatorze depuis le fond d'une rue. C'est le même gradient que le ravitaillement, appliqué aux dégâts : jouer en avant coûte plus cher quand ça passe.
+Un zombie qui atteint la mairie et se met à frapper. Elle se compte en **points de vie de mairie**, jamais en zombies : sa durée est celle du retour du joueur — six secondes depuis la place, quinze depuis le fond d'une rue. C'est le même gradient que le ravitaillement, appliqué aux dégâts : jouer en avant coûte plus cher quand ça passe.
 _Éviter_ : passage, percée, leak
 
 **Escorte** :
@@ -125,7 +125,7 @@ Les six Costauds qui accompagnent le Colosse, ralentis à son pas et massés aut
 Le personnage dirigé par l'enfant, suivi à la troisième personne. Bâti sur les quatorze mêmes boîtes qu'un zombie — c'est la grammaire commune à tous les personnages — plus l'épée qu'il tient en main. Tunique bleue et acier clair : les seules couleurs froides portées par un personnage, pour qu'il ne soit jamais confondu avec un assaillant.
 
 **Course** :
-La seule allure du joueur : 5 blocs par seconde, toujours. Il n'y a ni marche ni sprint — mais il y a un **saut**. C'est elle qui chiffre le ravitaillement, et elle en fait un **gradient** le long d'une rue : gratuit au pied (le halo y suffit), un aller-retour de la préparation au milieu, et un aller-retour qui déborde sur l'assaut au fond — 34 secondes pour le toit le plus lointain, quand la préparation en dure 30.
+La seule allure du joueur : 6 blocs par seconde, toujours. Il n'y a ni marche ni sprint — mais il y a un **saut**. C'est elle qui chiffre le ravitaillement, et elle en fait un **gradient** le long d'une rue : gratuit au pied (le halo y suffit), un aller-retour de la préparation au milieu, et un aller-retour qui déborde sur l'assaut au fond — 35 secondes pour le toit le plus lointain, quand la préparation en dure 30.
 _Éviter_ : vitesse, marche, sprint
 
 **Saut** :
