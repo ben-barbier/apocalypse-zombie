@@ -305,9 +305,9 @@
     <p class="eyebrow">Apocalypse Zombie · ticket #30 · prototype jetable</p>
     <h1>Tchac, bloup, <em>souffle</em></h1>
     <p class="lede">
-      Quinze bruitages et une musique, tous <strong>synthétisés à la main en WebAudio</strong> — zéro fichier,
-      zéro dépendance, zéro banque de sons. Chacun s'écoute seul, avec ses paramètres à portée de doigt, puis
-      tous ensemble à la densité d'un assaut de vague 8. <strong>À écouter au haut-parleur de l'iPad</strong>, pas au
+      Vingt bruitages candidats et deux musiques, tous <strong>synthétisés à la main en WebAudio</strong> —
+      zéro fichier, zéro dépendance, zéro banque de sons. Chacun s'écoute seul, avec ses paramètres à portée de doigt, puis tous
+      ensemble à la densité d'un assaut de vague 8. <strong>À écouter au haut-parleur de l'iPad</strong>, pas au
       casque : c'est comme ça qu'un enfant de 8 ans y jouera.
     </p>
     <button id="boot" type="button">
@@ -340,11 +340,10 @@
     <section id="alarmes">
       <h2>Ce que le son doit dire que l'image ne dit pas</h2>
       <p class="section-note">
-        Le joueur passe une partie du temps <strong>au fond d'une rue, dos à la place</strong>. La mairie qui
-        encaisse est alors hors champ, et chaque coup encaissé est un point de vie perdu définitivement. C'est
-        la seule chose que le son doit dire à sa place — et le vrai test n'est pas « est-ce que ce son est
-        joli » mais <strong>« est-ce que je l'entends quand l'assaut tourne »</strong> : lancer l'assaut, puis
-        appuyer ici.
+        Le joueur passe une partie du temps <strong>au fond d'une rue, dos à la place</strong>. Trois choses lui
+        sont alors invisibles, et le son est le seul canal qui reste. Le vrai test n'est pas « est-ce que ce son
+        est joli » mais <strong>« est-ce que je l'entends quand l'assaut tourne »</strong> — donc : lancer
+        l'assaut, puis appuyer ici.
       </p>
       <div class="grid" id="grid-alarm"></div>
     </section>
@@ -390,8 +389,8 @@
     <section id="monde">
       <h2>Le monde</h2>
       <p class="section-note">
-        Ce que le jeu dit tout seul, sans que le joueur agisse. Il n'en reste qu'un : le portique qui s'allume,
-        à la première seconde de la préparation.
+        Ce que le jeu dit tout seul, sans que le joueur agisse : le portique qui s'allume, l'échelle qu'on
+        monte, le Colosse qui entre.
       </p>
       <div class="grid" id="grid-world"></div>
     </section>
@@ -400,8 +399,8 @@
       <h2>Y a-t-il une musique ?</h2>
       <p class="section-note">
         Un assaut n'a aucun chrono : rien ne monte, rien ne presse. Une boucle de fond est peut-être ce qui
-        manque à sa tension — ou exactement le bruit de trop. À écouter <strong>par-dessus l'assaut</strong>,
-        jamais seule.
+        manque à sa tension — ou exactement le bruit de trop. Deux propositions, à écouter <strong>par-dessus
+        l'assaut</strong>, pas seules.
       </p>
       <div class="grid" id="grid-music"></div>
     </section>
@@ -411,19 +410,19 @@
       <div class="questions">
         <div class="question">
           <div>
-            <p><b>La liste.</b> Quinze bruitages. Lesquels sautent encore ?</p>
+            <p><b>La liste.</b> Une dizaine, pas vingt. Lesquels sautent ?</p>
             <p>Chaque son gardé est un son de plus dans la bouillie de la vague 8, et un son de moins dont on remarque l'absence.</p>
           </div>
         </div>
         <div class="question">
           <div>
-            <p><b>L'alarme de la mairie.</b> Perce-t-elle l'assaut ?</p>
-            <p>Faut-il l'esquive pour ça — et est-ce qu'un jeu qui se baisse tout seul reste lisible ?</p>
+            <p><b>Les trois alarmes.</b> La mairie hors champ, le zombie derrière, le canon à sec.</p>
+            <p>Percent-elles l'assaut ? Faut-il l'esquive pour ça — et est-ce qu'un jeu qui se baisse tout seul reste lisible ?</p>
           </div>
         </div>
         <div class="question">
           <div>
-            <p><b>La musique.</b> Le pouls, ou le silence habité par les gémissements ?</p>
+            <p><b>La musique.</b> Boucle, ou silence habité par les gémissements ?</p>
           </div>
         </div>
         <div class="question">
@@ -757,6 +756,28 @@ def({
 });
 
 def({
+  id: "impact", name: "Impact de boulet", family: "defense", group: "defense",
+  says: "<b>Le boulet est retombé.</b> La mire l'a déjà dit à l'image — le son est-il encore utile ?",
+  params: [
+    { key: "grit", label: "matière", min: 400, max: 2600, value: 1050, step: 25, unit: "Hz" }
+  ],
+  play(p, at, where) {
+    const start = at || t();
+    const v = place("defense", 0.25); if (!v) return;
+    const pan = panner(where || 0); pan.connect(v.node);
+    const n = noise(0.14);
+    const bp = filt("bandpass", p.grit, 0.9);
+    const g = env(0.55, 0.002, 0.11, start);
+    n.connect(bp); bp.connect(g); g.connect(pan);
+    const o = osc("sine", 105);
+    o.frequency.exponentialRampToValueAtTime(45, start + 0.1);
+    const og = env(0.45, 0.002, 0.12, start);
+    o.connect(og); og.connect(pan);
+    o.start(start); o.stop(start + 0.25);
+  }
+});
+
+def({
   id: "jet", name: "Jet de feu", family: "defense", group: "defense", sustained: true,
   says: "<b>Un zombie est dans le cône.</b> Il ne s'allume jamais à vide : la flamme est déjà un signal de présence.",
   params: [
@@ -826,6 +847,30 @@ def({
   }
 });
 
+def({
+  id: "sec", name: "Canon à sec", family: "alarm", group: "alarm", alarm: true,
+  says: "<b>Rien ne le dit à l'image si le joueur est ailleurs.</b> La flamme raccourcit — mais il ne la regarde pas. Candidat neuf, à garder ou à jeter.",
+  params: [
+    { key: "pitch", label: "hauteur", min: 200, max: 900, value: 430, step: 10, unit: "Hz" }
+  ],
+  play(p, at, where) {
+    const start = at || t();
+    duck(0.5, 0.35);
+    const v = place("alarm", 0.7); if (!v) return;
+    const pan = panner(where || 0); pan.connect(v.node);
+    [0, 1, 2].forEach(i => {
+      const o = osc("triangle", p.pitch * Math.pow(0.79, i));
+      const g = env(0.4, 0.004, 0.09, start + i * 0.11);
+      o.connect(g); g.connect(pan);
+      o.start(start + i * 0.11); o.stop(start + i * 0.11 + 0.18);
+    });
+    const n = noise(0.3);
+    const lp = filt("lowpass", 600, 0.6);
+    const ng = env(0.18, 0.05, 0.28, start + 0.33);
+    n.connect(lp); lp.connect(ng); ng.connect(pan);
+  }
+});
+
 // --- alarmes --------------------------------------------------------------
 
 def({
@@ -858,6 +903,32 @@ def({
     const bp = filt("bandpass", 1200, 0.7);
     const ng = env(0.3, 0.002, 0.2, start);
     n.connect(bp); bp.connect(ng); ng.connect(v.node);
+  }
+});
+
+def({
+  id: "derriere", name: "Zombie derrière soi", family: "alarm", group: "alarm", alarm: true,
+  says: "<b>Il arrive dans le dos.</b> Même gémissement, mais pané et assourdi. Le traitement suffit-il, ou faut-il un son à part ?",
+  params: [
+    { key: "side", label: "côté", min: -1, max: 1, value: -0.8, step: 0.1, unit: "" },
+    { key: "muffle", label: "assourdissement", min: 300, max: 3000, value: 800, step: 50, unit: "Hz" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("alarm", 0.9); if (!v) return;
+    const pan = panner(p.side); pan.connect(v.node);
+    const lp = filt("lowpass", p.muffle, 0.9);
+    lp.connect(pan);
+
+    const o = osc("sawtooth", 104);
+    const lfo = osc("sine", 5.2);
+    const lg = ctx.createGain(); lg.gain.value = 8;
+    lfo.connect(lg); lg.connect(o.frequency);
+    const formant = filt("bandpass", 480, 2.2);
+    const g = env(0.75, 0.06, 0.7, start);
+    o.connect(formant); formant.connect(g); g.connect(lp);
+    o.start(start); o.stop(start + 0.9);
+    lfo.start(start); lfo.stop(start + 0.9);
   }
 });
 
@@ -967,7 +1038,59 @@ def({
   }
 });
 
+def({
+  id: "echelle", name: "Montée d'échelle", family: "world", group: "world",
+  says: "<b>Je monte.</b> Quatre appuis en 0,8 s — exactement la durée décidée.",
+  params: [
+    { key: "clicks", label: "barreaux", min: 2, max: 6, value: 4, step: 1, unit: "" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("world", 0.9); if (!v) return;
+    const gap = 0.8 / p.clicks;
+    for (let i = 0; i < p.clicks; i++) {
+      const at2 = start + i * gap;
+      const n = noise(0.05);
+      const bp = filt("bandpass", 2400 - i * 120, 1.8);
+      const g = env(0.3, 0.002, 0.045, at2);
+      n.connect(bp); bp.connect(g); g.connect(v.node);
+    }
+  }
+});
+
+def({
+  id: "colosse", name: "Le Colosse entre", family: "world", group: "world",
+  says: "<b>Il est là, et il possède sa rue.</b> Vague 10, première seconde — l'arbitrage devient un choix, pas une surprise.",
+  params: [
+    { key: "sub", label: "sous-grave", min: 28, max: 70, value: 41, step: 1, unit: "Hz" },
+    { key: "steps", label: "pas", min: 2, max: 6, value: 3, step: 1, unit: "" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    duck(0.5, 1.6);
+    const v = place("world", 2.4); if (!v) return;
+    const o = osc("sine", p.sub);
+    const g = env(0.9, 0.4, 1.8, start);
+    o.connect(g); g.connect(v.node);
+    o.start(start); o.stop(start + 2.4);
+    for (let i = 0; i < p.steps; i++) {
+      const at2 = start + 0.3 + i * 0.62;
+      const s = osc("sine", 70);
+      s.frequency.exponentialRampToValueAtTime(38, at2 + 0.25);
+      const sg = env(0.8, 0.005, 0.28, at2);
+      s.connect(sg); sg.connect(v.node);
+      s.start(at2); s.stop(at2 + 0.55);
+      const n = noise(0.16);
+      const lp = filt("lowpass", 700, 0.7);
+      const ng = env(0.25, 0.004, 0.14, at2);
+      n.connect(lp); lp.connect(ng); ng.connect(v.node);
+    }
+  }
+});
+
 // --- musique --------------------------------------------------------------
+
+let musicStop = null;
 
 def({
   id: "musique-pouls", name: "Le pouls", family: "music", group: "music", sustained: true,
@@ -993,6 +1116,40 @@ def({
       i++;
     }, beat * 1000);
     return () => { clearInterval(id); g.gain.setTargetAtTime(0.0001, t(), 0.1); setTimeout(() => g.disconnect(), 400); };
+  }
+});
+
+def({
+  id: "musique-nappe", name: "La nappe", family: "music", group: "music", sustained: true,
+  says: "<b>Un drone tenu, sans tempo.</b> Il habite le silence sans presser personne — l'urgence reste celle de la mairie.",
+  params: [
+    { key: "root", label: "fondamentale", min: 40, max: 120, value: 65, step: 1, unit: "Hz" },
+    { key: "level", label: "présence", min: 0.1, max: 1, value: 0.42, step: 0.05, unit: "" }
+  ],
+  hold(p) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t());
+    g.gain.exponentialRampToValueAtTime(p.level, t() + 1.2);
+    g.connect(bus.music.gain);
+    const lp = filt("lowpass", 340, 0.9);
+    lp.connect(g);
+    const oscs = [1, 1.5, 2.01, 3].map((r, i) => {
+      const o = osc(i === 3 ? "sine" : "sawtooth", p.root * r);
+      const og = ctx.createGain();
+      og.gain.value = [0.4, 0.2, 0.16, 0.08][i];
+      o.connect(og); og.connect(lp);
+      o.start();
+      return o;
+    });
+    const lfo = osc("sine", 0.09);
+    const lg = ctx.createGain(); lg.gain.value = 90;
+    lfo.connect(lg); lg.connect(lp.frequency);
+    lfo.start();
+    return () => {
+      g.gain.cancelScheduledValues(t());
+      g.gain.setTargetAtTime(0.0001, t(), 0.5);
+      setTimeout(() => { oscs.forEach(o => { try { o.stop(); } catch (e) {} }); try { lfo.stop(); } catch (e) {} g.disconnect(); }, 2500);
+    };
   }
 });
 
@@ -1207,6 +1364,7 @@ function startAssault() {
 
   // Les canons : six posés, un boulet toutes les 2 s chacun.
   every(330, () => { byId.boulet.play(state.boulet, undefined, side()); });
+  every(340, () => { byId.impact.play(state.impact, undefined, side()); });
 
   // L'épée : des rafales de 4 s à 2,5 coups/s, puis on souffle.
   let swinging = true;
@@ -1267,6 +1425,7 @@ setInterval(() => {
 
 document.getElementById("boot").addEventListener("click", boot);
 </script>
+
 
 </body>
 </html>
