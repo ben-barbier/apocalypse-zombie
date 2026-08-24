@@ -1,0 +1,1429 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- PROTOTYPE JETABLE — ticket #30. Fichier autonome, aucune dépendance :
+     tout est synthétisé en WebAudio. Ne sera jamais fusionné dans main. -->
+<title>Tchac, bloup, souffle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=DM+Mono:wght@400;500&display=swap">
+
+<style>
+  /* Palette prise sur le jeu : la ville est chaude, ce qui se joue est froid.
+     Choix assumé d'un seul thème sombre — on juge des sons dans l'ambiance du jeu. */
+  :root {
+    --ground: #191210;
+    --surface: #241a15;
+    --surface-2: #2e211a;
+    --line: #4a3527;
+    --ink: #f4e8dc;
+    --ink-dim: #a89383;
+    --ink-faint: #7d6959;
+    --warm: #e08a3c;      /* le décor, la brume */
+    --cold: #5fd3e0;      /* ce qui se joue */
+    --cold-deep: #2b8a97;
+    --alarm: #ef5340;     /* le seul rouge, réservé au HUD */
+    --gold: #f0c04a;
+    --radius: 3px;
+    --font-display: "Bricolage Grotesque", "Trebuchet MS", sans-serif;
+    --font-body: "Public Sans", system-ui, -apple-system, sans-serif;
+    --font-mono: "DM Mono", ui-monospace, "SF Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 0;
+    padding: 0 0 6rem;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.25rem; }
+
+  /* ---------- en-tête ---------- */
+
+  header.top {
+    background:
+      radial-gradient(120% 100% at 50% 0%, rgba(224, 138, 60, 0.22), transparent 62%),
+      var(--ground);
+    border-bottom: 1px solid var(--line);
+    padding: 3rem 0 2.25rem;
+  }
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--warm);
+    margin: 0 0 0.75rem;
+  }
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(2.4rem, 7vw, 4rem);
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0 0 0.9rem;
+  }
+  h1 em { font-style: normal; color: var(--cold); }
+  .lede { max-width: 60ch; color: var(--ink-dim); margin: 0; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- amorçage audio ---------- */
+
+  #boot {
+    display: block;
+    width: 100%;
+    margin-top: 1.75rem;
+    padding: 1.35rem;
+    background: var(--cold);
+    color: #08181b;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+  }
+  #boot:hover { background: #7ce0ec; }
+  #boot small {
+    display: block;
+    font-family: var(--font-body);
+    font-weight: 400;
+    font-size: 0.85rem;
+    letter-spacing: 0;
+    opacity: 0.75;
+    margin-top: 0.2rem;
+  }
+  body.booted #boot { display: none; }
+  body:not(.booted) main { opacity: 0.32; pointer-events: none; filter: saturate(0.4); }
+
+  /* ---------- barre de transport ---------- */
+
+  .transport {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(25, 18, 16, 0.96);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 0.85rem 0;
+  }
+  .transport-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1.25rem;
+  }
+  .assault-btn {
+    flex: 0 0 auto;
+    min-height: 52px;
+    padding: 0.7rem 1.4rem;
+    background: var(--warm);
+    color: #1a0f06;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  .assault-btn.on { background: var(--alarm); color: #fff; }
+  .meters { display: flex; gap: 1.25rem; font-family: var(--font-mono); font-size: 0.8rem; }
+  .meter { display: flex; flex-direction: column; line-height: 1.2; }
+  .meter b { font-size: 1.15rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--cold); }
+  .meter span { color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.68rem; }
+  .toggles { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-left: auto; }
+  .toggle {
+    min-height: 40px;
+    padding: 0.35rem 0.75rem;
+    background: transparent;
+    color: var(--ink-dim);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+  .toggle[aria-pressed="true"] { background: var(--cold-deep); border-color: var(--cold); color: #eafcff; }
+
+  /* ---------- sections ---------- */
+
+  section { padding-top: 3rem; }
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(1.5rem, 3.4vw, 2.1rem);
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0 0 0.5rem;
+  }
+  .section-note { color: var(--ink-dim); max-width: 62ch; margin: 0 0 1.75rem; }
+  .section-note code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    color: var(--warm);
+  }
+
+  /* ---------- cartes ---------- */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .card.alarm-card { border-color: var(--alarm); background: linear-gradient(180deg, rgba(239, 83, 64, 0.09), var(--surface)); }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+  .card h3 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  .fam {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+  .says { font-size: 0.88rem; color: var(--ink-dim); margin: 0; }
+  .says b { color: var(--ink); font-weight: 600; }
+  .play {
+    min-height: 56px;
+    width: 100%;
+    background: var(--surface-2);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 90ms linear, border-color 90ms linear;
+  }
+  .play:hover { border-color: var(--cold); }
+  .play:active, .play.hit { background: var(--cold); color: #08181b; border-color: var(--cold); }
+  .alarm-card .play:active, .alarm-card .play.hit { background: var(--alarm); color: #fff; border-color: var(--alarm); }
+  .play.holding { background: var(--warm); color: #1a0f06; border-color: var(--warm); }
+
+  .params { display: flex; flex-direction: column; gap: 0.5rem; }
+  .param { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.15rem 0.6rem; }
+  .param label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  .param output {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--warm);
+    font-variant-numeric: tabular-nums;
+  }
+  .param input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--cold); height: 28px; }
+
+  .row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .row .play { flex: 1 1 auto; width: auto; }
+
+  /* ---------- mixage ---------- */
+
+  .mix {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+  }
+  .mix .param label { color: var(--ink-dim); }
+
+  /* ---------- questions ---------- */
+
+  .questions { display: grid; gap: 0.75rem; counter-reset: q; }
+  .question {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.9rem;
+    background: var(--surface);
+    border-left: 2px solid var(--warm);
+    padding: 0.9rem 1rem;
+  }
+  .question::before {
+    counter-increment: q;
+    content: counter(q);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--warm);
+    padding-top: 0.15rem;
+  }
+  .question p { margin: 0; }
+  .question p + p { margin-top: 0.35rem; color: var(--ink-dim); font-size: 0.9rem; }
+
+  footer {
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+  }
+  footer a { color: var(--cold); }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <p class="eyebrow">Apocalypse Zombie · ticket #30 · prototype jetable</p>
+    <h1>Tchac, bloup, <em>souffle</em></h1>
+    <p class="lede">
+      Dix-huit bruitages candidats, tous <strong>synthétisés à la main en WebAudio</strong> — zéro fichier, zéro
+      dépendance, zéro banque de sons. Chacun s'écoute seul, avec ses paramètres à portée de doigt, puis tous
+      ensemble à la densité d'un assaut de vague 8. <strong>À écouter au haut-parleur de l'iPad</strong>, pas au
+      casque : c'est comme ça qu'un enfant de 8 ans y jouera.
+    </p>
+    <button id="boot" type="button">
+      Appuie pour ouvrir le son
+      <small>Comme le Sas : sur iPad, l'AudioContext ne démarre que dans un geste.</small>
+    </button>
+  </div>
+</header>
+
+<main>
+  <div class="transport">
+    <div class="wrap transport-grid">
+      <button id="assault" class="assault-btn" type="button">▶ Assaut vague 8</button>
+      <div class="meters">
+        <div class="meter"><b id="m-voices">0</b><span>voix</span></div>
+        <div class="meter"><b id="m-zombies">0</b><span>zombies</span></div>
+        <div class="meter"><b id="m-dropped">0</b><span>refusées</span></div>
+      </div>
+      <div class="toggles">
+        <button class="toggle" id="t-comp" aria-pressed="true" type="button">compresseur</button>
+        <button class="toggle" id="t-duck" aria-pressed="true" type="button">esquive</button>
+        <button class="toggle" id="t-pan" aria-pressed="true" type="button">panoramique</button>
+        <button class="toggle" id="t-policy" aria-pressed="true" type="button">vole la plus ancienne</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <section id="alarmes">
+      <h2>Ce que le son doit dire que l'image ne dit pas</h2>
+      <p class="section-note">
+        Le joueur passe une partie du temps <strong>au fond d'une rue, dos à la place</strong>. Trois choses lui
+        sont alors invisibles, et le son est le seul canal qui reste. Le vrai test n'est pas « est-ce que ce son
+        est joli » mais <strong>« est-ce que je l'entends quand l'assaut tourne »</strong> — donc : lancer
+        l'assaut, puis appuyer ici.
+      </p>
+      <div class="grid" id="grid-alarm"></div>
+    </section>
+
+    <section id="mixage">
+      <h2>Le mélange</h2>
+      <p class="section-note">
+        Quatre bus, un plafond de voix par bus, et une esquive qui baisse tout le reste quand une alarme part.
+        Le plafond bas rend le jeu lisible et pauvre ; le plafond haut le rend riche et illisible — c'est le
+        réglage à trouver, pas une option.
+      </p>
+      <div class="mix" id="mix"></div>
+    </section>
+
+    <section id="combat">
+      <h2>Le combat</h2>
+      <p class="section-note">
+        Les trois premiers sont déjà nommés par <code>#10</code> et ne se rediscutent pas dans leur rôle —
+        seulement dans leur son. Le gémissement, lui, est le candidat le plus dangereux du lot : trente zombies
+        vivants qui gémissent, c'est de la bouillie.
+      </p>
+      <div class="grid" id="grid-combat"></div>
+    </section>
+
+    <section id="defense">
+      <h2>Les défenses</h2>
+      <p class="section-note">
+        Le canon tire seul, sans que le joueur le regarde : chaque tir est un son qui n'a demandé aucune action.
+        C'est la famille qui sature le plus vite.
+      </p>
+      <div class="grid" id="grid-defense"></div>
+    </section>
+
+    <section id="economie">
+      <h2>L'argent et les achats</h2>
+      <p class="section-note">
+        La pièce dit sa valeur par sa taille, jamais par un chiffre — le son peut la doubler d'une hauteur, ou
+        s'en tenir à l'image. À trancher ici : la pièce de bravoure sonne-t-elle plus haut ?
+      </p>
+      <div class="grid" id="grid-economy"></div>
+    </section>
+
+    <section id="monde">
+      <h2>Le monde</h2>
+      <p class="section-note">
+        Ce que le jeu dit tout seul, sans que le joueur agisse : le portique qui s'allume, l'échelle qu'on
+        monte, le Colosse qui entre.
+      </p>
+      <div class="grid" id="grid-world"></div>
+    </section>
+
+    <section id="musique">
+      <h2>Y a-t-il une musique ?</h2>
+      <p class="section-note">
+        Un assaut n'a aucun chrono : rien ne monte, rien ne presse. Une boucle de fond est peut-être ce qui
+        manque à sa tension — ou exactement le bruit de trop. Deux propositions, à écouter <strong>par-dessus
+        l'assaut</strong>, pas seules.
+      </p>
+      <div class="grid" id="grid-music"></div>
+    </section>
+
+    <section id="reste">
+      <h2>Ce qui reste à trancher</h2>
+      <div class="questions">
+        <div class="question">
+          <div>
+            <p><b>La liste.</b> Une dizaine, pas dix-huit. Lesquels sautent ?</p>
+            <p>Chaque son gardé est un son de plus dans la bouillie de la vague 8, et un son de moins dont on remarque l'absence.</p>
+          </div>
+        </div>
+        <div class="question">
+          <div>
+            <p><b>Les trois alarmes.</b> La mairie hors champ, le zombie derrière, le canon à sec.</p>
+            <p>Percent-elles l'assaut ? Faut-il l'esquive pour ça — et est-ce qu'un jeu qui se baisse tout seul reste lisible ?</p>
+          </div>
+        </div>
+        <div class="question">
+          <div>
+            <p><b>La musique.</b> Boucle, ou silence habité par les gémissements ?</p>
+          </div>
+        </div>
+        <div class="question">
+          <div>
+            <p><b>Le mélange.</b> Quel plafond par bus, et qui gagne quand ça sature ?</p>
+            <p>Voler la plus ancienne garde le son vivant mais hache les longues ; refuser la nouvelle garde les longues mais avale les coups.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Prototype jetable — branche <code>prototype/bruitages</code>. Tout est synthétisé : oscillateurs, bruit,
+      enveloppes, filtres. Rien n'est un fichier audio.
+    </footer>
+
+  </div>
+</main>
+
+<script>
+"use strict";
+
+// ---------------------------------------------------------------------------
+// Audio graph. Built on the first user gesture — same rule as the airlock.
+// ---------------------------------------------------------------------------
+
+let ctx = null;
+let master = null;
+let comp = null;
+let compBypass = null;
+let compOut = null;
+const bus = {};          // family -> { input, gain, cap, active[] }
+let noiseBuf = null;
+let dropped = 0;
+
+const FAMILIES = [
+  { key: "combat",  label: "combat",   cap: 6, level: 0.85 },
+  { key: "defense", label: "défenses", cap: 5, level: 0.7 },
+  { key: "alarm",   label: "alarmes",  cap: 3, level: 1.0 },
+  { key: "economy", label: "argent",   cap: 4, level: 0.8 },
+  { key: "world",   label: "monde",    cap: 3, level: 0.8 },
+  { key: "music",   label: "musique",  cap: 4, level: 0.45 }
+];
+
+const opts = { comp: true, duck: true, pan: true, steal: true };
+
+function boot() {
+  if (ctx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  ctx = new AC({ latencyHint: "interactive" });
+  if (navigator.audioSession) navigator.audioSession.type = "playback";
+
+  master = ctx.createGain();
+  master.gain.value = 0.9;
+
+  comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -18;
+  comp.knee.value = 12;
+  comp.ratio.value = 6;
+  comp.attack.value = 0.004;
+  comp.release.value = 0.18;
+
+  compOut = ctx.createGain();
+  compOut.gain.value = opts.comp ? 1 : 0;
+  compBypass = ctx.createGain();
+  compBypass.gain.value = opts.comp ? 0 : 1;
+
+  master.connect(comp);
+  comp.connect(compOut);
+  compOut.connect(ctx.destination);
+  master.connect(compBypass);
+  compBypass.connect(ctx.destination);
+
+  for (const f of FAMILIES) {
+    const g = ctx.createGain();
+    g.gain.value = f.level;
+    g.connect(master);
+    bus[f.key] = { gain: g, cap: f.cap, active: [] };
+  }
+
+  // Noise source, generated once and read from a random offset.
+  noiseBuf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+
+  ctx.resume();
+  document.body.classList.add("booted");
+}
+
+const t = () => ctx.currentTime;
+
+function noise(dur) {
+  const s = ctx.createBufferSource();
+  s.buffer = noiseBuf;
+  s.loop = true;
+  s.start(t(), Math.random() * 1.5, dur + 0.05);
+  s.stop(t() + dur + 0.05);
+  return s;
+}
+
+function osc(type, freq) {
+  const o = ctx.createOscillator();
+  o.type = type;
+  o.frequency.value = freq;
+  return o;
+}
+
+function env(peak, attack, decay, at) {
+  const g = ctx.createGain();
+  const start = at === undefined ? t() : at;
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), start + attack);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + attack + decay);
+  return g;
+}
+
+function filt(type, freq, q) {
+  const f = ctx.createBiquadFilter();
+  f.type = type;
+  f.frequency.value = freq;
+  if (q !== undefined) f.Q.value = q;
+  return f;
+}
+
+// Voice accounting: this is the whole point of the mix section.
+// `place` returns the node a voice should connect to, or null if refused.
+function place(family, dur, holdable) {
+  const b = bus[family];
+  if (b.active.length >= b.cap) {
+    if (!opts.steal) { dropped++; return null; }
+    const oldest = b.active.shift();
+    try { oldest.kill(); } catch (e) { /* already gone */ }
+  }
+  const g = ctx.createGain();
+  g.connect(b.gain);
+  const entry = {
+    kill() {
+      try {
+        g.gain.cancelScheduledValues(t());
+        g.gain.setTargetAtTime(0.0001, t(), 0.012);
+      } catch (e) { /* déjà éteinte */ }
+      setTimeout(() => { try { g.disconnect(); } catch (e) {} }, 120);
+    }
+  };
+  b.active.push(entry);
+  if (!holdable) {
+    setTimeout(() => {
+      const i = b.active.indexOf(entry);
+      if (i >= 0) b.active.splice(i, 1);
+      try { g.disconnect(); } catch (e) {}
+    }, (dur + 0.15) * 1000);
+  }
+  entry.node = g;
+  return entry;
+}
+
+function panner(where) {
+  // where: -1 left .. 1 right. `behind` also rolls the top off.
+  const p = ctx.createStereoPanner();
+  p.pan.value = opts.pan ? where : 0;
+  return p;
+}
+
+// The alarm bus ducks everything else for a moment.
+function duck(amount, hold) {
+  if (!opts.duck) return;
+  for (const f of FAMILIES) {
+    if (f.key === "alarm") continue;
+    const g = bus[f.key].gain;
+    const now = t();
+    g.gain.cancelScheduledValues(now);
+    g.gain.setTargetAtTime(f.level * amount, now, 0.02);
+    g.gain.setTargetAtTime(f.level, now + hold, 0.18);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The eighteen candidates.
+// ---------------------------------------------------------------------------
+
+const SOUNDS = [];
+
+function def(spec) { SOUNDS.push(spec); return spec; }
+
+// --- combat ---------------------------------------------------------------
+
+def({
+  id: "tchac", name: "Tchac", family: "combat", group: "combat",
+  says: "<b>Touché, pas tué.</b> Le coup a porté — le zombie encaisse et continue.",
+  params: [
+    { key: "freq", label: "corps", min: 700, max: 3600, value: 1900, step: 50, unit: "Hz" },
+    { key: "decay", label: "sécheresse", min: 20, max: 160, value: 55, step: 5, unit: "ms" }
+  ],
+  play(p, at, where) {
+    const start = at || t();
+    const v = place("combat", 0.3); if (!v) return;
+    const pan = panner(where || 0); pan.connect(v.node);
+
+    const n = noise(0.2);
+    const bp = filt("bandpass", p.freq, 1.1);
+    const g = env(0.9, 0.003, p.decay / 1000, start);
+    n.connect(bp); bp.connect(g); g.connect(pan);
+
+    const click = osc("square", 240);
+    const cg = env(0.25, 0.002, 0.03, start);
+    click.connect(cg); cg.connect(pan);
+    click.start(start); click.stop(start + 0.05);
+  }
+});
+
+def({
+  id: "bloup", name: "Bloup", family: "combat", group: "combat",
+  says: "<b>Mort.</b> Le zombie s'effondre en éclats. Comique, jamais gore.",
+  params: [
+    { key: "from", label: "départ", min: 200, max: 700, value: 430, step: 10, unit: "Hz" },
+    { key: "to", label: "chute", min: 50, max: 220, value: 88, step: 2, unit: "Hz" },
+    { key: "pop", label: "pop final", min: 0, max: 1, value: 1, step: 1, unit: "" }
+  ],
+  play(p, at, where) {
+    const start = at || t();
+    const v = place("combat", 0.4); if (!v) return;
+    const pan = panner(where || 0); pan.connect(v.node);
+
+    const o = osc("sine", p.from);
+    o.frequency.setValueAtTime(p.from, start);
+    o.frequency.exponentialRampToValueAtTime(p.to, start + 0.13);
+    const g = env(0.8, 0.005, 0.16, start);
+    o.connect(g); g.connect(pan);
+    o.start(start); o.stop(start + 0.35);
+
+    if (p.pop > 0.5) {
+      const o2 = osc("triangle", 760);
+      const g2 = env(0.3, 0.004, 0.05, start + 0.13);
+      o2.connect(g2); g2.connect(pan);
+      o2.start(start + 0.13); o2.stop(start + 0.25);
+    }
+  }
+});
+
+def({
+  id: "souffle", name: "Souffle sourd", family: "combat", group: "combat",
+  says: "<b>Raté.</b> L'arc se trace quand même — aucune pénalité, aucun temps mort.",
+  params: [
+    { key: "cut", label: "sourdine", min: 300, max: 2000, value: 780, step: 20, unit: "Hz" },
+    { key: "len", label: "durée", min: 80, max: 400, value: 200, step: 10, unit: "ms" }
+  ],
+  play(p, at, where) {
+    const start = at || t();
+    const v = place("combat", 0.5); if (!v) return;
+    const pan = panner(where || 0); pan.connect(v.node);
+    const n = noise(p.len / 1000 + 0.1);
+    const lp = filt("lowpass", p.cut, 0.7);
+    const g = env(0.35, 0.02, p.len / 1000, start);
+    n.connect(lp); lp.connect(g); g.connect(pan);
+  }
+});
+
+def({
+  id: "gemissement", name: "Gémissement", family: "combat", group: "combat",
+  says: "<b>Un zombie est là.</b> Bête et comique — il gémit, il ne rugit pas. Le son le plus dense du jeu.",
+  params: [
+    { key: "pitch", label: "hauteur (type)", min: 60, max: 220, value: 118, step: 2, unit: "Hz" },
+    { key: "wobble", label: "chevrotement", min: 0, max: 24, value: 9, step: 1, unit: "Hz" },
+    { key: "len", label: "durée", min: 200, max: 1200, value: 620, step: 20, unit: "ms" }
+  ],
+  play(p, at, where) {
+    const start = at || t();
+    const dur = p.len / 1000;
+    const v = place("combat", dur + 0.2); if (!v) return;
+    const pan = panner(where || 0); pan.connect(v.node);
+
+    const o = osc("sawtooth", p.pitch);
+    const lfo = osc("sine", 5.2);
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = p.wobble;
+    lfo.connect(lfoGain); lfoGain.connect(o.frequency);
+
+    const formant = filt("bandpass", 520, 2.4);
+    const g = env(0.5, 0.09, dur, start);
+    o.connect(formant); formant.connect(g); g.connect(pan);
+    o.start(start); o.stop(start + dur + 0.15);
+    lfo.start(start); lfo.stop(start + dur + 0.15);
+  }
+});
+
+def({
+  id: "contact", name: "Contact", family: "combat", group: "combat",
+  says: "<b>Le joueur perd un point de vie.</b> Un accident de circulation, pas un combat.",
+  params: [
+    { key: "thud", label: "poids", min: 60, max: 260, value: 130, step: 5, unit: "Hz" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("combat", 0.4); if (!v) return;
+    const o = osc("triangle", p.thud);
+    o.frequency.exponentialRampToValueAtTime(p.thud * 0.55, start + 0.18);
+    const g = env(0.8, 0.004, 0.22, start);
+    const n = noise(0.12);
+    const bp = filt("bandpass", 1400, 0.8);
+    const ng = env(0.2, 0.002, 0.09, start);
+    o.connect(g); g.connect(v.node);
+    n.connect(bp); bp.connect(ng); ng.connect(v.node);
+    o.start(start); o.stop(start + 0.45);
+  }
+});
+
+// --- défenses -------------------------------------------------------------
+
+def({
+  id: "boulet", name: "Boulet tiré", family: "defense", group: "defense",
+  says: "<b>Un canon a tiré.</b> Il tire seul, sans que personne le regarde.",
+  params: [
+    { key: "body", label: "grave", min: 70, max: 260, value: 150, step: 5, unit: "Hz" },
+    { key: "air", label: "souffle", min: 0, max: 1, value: 0.55, step: 0.05, unit: "" }
+  ],
+  play(p, at, where) {
+    const start = at || t();
+    const v = place("defense", 0.35); if (!v) return;
+    const pan = panner(where || 0); pan.connect(v.node);
+    const o = osc("sine", p.body);
+    o.frequency.exponentialRampToValueAtTime(p.body * 0.42, start + 0.15);
+    const g = env(0.75, 0.003, 0.17, start);
+    o.connect(g); g.connect(pan);
+    o.start(start); o.stop(start + 0.3);
+
+    const n = noise(0.16);
+    const lp = filt("lowpass", 900, 0.8);
+    const ng = env(0.4 * p.air, 0.004, 0.13, start);
+    n.connect(lp); lp.connect(ng); ng.connect(pan);
+  }
+});
+
+def({
+  id: "impact", name: "Impact de boulet", family: "defense", group: "defense",
+  says: "<b>Le boulet est retombé.</b> La mire l'a déjà dit à l'image — le son est-il encore utile ?",
+  params: [
+    { key: "grit", label: "matière", min: 400, max: 2600, value: 1050, step: 25, unit: "Hz" }
+  ],
+  play(p, at, where) {
+    const start = at || t();
+    const v = place("defense", 0.25); if (!v) return;
+    const pan = panner(where || 0); pan.connect(v.node);
+    const n = noise(0.14);
+    const bp = filt("bandpass", p.grit, 0.9);
+    const g = env(0.55, 0.002, 0.11, start);
+    n.connect(bp); bp.connect(g); g.connect(pan);
+    const o = osc("sine", 105);
+    o.frequency.exponentialRampToValueAtTime(45, start + 0.1);
+    const og = env(0.45, 0.002, 0.12, start);
+    o.connect(og); og.connect(pan);
+    o.start(start); o.stop(start + 0.25);
+  }
+});
+
+def({
+  id: "jet", name: "Jet de feu", family: "defense", group: "defense", sustained: true,
+  says: "<b>Un zombie est dans le cône.</b> Il ne s'allume jamais à vide : la flamme est déjà un signal de présence.",
+  params: [
+    { key: "cut", label: "longueur de flamme", min: 300, max: 3000, value: 1600, step: 50, unit: "Hz" },
+    { key: "flick", label: "crépitement", min: 2, max: 30, value: 11, step: 1, unit: "Hz" }
+  ],
+  hold(p) {
+    const v = place("defense", 0, true); if (!v) return null;
+    const n = noise(600);
+    const lp = filt("lowpass", p.cut, 1.4);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t());
+    g.gain.exponentialRampToValueAtTime(0.5, t() + 0.06);
+    const lfo = osc("sine", p.flick);
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = p.cut * 0.35;
+    lfo.connect(lfoGain); lfoGain.connect(lp.frequency);
+    lfo.start();
+    n.connect(lp); lp.connect(g); g.connect(v.node);
+    return () => {
+      g.gain.cancelScheduledValues(t());
+      g.gain.setTargetAtTime(0.0001, t(), 0.05);
+      setTimeout(() => { try { n.stop(); lfo.stop(); } catch (e) {} v.kill(); }, 300);
+      const b = bus.defense;
+      const i = b.active.indexOf(v);
+      if (i >= 0) b.active.splice(i, 1);
+    };
+  }
+});
+
+def({
+  id: "pose", name: "Canon posé", family: "defense", group: "defense",
+  says: "<b>Ça pèse, c'est à moi.</b> Le premier achat de la partie, à la fin de l'assaut 2.",
+  params: [
+    { key: "weight", label: "poids", min: 45, max: 160, value: 82, step: 2, unit: "Hz" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("defense", 0.6); if (!v) return;
+    const o = osc("sine", p.weight);
+    o.frequency.exponentialRampToValueAtTime(p.weight * 0.6, start + 0.3);
+    const g = env(0.9, 0.006, 0.32, start);
+    o.connect(g); g.connect(v.node);
+    o.start(start); o.stop(start + 0.7);
+    const n = noise(0.09);
+    const bp = filt("bandpass", 3100, 1.6);
+    const ng = env(0.28, 0.002, 0.07, start + 0.02);
+    n.connect(bp); bp.connect(ng); ng.connect(v.node);
+  }
+});
+
+def({
+  id: "ameliore", name: "Canon amélioré", family: "defense", group: "defense",
+  says: "<b>Il vient de gagner le feu.</b> Doit se distinguer de la pose à l'oreille seule.",
+  params: [
+    { key: "base", label: "fondamentale", min: 220, max: 660, value: 392, step: 4, unit: "Hz" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("defense", 0.5); if (!v) return;
+    [1, 1.26, 1.5].forEach((r, i) => {
+      const o = osc("square", p.base * r);
+      const g = env(0.22, 0.005, 0.11, start + i * 0.07);
+      o.connect(g); g.connect(v.node);
+      o.start(start + i * 0.07); o.stop(start + i * 0.07 + 0.2);
+    });
+  }
+});
+
+def({
+  id: "sec", name: "Canon à sec", family: "alarm", group: "alarm", alarm: true,
+  says: "<b>Rien ne le dit à l'image si le joueur est ailleurs.</b> La flamme raccourcit — mais il ne la regarde pas. Candidat neuf, à garder ou à jeter.",
+  params: [
+    { key: "pitch", label: "hauteur", min: 200, max: 900, value: 430, step: 10, unit: "Hz" }
+  ],
+  play(p, at, where) {
+    const start = at || t();
+    duck(0.5, 0.35);
+    const v = place("alarm", 0.7); if (!v) return;
+    const pan = panner(where || 0); pan.connect(v.node);
+    [0, 1, 2].forEach(i => {
+      const o = osc("triangle", p.pitch * Math.pow(0.79, i));
+      const g = env(0.4, 0.004, 0.09, start + i * 0.11);
+      o.connect(g); g.connect(pan);
+      o.start(start + i * 0.11); o.stop(start + i * 0.11 + 0.18);
+    });
+    const n = noise(0.3);
+    const lp = filt("lowpass", 600, 0.6);
+    const ng = env(0.18, 0.05, 0.28, start + 0.33);
+    n.connect(lp); lp.connect(ng); ng.connect(pan);
+  }
+});
+
+// --- alarmes --------------------------------------------------------------
+
+def({
+  id: "mairie", name: "Mairie touchée", family: "alarm", group: "alarm", alarm: true,
+  says: "<b>Une fuite, hors champ.</b> Chaque coup est un point de vie perdu définitivement. Si ce son ne perce pas l'assaut, la fuite ne se voit jamais.",
+  params: [
+    { key: "sub", label: "sous-grave", min: 35, max: 110, value: 62, step: 1, unit: "Hz" },
+    { key: "crack", label: "craquement", min: 180, max: 900, value: 340, step: 10, unit: "Hz" },
+    { key: "tail", label: "traîne", min: 200, max: 1400, value: 700, step: 50, unit: "ms" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    duck(0.42, 0.45);
+    const v = place("alarm", p.tail / 1000 + 0.3); if (!v) return;
+
+    const o = osc("sine", p.sub);
+    o.frequency.exponentialRampToValueAtTime(p.sub * 0.7, start + 0.35);
+    const g = env(1.0, 0.005, p.tail / 1000, start);
+    o.connect(g); g.connect(v.node);
+    o.start(start); o.stop(start + p.tail / 1000 + 0.2);
+
+    // Le craquement : c'est lui qui perce, le sous-grave ne suffit pas au haut-parleur d'un iPad.
+    const c = osc("triangle", p.crack);
+    c.frequency.exponentialRampToValueAtTime(p.crack * 0.55, start + 0.22);
+    const cg = env(0.55, 0.003, 0.24, start);
+    c.connect(cg); cg.connect(v.node);
+    c.start(start); c.stop(start + 0.5);
+
+    const n = noise(0.3);
+    const bp = filt("bandpass", 1200, 0.7);
+    const ng = env(0.3, 0.002, 0.2, start);
+    n.connect(bp); bp.connect(ng); ng.connect(v.node);
+  }
+});
+
+def({
+  id: "derriere", name: "Zombie derrière soi", family: "alarm", group: "alarm", alarm: true,
+  says: "<b>Il arrive dans le dos.</b> Même gémissement, mais pané et assourdi. Le traitement suffit-il, ou faut-il un son à part ?",
+  params: [
+    { key: "side", label: "côté", min: -1, max: 1, value: -0.8, step: 0.1, unit: "" },
+    { key: "muffle", label: "assourdissement", min: 300, max: 3000, value: 800, step: 50, unit: "Hz" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("alarm", 0.9); if (!v) return;
+    const pan = panner(p.side); pan.connect(v.node);
+    const lp = filt("lowpass", p.muffle, 0.9);
+    lp.connect(pan);
+
+    const o = osc("sawtooth", 104);
+    const lfo = osc("sine", 5.2);
+    const lg = ctx.createGain(); lg.gain.value = 8;
+    lfo.connect(lg); lg.connect(o.frequency);
+    const formant = filt("bandpass", 480, 2.2);
+    const g = env(0.75, 0.06, 0.7, start);
+    o.connect(formant); formant.connect(g); g.connect(lp);
+    o.start(start); o.stop(start + 0.9);
+    lfo.start(start); lfo.stop(start + 0.9);
+  }
+});
+
+// --- argent ---------------------------------------------------------------
+
+def({
+  id: "piece", name: "Pièce ramassée", family: "economy", group: "economy",
+  says: "<b>Une pièce est entrée.</b> Sa valeur se lit à sa taille — la hauteur du son doit-elle la redire ?",
+  params: [
+    { key: "base", label: "hauteur", min: 500, max: 1600, value: 880, step: 20, unit: "Hz" },
+    { key: "notes", label: "notes (valeur)", min: 1, max: 3, value: 2, step: 1, unit: "" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("economy", 0.3); if (!v) return;
+    const ratios = [1, 1.5, 2];
+    for (let i = 0; i < p.notes; i++) {
+      const o = osc("sine", p.base * ratios[i]);
+      const g = env(0.4, 0.004, 0.07, start + i * 0.045);
+      o.connect(g); g.connect(v.node);
+      o.start(start + i * 0.045); o.stop(start + i * 0.045 + 0.14);
+    }
+  }
+});
+
+def({
+  id: "versement", name: "Prime de fin d'assaut", family: "economy", group: "economy",
+  says: "<b>Tu as tenu.</b> La seule ponctuation d'un assaut qui n'a aucun chrono — c'est le son le plus important de la partie.",
+  params: [
+    { key: "count", label: "pièces", min: 4, max: 16, value: 10, step: 1, unit: "" },
+    { key: "speed", label: "cascade", min: 25, max: 120, value: 55, step: 5, unit: "ms" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("economy", (p.count * p.speed) / 1000 + 0.4); if (!v) return;
+    const scale = [523, 587, 659, 784, 880, 1047, 1175, 1319];
+    for (let i = 0; i < p.count; i++) {
+      const f = scale[i % scale.length] * (i >= scale.length ? 2 : 1);
+      const at2 = start + (i * p.speed) / 1000;
+      const o = osc("sine", f);
+      const g = env(0.32, 0.004, 0.13, at2);
+      o.connect(g); g.connect(v.node);
+      o.start(at2); o.stop(at2 + 0.2);
+    }
+  }
+});
+
+def({
+  id: "renfort", name: "Renfort acheté", family: "economy", group: "economy",
+  says: "<b>La mairie est à neuf.</b> L'achat de celui qui va mal — il doit soulager, pas récompenser.",
+  params: [
+    { key: "root", label: "fondamentale", min: 130, max: 330, value: 196, step: 2, unit: "Hz" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("economy", 0.9); if (!v) return;
+    [1, 1.25, 1.5, 2].forEach((r, i) => {
+      const o = osc("triangle", p.root * r);
+      const g = env(0.3, 0.05 + i * 0.02, 0.6, start);
+      o.connect(g); g.connect(v.node);
+      o.start(start); o.stop(start + 0.9);
+    });
+  }
+});
+
+def({
+  id: "bombe", name: "Bombe prise à la base", family: "economy", group: "economy",
+  says: "<b>La brassée est pleine.</b> Trois bombes, un trajet — le seul geste répétitif du jeu.",
+  params: [
+    { key: "up", label: "montée", min: 200, max: 900, value: 340, step: 10, unit: "Hz" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("economy", 0.3); if (!v) return;
+    const o = osc("triangle", p.up);
+    o.frequency.exponentialRampToValueAtTime(p.up * 1.9, start + 0.12);
+    const g = env(0.35, 0.004, 0.13, start);
+    o.connect(g); g.connect(v.node);
+    o.start(start); o.stop(start + 0.3);
+    const n = noise(0.08);
+    const bp = filt("bandpass", 1500, 1.2);
+    const ng = env(0.2, 0.002, 0.06, start);
+    n.connect(bp); bp.connect(ng); ng.connect(v.node);
+  }
+});
+
+// --- monde ----------------------------------------------------------------
+
+def({
+  id: "portique", name: "Portique qui s'allume", family: "world", group: "world",
+  says: "<b>Cette rue va servir.</b> Dès la première seconde de la préparation, depuis la place.",
+  params: [
+    { key: "from", label: "montée", min: 120, max: 400, value: 220, step: 5, unit: "Hz" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("world", 0.8); if (!v) return;
+    const o = osc("sine", p.from);
+    o.frequency.exponentialRampToValueAtTime(p.from * 2, start + 0.35);
+    const g = env(0.4, 0.08, 0.4, start);
+    o.connect(g); g.connect(v.node);
+    o.start(start); o.stop(start + 0.8);
+    const d = osc("sine", p.from * 6);
+    const dg = env(0.22, 0.005, 0.35, start + 0.3);
+    d.connect(dg); dg.connect(v.node);
+    d.start(start + 0.3); d.stop(start + 0.8);
+  }
+});
+
+def({
+  id: "echelle", name: "Montée d'échelle", family: "world", group: "world",
+  says: "<b>Je monte.</b> Quatre appuis en 0,8 s — exactement la durée décidée.",
+  params: [
+    { key: "clicks", label: "barreaux", min: 2, max: 6, value: 4, step: 1, unit: "" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    const v = place("world", 0.9); if (!v) return;
+    const gap = 0.8 / p.clicks;
+    for (let i = 0; i < p.clicks; i++) {
+      const at2 = start + i * gap;
+      const n = noise(0.05);
+      const bp = filt("bandpass", 2400 - i * 120, 1.8);
+      const g = env(0.3, 0.002, 0.045, at2);
+      n.connect(bp); bp.connect(g); g.connect(v.node);
+    }
+  }
+});
+
+def({
+  id: "colosse", name: "Le Colosse entre", family: "world", group: "world",
+  says: "<b>Il est là, et il possède sa rue.</b> Vague 10, première seconde — l'arbitrage devient un choix, pas une surprise.",
+  params: [
+    { key: "sub", label: "sous-grave", min: 28, max: 70, value: 41, step: 1, unit: "Hz" },
+    { key: "steps", label: "pas", min: 2, max: 6, value: 3, step: 1, unit: "" }
+  ],
+  play(p, at) {
+    const start = at || t();
+    duck(0.5, 1.6);
+    const v = place("world", 2.4); if (!v) return;
+    const o = osc("sine", p.sub);
+    const g = env(0.9, 0.4, 1.8, start);
+    o.connect(g); g.connect(v.node);
+    o.start(start); o.stop(start + 2.4);
+    for (let i = 0; i < p.steps; i++) {
+      const at2 = start + 0.3 + i * 0.62;
+      const s = osc("sine", 70);
+      s.frequency.exponentialRampToValueAtTime(38, at2 + 0.25);
+      const sg = env(0.8, 0.005, 0.28, at2);
+      s.connect(sg); sg.connect(v.node);
+      s.start(at2); s.stop(at2 + 0.55);
+      const n = noise(0.16);
+      const lp = filt("lowpass", 700, 0.7);
+      const ng = env(0.25, 0.004, 0.14, at2);
+      n.connect(lp); lp.connect(ng); ng.connect(v.node);
+    }
+  }
+});
+
+// --- musique --------------------------------------------------------------
+
+let musicStop = null;
+
+def({
+  id: "musique-pouls", name: "Le pouls", family: "music", group: "music", sustained: true,
+  says: "<b>Une pulsation basse à 96 temps/min</b>, quatre notes qui tournent. Elle donne un tempo à un assaut qui n'en a aucun.",
+  params: [
+    { key: "bpm", label: "tempo", min: 60, max: 140, value: 96, step: 2, unit: "/min" },
+    { key: "level", label: "présence", min: 0.1, max: 1, value: 0.5, step: 0.05, unit: "" }
+  ],
+  hold(p) {
+    const notes = [55, 55, 65.4, 49];
+    let i = 0;
+    const beat = 60 / p.bpm;
+    const g = ctx.createGain();
+    g.gain.value = p.level;
+    g.connect(bus.music.gain);
+    const id = setInterval(() => {
+      const at2 = t();
+      const o = osc("triangle", notes[i % notes.length]);
+      const og = env(0.5, 0.01, beat * 0.8, at2);
+      const lp = filt("lowpass", 420, 1.1);
+      o.connect(lp); lp.connect(og); og.connect(g);
+      o.start(at2); o.stop(at2 + beat);
+      i++;
+    }, beat * 1000);
+    return () => { clearInterval(id); g.gain.setTargetAtTime(0.0001, t(), 0.1); setTimeout(() => g.disconnect(), 400); };
+  }
+});
+
+def({
+  id: "musique-nappe", name: "La nappe", family: "music", group: "music", sustained: true,
+  says: "<b>Un drone tenu, sans tempo.</b> Il habite le silence sans presser personne — l'urgence reste celle de la mairie.",
+  params: [
+    { key: "root", label: "fondamentale", min: 40, max: 120, value: 65, step: 1, unit: "Hz" },
+    { key: "level", label: "présence", min: 0.1, max: 1, value: 0.42, step: 0.05, unit: "" }
+  ],
+  hold(p) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t());
+    g.gain.exponentialRampToValueAtTime(p.level, t() + 1.2);
+    g.connect(bus.music.gain);
+    const lp = filt("lowpass", 340, 0.9);
+    lp.connect(g);
+    const oscs = [1, 1.5, 2.01, 3].map((r, i) => {
+      const o = osc(i === 3 ? "sine" : "sawtooth", p.root * r);
+      const og = ctx.createGain();
+      og.gain.value = [0.4, 0.2, 0.16, 0.08][i];
+      o.connect(og); og.connect(lp);
+      o.start();
+      return o;
+    });
+    const lfo = osc("sine", 0.09);
+    const lg = ctx.createGain(); lg.gain.value = 90;
+    lfo.connect(lg); lg.connect(lp.frequency);
+    lfo.start();
+    return () => {
+      g.gain.cancelScheduledValues(t());
+      g.gain.setTargetAtTime(0.0001, t(), 0.5);
+      setTimeout(() => { oscs.forEach(o => { try { o.stop(); } catch (e) {} }); try { lfo.stop(); } catch (e) {} g.disconnect(); }, 2500);
+    };
+  }
+});
+
+// ---------------------------------------------------------------------------
+// UI
+// ---------------------------------------------------------------------------
+
+const state = {};   // sound id -> params
+for (const s of SOUNDS) {
+  state[s.id] = {};
+  (s.params || []).forEach(p => { state[s.id][p.key] = p.value; });
+}
+
+function fmt(p, value) {
+  if (p.step >= 1) return value + (p.unit ? " " + p.unit : "");
+  return value.toFixed(2);
+}
+
+function card(s) {
+  const el = document.createElement("article");
+  el.className = "card" + (s.alarm ? " alarm-card" : "");
+
+  const head = document.createElement("div");
+  head.className = "card-head";
+  const h = document.createElement("h3");
+  h.textContent = s.name;
+  const fam = document.createElement("span");
+  fam.className = "fam";
+  fam.textContent = s.family;
+  head.append(h, fam);
+
+  const says = document.createElement("p");
+  says.className = "says";
+  says.innerHTML = s.says;
+
+  const btn = document.createElement("button");
+  btn.className = "play";
+  btn.type = "button";
+  btn.textContent = s.sustained ? "Maintenir" : "Jouer";
+
+  if (s.sustained) {
+    let stop = null;
+    const begin = (ev) => {
+      ev.preventDefault();
+      if (stop) return;
+      stop = s.hold(state[s.id]);
+      btn.classList.add("holding");
+      btn.textContent = "…en cours";
+    };
+    const end = () => {
+      if (!stop) return;
+      stop(); stop = null;
+      btn.classList.remove("holding");
+      btn.textContent = "Maintenir";
+    };
+    if (s.family === "music") {
+      // La musique se juge sur la durée : elle s'enclenche, elle ne se maintient pas.
+      btn.textContent = "Lancer";
+      btn.addEventListener("click", () => {
+        if (stop) { end(); btn.textContent = "Lancer"; }
+        else { stop = s.hold(state[s.id]); btn.classList.add("holding"); btn.textContent = "Couper"; }
+      });
+    } else {
+      btn.addEventListener("pointerdown", begin);
+      btn.addEventListener("pointerup", end);
+      btn.addEventListener("pointerleave", end);
+      btn.addEventListener("pointercancel", end);
+    }
+  } else {
+    btn.addEventListener("click", () => {
+      s.play(state[s.id]);
+      btn.classList.add("hit");
+      setTimeout(() => btn.classList.remove("hit"), 110);
+    });
+  }
+
+  el.append(head, says, btn);
+
+  if (s.params && s.params.length) {
+    const wrap = document.createElement("div");
+    wrap.className = "params";
+    for (const p of s.params) {
+      const row = document.createElement("div");
+      row.className = "param";
+      const lab = document.createElement("label");
+      lab.textContent = p.label;
+      lab.htmlFor = s.id + "-" + p.key;
+      const out = document.createElement("output");
+      out.textContent = fmt(p, p.value);
+      const input = document.createElement("input");
+      input.type = "range";
+      input.id = s.id + "-" + p.key;
+      input.min = p.min; input.max = p.max; input.step = p.step; input.value = p.value;
+      input.addEventListener("input", () => {
+        const v = parseFloat(input.value);
+        state[s.id][p.key] = v;
+        out.textContent = fmt(p, v);
+      });
+      row.append(lab, out, input);
+      wrap.append(row);
+    }
+    el.append(wrap);
+  }
+
+  return el;
+}
+
+const GRIDS = {
+  alarm: "grid-alarm",
+  combat: "grid-combat",
+  defense: "grid-defense",
+  economy: "grid-economy",
+  world: "grid-world",
+  music: "grid-music"
+};
+
+for (const s of SOUNDS) {
+  document.getElementById(GRIDS[s.group]).append(card(s));
+}
+
+// --- mixage ---------------------------------------------------------------
+
+const mixEl = document.getElementById("mix");
+for (const f of FAMILIES) {
+  const box = document.createElement("div");
+  box.className = "params";
+
+  const lvl = document.createElement("div");
+  lvl.className = "param";
+  const l1 = document.createElement("label");
+  l1.textContent = f.label + " · niveau";
+  const o1 = document.createElement("output");
+  o1.textContent = f.level.toFixed(2);
+  const i1 = document.createElement("input");
+  i1.type = "range"; i1.min = 0; i1.max = 1.4; i1.step = 0.05; i1.value = f.level;
+  i1.addEventListener("input", () => {
+    f.level = parseFloat(i1.value);
+    o1.textContent = f.level.toFixed(2);
+    if (bus[f.key]) bus[f.key].gain.gain.setTargetAtTime(f.level, t(), 0.02);
+  });
+  lvl.append(l1, o1, i1);
+
+  const cap = document.createElement("div");
+  cap.className = "param";
+  const l2 = document.createElement("label");
+  l2.textContent = f.label + " · plafond de voix";
+  const o2 = document.createElement("output");
+  o2.textContent = f.cap;
+  const i2 = document.createElement("input");
+  i2.type = "range"; i2.min = 1; i2.max = 12; i2.step = 1; i2.value = f.cap;
+  i2.addEventListener("input", () => {
+    f.cap = parseInt(i2.value, 10);
+    o2.textContent = f.cap;
+    if (bus[f.key]) bus[f.key].cap = f.cap;
+  });
+  cap.append(l2, o2, i2);
+
+  box.append(lvl, cap);
+  mixEl.append(box);
+}
+
+// --- interrupteurs --------------------------------------------------------
+
+function bindToggle(id, key, onChange) {
+  const el = document.getElementById(id);
+  el.addEventListener("click", () => {
+    const next = el.getAttribute("aria-pressed") !== "true";
+    el.setAttribute("aria-pressed", String(next));
+    opts[key] = next;
+    if (onChange) onChange(next);
+  });
+}
+bindToggle("t-comp", "comp", (on) => {
+  if (!ctx) return;
+  // Les deux voies restent branchées ; on ne fait que croiser leurs gains.
+  compOut.gain.setTargetAtTime(on ? 1 : 0, t(), 0.02);
+  compBypass.gain.setTargetAtTime(on ? 0 : 1, t(), 0.02);
+});
+bindToggle("t-duck", "duck");
+bindToggle("t-pan", "pan");
+bindToggle("t-policy", "steal", (on) => {
+  document.getElementById("t-policy").textContent = on ? "vole la plus ancienne" : "refuse la nouvelle";
+});
+
+// --- l'assaut de la vague 8 ----------------------------------------------
+
+let assault = null;
+const assaultBtn = document.getElementById("assault");
+const byId = {};
+for (const s of SOUNDS) byId[s.id] = s;
+
+function startAssault() {
+  // Cadences tirées de la table des vagues : 2 rues actives, un paquet de 4
+  // toutes les 6 s par rue, ~30 zombies vivants, 6 canons posés.
+  let zombies = 18;
+  const timers = [];
+  const every = (ms, fn) => timers.push(setInterval(fn, ms));
+  const side = () => (Math.random() * 2 - 1) * 0.7;
+
+  // Les paquets entrent : 4 zombies toutes les 6 s, par deux rues.
+  every(6000, () => { zombies = Math.min(45, zombies + 4); });
+  every(6000, () => { zombies = Math.min(45, zombies + 4); });
+
+  // Les gémissements : c'est ici que la bouillie se fabrique.
+  every(140, () => {
+    if (Math.random() < zombies / 40) {
+      const s = byId.gemissement;
+      const p = Object.assign({}, state.gemissement, { pitch: state.gemissement.pitch * (0.8 + Math.random() * 0.5) });
+      s.play(p, undefined, side());
+    }
+  });
+
+  // Les canons : six posés, un boulet toutes les 2 s chacun.
+  every(330, () => { byId.boulet.play(state.boulet, undefined, side()); });
+  every(340, () => { byId.impact.play(state.impact, undefined, side()); });
+
+  // L'épée : des rafales de 4 s à 2,5 coups/s, puis on souffle.
+  let swinging = true;
+  every(4000, () => { swinging = !swinging; });
+  every(400, () => {
+    if (!swinging) return;
+    const kill = Math.random() < 0.45 && zombies > 0;
+    if (kill) {
+      zombies--;
+      byId.bloup.play(state.bloup, undefined, side() * 0.4);
+      setTimeout(() => byId.piece.play(state.piece), 260);
+    } else if (Math.random() < 0.75) {
+      byId.tchac.play(state.tchac, undefined, side() * 0.4);
+    } else {
+      byId.souffle.play(state.souffle, undefined, side() * 0.4);
+    }
+  });
+
+  // Les canons tuent aussi, plus lentement.
+  every(1600, () => { if (zombies > 0) { zombies--; byId.bloup.play(state.bloup, undefined, side()); } });
+
+  // Un contact toutes les ~8 s : le joueur joue en avant.
+  every(8000, () => byId.contact.play(state.contact));
+
+  // Une fuite : la mairie encaisse, hors champ.
+  every(11000, () => byId.mairie.play(state.mairie));
+
+  const meterZ = document.getElementById("m-zombies");
+  every(200, () => { meterZ.textContent = zombies; });
+
+  return () => timers.forEach(clearInterval);
+}
+
+assaultBtn.addEventListener("click", () => {
+  if (assault) {
+    assault(); assault = null;
+    assaultBtn.textContent = "▶ Assaut vague 8";
+    assaultBtn.classList.remove("on");
+    document.getElementById("m-zombies").textContent = "0";
+  } else {
+    assault = startAssault();
+    assaultBtn.textContent = "■ Couper l'assaut";
+    assaultBtn.classList.add("on");
+  }
+});
+
+// --- compteurs ------------------------------------------------------------
+
+setInterval(() => {
+  if (!ctx) return;
+  let n = 0;
+  for (const f of FAMILIES) n += bus[f.key].active.length;
+  document.getElementById("m-voices").textContent = n;
+  document.getElementById("m-dropped").textContent = dropped;
+}, 120);
+
+// --- amorçage -------------------------------------------------------------
+
+document.getElementById("boot").addEventListener("click", boot);
+</script>
+
+</body>
+</html>
