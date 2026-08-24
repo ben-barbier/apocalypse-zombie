@@ -47,10 +47,10 @@ Le décor sommaire au-delà des fronts bâtis, d'où sortent les zombies. Non pr
 ### Le rythme
 
 **Partie** :
-Dix vagues. Les tenir toutes, c'est gagner.
+Dix vagues. Les tenir toutes, c'est gagner — et la victoire reste acquise, même si la **Rallonge** qui la prolonge finit par coucher la mairie.
 
 **Vague** :
-Un cycle en deux temps : un assaut, puis une préparation. Numérotée de 1 à 10.
+Un cycle en deux temps : un assaut, puis une préparation. Numérotée à partir de 1 : jusqu'à dix elle a un total, au-delà elle n'en a plus.
 
 **Assaut** :
 La phase pendant laquelle les zombies entrent. **Aucun chrono n'y tourne** : elle s'achève à la mort du dernier zombie.
@@ -59,6 +59,10 @@ _Éviter_ : attaque, combat, manche
 **Préparation** :
 La phase entre deux assauts, de durée fixe, dont la barre s'écoule automatiquement. Aucun bouton ne la déclenche ni ne l'allonge.
 _Éviter_ : pause, entracte, intervalle
+
+**Rallonge** :
+Ce qui vient après la victoire : les vagues onze et suivantes, relancées d'un appui, jusqu'à ce que la mairie tombe. Elle n'invente rien — ni type de zombie, ni statistique gonflée, ni cadence nouvelle : elle **ouvre la troisième rue** à la vague onze sans un zombie de plus, monte l'effectif jusqu'à soixante à la vague quatorze, puis répète cette vague-là à l'identique. Ce qui arrête le joueur n'est pas le prix des choses, c'est qu'on ne peut pas être aux trois endroits à la fois.
+_Éviter_ : mode sans fin, mode survie, mode infini, prolongation
 
 **Sas** :
 L'unique écran hors-jeu : accueil au chargement, pause d'interruption et pause voulue à la fois. La partie s'y fige et s'assombrit derrière ses deux portes, sans un mot de texte — reprendre, d'un appui, ou recommencer, d'un appui **maintenu une seconde**. Il n'a aucun réglage : ni volume, ni qualité, ni langue. Rien ne reprend jamais tout seul : c'est l'appui qui sort du Sas qui rend la manette, le son et le verrou de veille.
@@ -86,7 +90,7 @@ Le zombie résistant, bleu-violet et plus grand, apparu à la vague 7. C'est lui
 _Éviter_ : tank, gros, blindé
 
 **Colosse** :
-L'unique zombie géant doré de la vague 10, très lent et très résistant, escorté. Il entre **en premier**, visible d'emblée au bout de sa rue, et met une minute et demie à la descendre.
+Le zombie géant doré, très lent et très résistant, escorté, qui **possède la rue** par laquelle il entre. Il entre **en premier**, visible d'emblée au bout de sa rue, et met une minute et demie à la descendre. Un seul dans la partie, à la vague dix ; puis **un par vague en Rallonge à partir de la douzième, jamais deux à la fois**, et sa rue change à chaque vague.
 _Éviter_ : boss, chef, géant
 
 **Rail** :
@@ -113,7 +117,7 @@ Un zombie qui atteint la mairie et se met à frapper. Elle se compte en **points
 _Éviter_ : passage, percée, leak
 
 **Escorte** :
-Les Costauds qui accompagnent le Colosse à la vague 10, ralentis à son pas et massés autour de lui. Ils entrent avec lui, dès la première seconde de l'assaut, et **occupent une rue à eux seuls** — tout le reste de la vague descend l'autre.
+Les six Costauds qui accompagnent le Colosse, ralentis à son pas et massés autour de lui. Ils entrent avec lui, dès la première seconde de l'assaut, et **occupent une rue à eux seuls** — tout le reste de la vague descend les autres. En Rallonge, ils sont les seuls Costauds de la vague.
 
 ### Le joueur
 

@@ -10,33 +10,34 @@ Le cahier, le glossaire, les tickets, les commits et le texte affiché dans le j
 | Vague | `wave` | | Fauchée | `sweep` |
 | Assaut | `assault` | | Étourdissement | `stagger` |
 | Préparation | `prep` | | Coup d'épée | `SWORD_HIT` |
-| Sas | `airlock` | | Coup de Traînard | `SHAMBLER_HIT` |
-| Instantané | `snapshot` | | Canon | `cannon` |
-| Ville | `city` | | Boulet | `cannonball` |
-| Place | `square` | | Jet de feu | `flame` |
-| Rue | `street` | | Bombe de feu | `firebomb` |
-| Front bâti | `frontage` | | Brassée | `armful` |
-| Portique | `gateway` | | Soute | `magazine` |
-| Mairie | `townHall` | | Tapis roulant | `conveyor` |
-| Base | `base` | | Halo | `halo` |
-| Échelle | `ladder` | | Ravitaillement | `resupply` |
-| Extérieur | `outskirts` | | Renfort | `reinforcement` |
-| Traînard | `shambler` | | Heure orange | `orangeHour` |
-| Sprinteur | `sprinter` | | Brume | `haze` |
-| Costaud | `bruiser` | | Éclat | `shard` |
-| Colosse | `colossus` | | Mire | `mark` |
-| Rail | `rail` | | Cerne | `rim` |
-| Avancement | `progress` | | Losange | `diamond` |
-| Paquet | `pack` | | Tuile | `tile` |
-| Cadence | `CADENCE` | | Pièce | `coin` |
-| Colonne | `column` | | Prime de bravoure | `braveryBonus` |
-| Fuite | `breach` | | Prime de fin d'assaut | `assaultBonus` |
-| Course | `RUN_SPEED` | | Escorte | `escort` |
-| Contact | `contact` | | Écroulement | `collapse` |
-| Saut | `jump` | | Bandeau | `hud` |
-| Pastille | `pip` | | Bourse | `purse` |
-| Vignette | `badge` | | Flèche | `arrow` |
-| Liseré | `reach` | | Porte | `door` |
+| Rallonge | `overtime` | | Coup de Traînard | `SHAMBLER_HIT` |
+| Sas | `airlock` | | Canon | `cannon` |
+| Instantané | `snapshot` | | Boulet | `cannonball` |
+| Ville | `city` | | Jet de feu | `flame` |
+| Place | `square` | | Bombe de feu | `firebomb` |
+| Rue | `street` | | Brassée | `armful` |
+| Front bâti | `frontage` | | Soute | `magazine` |
+| Portique | `gateway` | | Tapis roulant | `conveyor` |
+| Mairie | `townHall` | | Halo | `halo` |
+| Base | `base` | | Ravitaillement | `resupply` |
+| Échelle | `ladder` | | Renfort | `reinforcement` |
+| Extérieur | `outskirts` | | Heure orange | `orangeHour` |
+| Traînard | `shambler` | | Brume | `haze` |
+| Sprinteur | `sprinter` | | Éclat | `shard` |
+| Costaud | `bruiser` | | Mire | `mark` |
+| Colosse | `colossus` | | Cerne | `rim` |
+| Rail | `rail` | | Losange | `diamond` |
+| Avancement | `progress` | | Tuile | `tile` |
+| Paquet | `pack` | | Pièce | `coin` |
+| Cadence | `CADENCE` | | Prime de bravoure | `braveryBonus` |
+| Colonne | `column` | | Prime de fin d'assaut | `assaultBonus` |
+| Fuite | `breach` | | Escorte | `escort` |
+| Course | `RUN_SPEED` | | Écroulement | `collapse` |
+| Contact | `contact` | | Bandeau | `hud` |
+| Saut | `jump` | | Bourse | `purse` |
+| Pastille | `pip` | | Flèche | `arrow` |
+| Vignette | `badge` | | Porte | `door` |
+| Liseré | `reach` | | | |
 | Manche | `stick` | | | |
 
 **La règle qui gouverne cette table** : en anglais, un terme du glossaire reçoit un mot et un seul, qui ne soit ni déjà pris par un autre terme du glossaire, ni pris par l'API Three.js. C'est le flou que les listes `_Éviter_` de `CONTEXT.md` combattent, pas la racine des mots — `sweep`, `breach` et `magazine` sont retenus bien que « balayage », « percée » et « chargeur » soient bannis en français, parce qu'aucun n'a de concurrent en anglais.
@@ -58,6 +59,7 @@ Les `_Éviter_` du glossaire ne sont **pas** traduites : elles gouvernent le fra
 | `fog` | `haze` | `scene.fog` appartient à Three.js |
 | `pause`, `menu`, `title` | `airlock` | il n'existe qu'un écran hors-jeu |
 | `round`, `level`, `stage` | `wave` | |
+| `endless`, `survival`, `infinite` | `overtime` | la Rallonge prolonge la partie, elle n'ouvre pas un second mode |
 | `update`, `tick` | `step` | un seul nom pour le pas de simulation |
 | `entity`, `actor`, `unit`, `gameObject` | *rien* | pas d'abstraction générique : des zombies, un joueur, des canons, des projectiles |
 | `spawnRate` | `CADENCE` | la cadence ne varie jamais ; le verbe `spawn` reste permis |
