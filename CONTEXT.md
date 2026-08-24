@@ -18,7 +18,7 @@ Le moyeu de l'étoile, 32 blocs de bord à bord, au milieu duquel se dresse la m
 _Éviter_ : centre-ville, esplanade
 
 **Rue** :
-Une des trois avenues droites de 60 blocs, larges de 6, qui rayonnent de la place à 120° l'une de l'autre. C'est le terrain de jeu du tower defense : un Traînard y passe 40 secondes sous le feu des canons posés sur les toits qui la bordent, un Costaud une minute.
+Une des trois avenues droites de 80 blocs, larges de 6, qui rayonnent de la place à 120° l'une de l'autre. C'est le terrain de jeu du tower defense : un zombie y descend assez longtemps sous le feu des canons posés sur les toits qui la bordent pour qu'un canon serve à quelque chose — c'est ce qui a fait abandonner l'anneau, dont les 6 blocs de couloir se franchissaient en quatre secondes. Les durées de traversée par type se déduisent de la longueur, et elles sont en révision depuis que celle-ci est passée de 60 à 80 blocs.
 _Éviter_ : route (ancien nom), avenue, couloir
 
 **Front bâti** :
@@ -90,7 +90,7 @@ Le zombie résistant, bleu-violet et plus grand, apparu à la vague 7. C'est lui
 _Éviter_ : tank, gros, blindé
 
 **Colosse** :
-Le zombie géant doré, très lent et très résistant, escorté, qui **possède la rue** par laquelle il entre. Il entre **en premier**, visible d'emblée au bout de sa rue, et met une minute et demie à la descendre. Un seul dans la partie, à la vague dix ; puis **un par vague en Rallonge à partir de la douzième, jamais deux à la fois**, et sa rue change à chaque vague.
+Le zombie géant doré, très lent et très résistant, escorté, qui **possède la rue** par laquelle il entre. Il entre **en premier**, visible d'emblée au bout de sa rue, et met plus longtemps qu'aucun autre à la descendre. Un seul dans la partie, à la vague dix ; puis **un par vague en Rallonge à partir de la douzième, jamais deux à la fois**, et sa rue change à chaque vague.
 _Éviter_ : boss, chef, géant
 
 **Rail** :
@@ -109,7 +109,7 @@ Le rythme d'entrée des paquets : **un paquet toutes les six secondes, dans chaq
 _Éviter_ : débit, fréquence, spawn rate
 
 **Colonne** :
-La vague entière étirée le long de sa rue, du paquet de tête à celui qui entre encore. C'est la forme d'un assaut : la rue **est** pleine, parce qu'une vague entre plus vite qu'elle ne se vide — un Traînard met quarante-huit secondes à rejoindre la mairie, une vague en met trente-huit à entrer. Le nombre de zombies vivants ne peut donc jamais dépasser l'effectif de la vague.
+La vague entière étirée le long de sa rue, du paquet de tête à celui qui entre encore. C'est la forme d'un assaut : la rue **est** pleine, parce qu'une vague entre plus vite qu'elle ne se vide — le trajet d'un Traînard jusqu'à la mairie dure plus longtemps que l'entrée de la vague entière. Le nombre de zombies vivants ne peut donc jamais dépasser l'effectif de la vague.
 _Éviter_ : file, flot, horde
 
 **Fuite** :
