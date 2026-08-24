@@ -22,8 +22,12 @@ Une des trois avenues droites de 80 blocs, larges de 6, qui rayonnent de la plac
 _Éviter_ : route (ancien nom), avenue, couloir
 
 **Front bâti** :
-La double rangée de bâtiments qui borde une rue sur 8 blocs de profondeur, et qui ferme la place entre deux rues. Continu, indestructible et infranchissable : on n'entre jamais dans un bâtiment, on monte sur son toit. Un bâtiment fait **6 blocs de façade** sur 8 de profondeur, et mesure **4, 6 ou 8 blocs de haut**, jamais autre chose : sa tuile de toit dit laquelle, et ses bandeaux d'étage — un tous les 2 blocs — permettent de la compter depuis le sol. La hauteur n'est pas décorative : elle majore la portée du boulet, et elle décide si l'on passe d'un toit à l'autre d'un saut. Les hauteurs se suivent par **tronçons** : 4, puis 6, puis 8, puis retour à 4 — une chute de 4 blocs, que le saut ne franchit pas. Chaque tronçon est donc un morceau de toit **isolé**, dont le sommet de 8 est le meilleur poste de tir de son secteur ; les deux bords d'une rue ne coupent jamais au même endroit, et **aucun ne se parcourt du pied au fond sans redescendre dans la rue**. C'est ce qui empêche le ravitaillement d'un canon avancé de se faire à l'abri.
+La double rangée de bâtiments qui borde une rue sur 8 blocs de profondeur, et qui ferme la place entre deux rues. Continu, indestructible et infranchissable : on n'entre jamais dans un bâtiment, on monte sur son toit. Un bâtiment fait **6 blocs de façade** sur 8 de profondeur, et mesure **4, 6 ou 8 blocs de haut**, jamais autre chose : sa tuile de toit dit laquelle, et ses **corniches** — une tous les 2 blocs — permettent de la compter depuis le sol. La hauteur n'est pas décorative : elle majore la portée du boulet, et elle décide si l'on passe d'un toit à l'autre d'un saut. Les hauteurs se suivent par **tronçons** : 4, puis 6, puis 8, puis retour à 4 — une chute de 4 blocs, que le saut ne franchit pas. Un toit est une **terrasse** — on y marche, on y pose un canon —, et la tuile qui l'habille est d'autant plus claire qu'il est haut : sans ombre portée, c'est la seule chose qui dise qu'un toit domine son voisin. Chaque tronçon est donc un morceau de toit **isolé**, dont le sommet de 8 est le meilleur poste de tir de son secteur ; les deux bords d'une rue ne coupent jamais au même endroit, et **aucun ne se parcourt du pied au fond sans redescendre dans la rue**. C'est ce qui empêche le ravitaillement d'un canon avancé de se faire à l'abri.
 _Éviter_ : anneau (ancien nom), mur, rempart, immeubles
+
+**Corniche** :
+La moulure claire qui coiffe un bloc de façade sur deux, et qui découpe un bâtiment en étages de 2 blocs. Elle n'est pas décorative : c'est **elle qu'on compte depuis la rue** pour savoir si un toit est à 4, 6 ou 8, donc jusqu'où un canon y portera. Elle vient avec la fenêtre de l'étage, sur la même tuile — l'autre bloc est l'allège, plein. Le mot est celui de l'architecture, et il est pris à dessein : *bandeau* appartient à l'interface, et un terme ne reçoit qu'un mot.
+_Éviter_ : bandeau (réservé à l'interface), frise, moulure, ceinture
 
 **Portique** :
 L'arche de couleur fixe qui se dresse à l'entrée d'une rue, **du côté de la place**, et l'identifie toute la partie : la rue 1 est **cyan** — c'est celle que la base regarde, et celle de la vague 1 —, la rue 2 **magenta** (vague 5) et la rue 3 **jaune citron** (vague 11) ; trois couleurs qu'aucun zombie ni aucune tuile ne porte. Allumé et pulsant quand la rue est active, éteint et barré sinon. Jamais au fond de la rue : c'est depuis la place qu'il doit s'annoncer. Sa couleur est reprise par la flèche du bandeau qui dit ce que fait sa rue quand on ne la voit pas.
@@ -240,8 +244,12 @@ Le cercle peint au sol qui montre jusqu'où le boulet portera, tant que le losan
 _Éviter_ : portée, cercle, zone (réservé au halo)
 
 **Tuile** :
-L'image de 16 × 16 pixels qui habille une face de bloc, filtrée en `nearest` et répétée à chaque bloc. Dégradé vertical et grain, jamais de cerne. Elle doit rester lisible à ×3 — ce qu'un bloc mesure à l'écran en jeu.
+L'image de 16 × 16 pixels qui habille une face de bloc, filtrée en `nearest` et répétée à chaque bloc. Il y en a **treize, et elles habillent toutes du bâti** : rien de ce qui bouge ni de ce qui se pose n'en porte — un corps et un canon sont des boîtes d'une seule couleur. C'est le prolongement du contraste de température : *la ville est texturée, ce qui bouge et ce qui se pose est uni*. Grain toujours, jamais de cerne ; le **dégradé vertical** ne va qu'aux tuiles de façade — sur un sol il devient un dégradé dans le plan du sol, et la répétition en fait des bandes. Elle doit rester lisible à ×3 — ce qu'un bloc mesure à l'écran en jeu.
 _Éviter_ : sprite, carreau, image
+
+**Planche** :
+Les treize tuiles réunies dans une seule image de 128 × 128, la seule que le jeu charge. Grille de 4 × 4, cases de 32, et autour de chaque tuile une **marge de 8 pixels qui reprend son bord opposé** : c'est elle qui rend invisible le raccord entre deux blocs voisins et qui empêche une tuile de baver sur sa voisine quand la distance fait descendre le mipmap. Trois cases restent libres, peintes en magenta franc pour qu'un oubli hurle. Elle n'est **jamais dessinée à la main** : un script versionné l'engendre, semé, donc reproductible à l'octet et comparable par un test — le PNG commité est un produit de compilation.
+_Éviter_ : atlas (le mot français), feuille, spritesheet, texture
 
 ### L'argent
 
