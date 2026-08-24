@@ -11,22 +11,22 @@ Le code, lui, est écrit **en anglais** : la correspondance entre chaque terme d
 ### La ville
 
 **Ville** :
-Le terrain de jeu entier, 176 × 176 blocs, fait à la main et figé. Une seule ville en v1. Elle a la forme d'une **étoile à trois branches** : tout ce qui se joue tient dans les trois rues, sur la place, et sur les toits qui les bordent — le reste est un décor que la brume efface. Elle ne porte **aucun objet de décor** : ni lampadaire, ni caisse, ni banc, ni auvent. Tout ce qu'on y voit est du bâti, et la seule chose qui s'y ajoute est un canon.
+Le terrain de jeu entier, 216 × 216 blocs, fait à la main et figé — **87 bâtiments**, donc 87 toits et 87 échelles. Une seule ville en v1. Elle a la forme d'une **étoile à trois branches** : tout ce qui se joue tient dans les trois rues, sur la place, et sur les toits qui les bordent — le reste est un décor que la brume efface. Elle ne porte **aucun objet de décor** : ni lampadaire, ni caisse, ni banc, ni auvent. Tout ce qu'on y voit est du bâti, et la seule chose qui s'y ajoute est un canon.
 
 **Place** :
-Le moyeu de l'étoile, 32 blocs de bord à bord, au milieu duquel se dresse la mairie. C'est le **seul passage d'une rue à l'autre** : il n'existe aucun raccourci.
+Le moyeu de l'étoile, **hexagonal**, 32 blocs de bord à bord, un pan droit face à chacune des trois rues — sur une grille de blocs, un cercle n'est qu'un escalier. Au milieu se dresse la mairie. C'est le **seul passage d'une rue à l'autre** : il n'existe aucun raccourci. Les neuf bâtiments qui la ferment font tous **4 blocs de haut** : la place s'ouvre, la mairie domine, et leurs toits font un balcon continu autour d'elle, relié au pied de chaque rue.
 _Éviter_ : centre-ville, esplanade
 
 **Rue** :
-Une des trois avenues droites de 80 blocs, larges de 6, qui rayonnent de la place à 120° l'une de l'autre. C'est le terrain de jeu du tower defense : un zombie y descend assez longtemps sous le feu des canons posés sur les toits qui la bordent pour qu'un canon serve à quelque chose — c'est ce qui a fait abandonner l'anneau, dont les 6 blocs de couloir se franchissaient en quatre secondes. Les durées de traversée par type se déduisent de la longueur : sur le **rail de 92 blocs** — les 80 de la rue, plus les 12 qui séparent sa bouche de la face de la mairie —, un Traînard met 61 secondes, un Sprinteur 23, un Costaud 92, le Colosse 115.
+Une des trois avenues droites de 80 blocs, larges de 6, qui rayonnent de la place à 120° l'une de l'autre. Chacun de ses deux bords porte **treize bâtiments**, décalés d'un demi-module d'un côté à l'autre : les façades ne se répondent jamais. C'est le terrain de jeu du tower defense : un zombie y descend assez longtemps sous le feu des canons posés sur les toits qui la bordent pour qu'un canon serve à quelque chose — c'est ce qui a fait abandonner l'anneau, dont les 6 blocs de couloir se franchissaient en quatre secondes. Les durées de traversée par type se déduisent de la longueur : sur le **rail de 92 blocs** — les 80 de la rue, plus les 12 qui séparent sa bouche de la face de la mairie —, un Traînard met 61 secondes, un Sprinteur 23, un Costaud 92, le Colosse 115.
 _Éviter_ : route (ancien nom), avenue, couloir
 
 **Front bâti** :
-La double rangée de bâtiments qui borde une rue sur 8 blocs de profondeur, et qui ferme la place entre deux rues. Continu, indestructible et infranchissable : on n'entre jamais dans un bâtiment, on monte sur son toit. Un bâtiment mesure **4, 6 ou 8 blocs de haut**, jamais autre chose : sa tuile de toit dit laquelle, et ses bandeaux d'étage — un tous les 2 blocs — permettent de la compter depuis le sol. La hauteur n'est pas décorative : elle majore la portée du boulet, et elle décide si l'on passe d'un toit à l'autre d'un saut.
+La double rangée de bâtiments qui borde une rue sur 8 blocs de profondeur, et qui ferme la place entre deux rues. Continu, indestructible et infranchissable : on n'entre jamais dans un bâtiment, on monte sur son toit. Un bâtiment fait **6 blocs de façade** sur 8 de profondeur, et mesure **4, 6 ou 8 blocs de haut**, jamais autre chose : sa tuile de toit dit laquelle, et ses bandeaux d'étage — un tous les 2 blocs — permettent de la compter depuis le sol. La hauteur n'est pas décorative : elle majore la portée du boulet, et elle décide si l'on passe d'un toit à l'autre d'un saut. Les hauteurs se suivent par **tronçons** : 4, puis 6, puis 8, puis retour à 4 — une chute de 4 blocs, que le saut ne franchit pas. Chaque tronçon est donc un morceau de toit **isolé**, dont le sommet de 8 est le meilleur poste de tir de son secteur ; les deux bords d'une rue ne coupent jamais au même endroit, et **aucun ne se parcourt du pied au fond sans redescendre dans la rue**. C'est ce qui empêche le ravitaillement d'un canon avancé de se faire à l'abri.
 _Éviter_ : anneau (ancien nom), mur, rempart, immeubles
 
 **Portique** :
-L'arche de couleur fixe qui se dresse à l'entrée d'une rue, **du côté de la place**, et l'identifie toute la partie : **cyan, magenta et jaune citron**, trois couleurs qu'aucun zombie ni aucune tuile ne porte. Allumé et pulsant quand la rue est active, éteint et barré sinon. Jamais au fond de la rue : c'est depuis la place qu'il doit s'annoncer. Sa couleur est reprise par la flèche du bandeau qui dit ce que fait sa rue quand on ne la voit pas.
+L'arche de couleur fixe qui se dresse à l'entrée d'une rue, **du côté de la place**, et l'identifie toute la partie : la rue 1 est **cyan** — c'est celle que la base regarde, et celle de la vague 1 —, la rue 2 **magenta** (vague 5) et la rue 3 **jaune citron** (vague 11) ; trois couleurs qu'aucun zombie ni aucune tuile ne porte. Allumé et pulsant quand la rue est active, éteint et barré sinon. Jamais au fond de la rue : c'est depuis la place qu'il doit s'annoncer. Sa couleur est reprise par la flèche du bandeau qui dit ce que fait sa rue quand on ne la voit pas.
 _Éviter_ : arche, porte, balise
 
 **Mairie** :
@@ -34,11 +34,11 @@ Le bâtiment à défendre, au centre de la place. Elle vaut **200 coups de Traî
 _Éviter_ : QG, base, hôtel de ville
 
 **Base** :
-Le hangar du joueur, adossé à la mairie, où se prennent les bombes de feu. Distinct de la mairie.
+Le hangar du joueur, adossé à la face de la mairie **qui regarde la rue 1**, où se prennent les bombes de feu. Distinct de la mairie. C'est depuis elle, et non depuis la mairie, que se mesure le halo.
 _Éviter_ : dépôt, stock, entrepôt
 
 **Échelle** :
-L'accès extérieur qui relie le sol au toit d'un bâtiment ; il y en a une par bâtiment. On y monte **automatiquement** : marcher dessus en poussant vers le bâtiment suffit, l'épée se range, et on ressort en haut prêt à frapper — 0,8 seconde, rien à doser. Elle redescend de la même manière. Aucun bâtiment ne mesurant moins de 4 blocs et le saut n'en franchissant que 2, **c'est la seule montée depuis le sol** — donc la seule chose que l'enfant ait à découvrir pour poser son premier canon.
+L'accès extérieur qui relie le sol au toit d'un bâtiment ; il y en a une par bâtiment, au **milieu de sa façade de rue** — la seule face accessible, le front bâti étant continu. On y monte **automatiquement** : marcher dessus en poussant vers le bâtiment suffit, l'épée se range, et on ressort en haut prêt à frapper — 0,8 seconde, rien à doser. Elle redescend de la même manière. Aucun bâtiment ne mesurant moins de 4 blocs et le saut n'en franchissant que 2, **c'est la seule montée depuis le sol** — donc la seule chose que l'enfant ait à découvrir pour poser son premier canon.
 _Éviter_ : escalier, escalade, grimper
 
 **Extérieur** :
@@ -129,7 +129,7 @@ La seule allure du joueur : 6 blocs par seconde, toujours. Il n'y a ni marche ni
 _Éviter_ : vitesse, marche, sprint
 
 **Saut** :
-Ce qui fait des toits un réseau : il franchit **2 blocs de dénivelé et 2 blocs de vide, jamais plus**. On passe donc d'un toit de 4 à un toit de 6 et d'un 6 à un 8, jamais d'un 4 à un 8 ; une rue large de 6 blocs ne se saute pas, et la place reste le seul passage d'une rue à l'autre. Il ne sert jamais à monter depuis le sol — c'est l'échelle qui monte — et il ne sert jamais à descendre : on descend en marchant dans le vide, et tomber ne coûte rien.
+Ce qui fait des toits un réseau : il franchit **2 blocs de dénivelé et 2 blocs de vide, jamais plus**. On passe donc d'un toit de 4 à un toit de 6 et d'un 6 à un 8, jamais d'un 4 à un 8 ; une rue large de 6 blocs ne se saute pas, et la place reste le seul passage d'une rue à l'autre. Il ne sert jamais à monter depuis le sol — c'est l'échelle qui monte — et il ne sert jamais à descendre : on descend en marchant dans le vide, et tomber ne coûte rien. Le plan s'en sert comme d'une borne : les toits d'un bord de rue sont coupés en tronçons de trois ou quatre bâtiments, et l'on redescend entre deux.
 _Éviter_ : bond, escalade, double saut
 
 **Caméra** :
@@ -190,7 +190,7 @@ Le niveau 3 du canon, qui automatise le ravitaillement depuis la base. Il ne cha
 _Éviter_ : convoyeur, automatisation
 
 **Halo** :
-Les pavés clairs peints au sol et sur les toits, qui marquent jusqu'où le tapis roulant porte depuis la base. Un canon posé dehors ne passera jamais au niveau 3. Depuis une base au moyeu, ses 16 blocs couvrent la place et le **pied** des rues, jamais leur fond : un canon avancé se ravitaille à pied pour toute la partie, et celui du fond d'une rue se ravitaille sous le feu.
+Les pavés clairs peints au sol et sur les toits, qui marquent jusqu'où le tapis roulant porte depuis la base. Un canon posé dehors ne passera jamais au niveau 3. Ses 16 blocs se mesurent depuis la base, et ne couvrent ni toute la place ni les trois rues : ils entrent de **6 blocs dans la seule rue 1**, celle que la base regarde. **Neuf toits sur 87** sont donc éligibles — les six du pourtour de la place et les trois du pied de la rue 1. Partout ailleurs, un canon se ravitaille à pied pour toute la partie, et celui du fond d'une rue se ravitaille sous le feu.
 _Éviter_ : zone, rayon, cercle
 
 **Ravitaillement** :
