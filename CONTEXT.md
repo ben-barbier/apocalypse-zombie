@@ -98,7 +98,7 @@ Le tracé fixe qu'un zombie suit, de son entrée jusqu'à la mairie : tout droit
 _Éviter_ : chemin, trajet, itinéraire
 
 **Avancement** :
-La progression d'un zombie le long de son rail. Elle ne décroît jamais — c'est la garantie qu'un assaut se termine toujours.
+La progression d'un zombie le long de son rail. Elle ne décroît jamais — c'est la garantie qu'un assaut se termine toujours — et **rien ne la ralentit sauf un coup d'épée** : le seul ralentisseur du jeu est le joueur lui-même. C'est ce qui rend la traversée d'une rue chiffrable une fois pour toutes, donc la table des vagues vérifiable.
 
 **Paquet** :
 Les **quatre zombies d'un même type** qui entrent d'un coup par une rue, occupant sa largeur. Un assaut est une suite de paquets, jamais un flot continu, et un paquet ne mélange jamais deux types : un paquet est une menace, et une réponse.
@@ -164,7 +164,7 @@ L'unité de dégâts infligés aux zombies. Les points de vie d'un zombie se com
 L'unité de dégâts infligés aux constructions. Les points de vie de la mairie et des canons au sol se comptent en coups de Traînard.
 
 **Canon** :
-Une tourelle achetée avec l'argent gagné, posée là où le joueur se tient — sur un toit ou au sol. Trois niveaux. Au sol, elle ne bloque pas les zombies mais s'use sous leurs coups ; sur un toit, elle est intouchable.
+Une tourelle achetée avec l'argent gagné, posée là où le joueur se tient — sur un toit ou au sol. Trois niveaux. Au sol, elle ne bloque pas les zombies mais s'use sous leurs coups ; sur un toit, elle est intouchable. **C'est la seule construction du jeu** : rien d'autre ne se pose, rien d'autre ne se bâtit, et ses trois niveaux sont linéaires — on n'y choisit jamais entre deux voies. Le bouton d'action n'a qu'un seul sens à un endroit donné, et le canon, l'amélioration et le renfort de la mairie ont déjà pris les trois seuls endroits qui existent.
 _Éviter_ : tourelle, tour, défense
 
 **Boulet** :
