@@ -33,6 +33,11 @@ Le cahier, le glossaire, les tickets, les commits et le texte affiché dans le j
 | Fuite | `breach` | | Prime de fin d'assaut | `assaultBonus` |
 | Course | `RUN_SPEED` | | Escorte | `escort` |
 | Contact | `contact` | | Écroulement | `collapse` |
+| Saut | `jump` | | Bandeau | `hud` |
+| Pastille | `pip` | | Bourse | `purse` |
+| Vignette | `badge` | | Flèche | `arrow` |
+| Liseré | `reach` | | Porte | `door` |
+| Manche | `stick` | | | |
 
 **La règle qui gouverne cette table** : en anglais, un terme du glossaire reçoit un mot et un seul, qui ne soit ni déjà pris par un autre terme du glossaire, ni pris par l'API Three.js. C'est le flou que les listes `_Éviter_` de `CONTEXT.md` combattent, pas la racine des mots — `sweep`, `breach` et `magazine` sont retenus bien que « balayage », « percée » et « chargeur » soient bannis en français, parce qu'aucun n'a de concurrent en anglais.
 
@@ -58,6 +63,11 @@ Les `_Éviter_` du glossaire ne sont **pas** traduites : elles gouvernent le fra
 | `spawnRate` | `CADENCE` | la cadence ne varie jamais ; le verbe `spawn` reste permis |
 | `checkpoint`, `save` | `snapshot` | |
 | `death`, `die`, `respawn`, `revive` | `collapse` | le joueur ne meurt pas : à zéro il s'écroule sur place |
+| `minimap`, `radar` | *rien* | ce jeu n'a **pas de carte** ([#15](https://github.com/ben-barbier/apocalypse-zombie/issues/15)) : les flèches de rue sont la seule vue du hors-champ |
+| `shop`, `buyMenu`, `inventory` | *rien* | il n'y a pas de menu de construction : on achète là où l'on se tient |
+| `hpBar`, `healthBar` | `hud` | la barre de la mairie et les pastilles du joueur ne partagent aucun composant |
+| `joystick`, `dpad` | `stick` | |
+| `tooltip`, `banner`, `popup` | *rien* | rien ne surgit jamais par-dessus le jeu, le Sas excepté |
 
 **`state` contre `snapshot`** : `state` est l'état vivant en mémoire (`game/state.ts`, le type `Game`) ; `snapshot` est ce qui part dans `localStorage`. Le glossaire bannit « état » comme synonyme d'*Instantané* pour cette raison exacte ; en anglais les deux mots coexistent tant que la frontière est écrite.
 

@@ -22,11 +22,11 @@ Une des trois avenues droites de 60 blocs, larges de 6, qui rayonnent de la plac
 _Éviter_ : route (ancien nom), avenue, couloir
 
 **Front bâti** :
-La double rangée de bâtiments qui borde une rue sur 8 blocs de profondeur, et qui ferme la place entre deux rues. Continu, indestructible et infranchissable : on n'entre jamais dans un bâtiment, on monte sur son toit.
+La double rangée de bâtiments qui borde une rue sur 8 blocs de profondeur, et qui ferme la place entre deux rues. Continu, indestructible et infranchissable : on n'entre jamais dans un bâtiment, on monte sur son toit. Un bâtiment mesure **4, 6 ou 8 blocs de haut**, jamais autre chose : sa tuile de toit dit laquelle, et ses bandeaux d'étage — un tous les 2 blocs — permettent de la compter depuis le sol. La hauteur n'est pas décorative : elle majore la portée du boulet, et elle décide si l'on passe d'un toit à l'autre d'un saut.
 _Éviter_ : anneau (ancien nom), mur, rempart, immeubles
 
 **Portique** :
-L'arche de couleur fixe qui se dresse à l'entrée d'une rue, **du côté de la place**, et l'identifie toute la partie. Allumé et pulsant quand la rue est active, éteint et barré sinon. Jamais au fond de la rue : c'est depuis la place qu'il doit s'annoncer.
+L'arche de couleur fixe qui se dresse à l'entrée d'une rue, **du côté de la place**, et l'identifie toute la partie : **cyan, magenta et jaune citron**, trois couleurs qu'aucun zombie ni aucune tuile ne porte. Allumé et pulsant quand la rue est active, éteint et barré sinon. Jamais au fond de la rue : c'est depuis la place qu'il doit s'annoncer. Sa couleur est reprise par la flèche du bandeau qui dit ce que fait sa rue quand on ne la voit pas.
 _Éviter_ : arche, porte, balise
 
 **Mairie** :
@@ -38,7 +38,7 @@ Le hangar du joueur, adossé à la mairie, où se prennent les bombes de feu. Di
 _Éviter_ : dépôt, stock, entrepôt
 
 **Échelle** :
-L'accès extérieur qui relie le sol au toit d'un bâtiment ; il y en a une par bâtiment. On y monte **automatiquement** : marcher dessus en poussant vers le bâtiment suffit, l'épée se range, et on ressort en haut prêt à frapper — 0,8 seconde, rien à doser. Elle redescend de la même manière.
+L'accès extérieur qui relie le sol au toit d'un bâtiment ; il y en a une par bâtiment. On y monte **automatiquement** : marcher dessus en poussant vers le bâtiment suffit, l'épée se range, et on ressort en haut prêt à frapper — 0,8 seconde, rien à doser. Elle redescend de la même manière. Aucun bâtiment ne mesurant moins de 4 blocs et le saut n'en franchissant que 2, **c'est la seule montée depuis le sol** — donc la seule chose que l'enfant ait à découvrir pour poser son premier canon.
 _Éviter_ : escalier, escalade, grimper
 
 **Extérieur** :
@@ -61,7 +61,7 @@ La phase entre deux assauts, de durée fixe, dont la barre s'écoule automatique
 _Éviter_ : pause, entracte, intervalle
 
 **Sas** :
-L'unique écran hors-jeu : accueil au chargement, pause d'interruption et pause voulue à la fois. La partie s'y fige et s'assombrit derrière deux tuiles sans un mot de texte — reprendre, d'un appui, ou recommencer, d'un appui **maintenu une seconde**. Rien ne reprend jamais tout seul : c'est l'appui qui sort du Sas qui rend la manette, le son et le verrou de veille.
+L'unique écran hors-jeu : accueil au chargement, pause d'interruption et pause voulue à la fois. La partie s'y fige et s'assombrit derrière ses deux portes, sans un mot de texte — reprendre, d'un appui, ou recommencer, d'un appui **maintenu une seconde**. Il n'a aucun réglage : ni volume, ni qualité, ni langue. Rien ne reprend jamais tout seul : c'est l'appui qui sort du Sas qui rend la manette, le son et le verrou de veille.
 _Éviter_ : pause, menu, accueil, écran-titre
 
 **Instantané** :
@@ -121,8 +121,12 @@ Les Costauds qui accompagnent le Colosse à la vague 10, ralentis à son pas et 
 Le personnage dirigé par l'enfant, suivi à la troisième personne. Bâti sur les six mêmes boîtes qu'un zombie — c'est la grammaire commune à tous les personnages — plus l'épée qu'il tient en main. Tunique bleue et acier clair : les seules couleurs froides portées par un personnage, pour qu'il ne soit jamais confondu avec un assaillant.
 
 **Course** :
-La seule allure du joueur : 5 blocs par seconde, toujours. Il n'y a ni marche, ni sprint, ni saut. C'est elle qui chiffre le ravitaillement, et elle en fait un **gradient** le long d'une rue : gratuit au pied (le halo y suffit), un aller-retour de la préparation au milieu, et un aller-retour qui déborde sur l'assaut au fond — 34 secondes pour le toit le plus lointain, quand la préparation en dure 30.
+La seule allure du joueur : 5 blocs par seconde, toujours. Il n'y a ni marche ni sprint — mais il y a un **saut**. C'est elle qui chiffre le ravitaillement, et elle en fait un **gradient** le long d'une rue : gratuit au pied (le halo y suffit), un aller-retour de la préparation au milieu, et un aller-retour qui déborde sur l'assaut au fond — 34 secondes pour le toit le plus lointain, quand la préparation en dure 30.
 _Éviter_ : vitesse, marche, sprint
+
+**Saut** :
+Ce qui fait des toits un réseau : il franchit **2 blocs de dénivelé et 2 blocs de vide, jamais plus**. On passe donc d'un toit de 4 à un toit de 6 et d'un 6 à un 8, jamais d'un 4 à un 8 ; une rue large de 6 blocs ne se saute pas, et la place reste le seul passage d'une rue à l'autre. Il ne sert jamais à monter depuis le sol — c'est l'échelle qui monte — et il ne sert jamais à descendre : on descend en marchant dans le vide, et tomber ne coûte rien.
+_Éviter_ : bond, escalade, double saut
 
 **Caméra** :
 La vue de dos : 6,5 blocs derrière le joueur, 5,5 au-dessus de son sol. Elle se replace derrière lui dès qu'il court, et **grimpe** au-dessus du bâtiment qui s'interpose plutôt que de se coller à son dos — jamais moins de 3,2 blocs de recul. Elle ignore l'auto-ciblage : le joueur pivote, elle non.
@@ -220,8 +224,12 @@ Le liseré noir qui entoure ce qui se ramasse — la pièce et la bombe de feu, 
 _Éviter_ : contour, bordure, outline
 
 **Losange** :
-Le repère posé au sol sous les pieds du joueur, qui dit ce que fera le bouton d'action : blanc et large, on pose un canon ; blanc, serré et pulsant, on améliore celui qui est là ; noir et élargi, c'est impossible. Il vit dans le monde, jamais dans le HUD.
+Le repère posé au sol sous les pieds du joueur, qui dit ce que fera le bouton d'action : blanc et large, on pose un canon ; blanc, serré et pulsant, on améliore celui qui est là ; noir et élargi, c'est impossible. Il vit dans le monde, jamais dans le bandeau, et le **liseré** l'accompagne toujours.
 _Éviter_ : curseur, indicateur, marqueur
+
+**Liseré** :
+Le cercle peint au sol qui montre jusqu'où le boulet portera, tant que le losange est sous les pieds du joueur, et de la couleur du losange. C'est lui qui enseigne que la hauteur majore la portée : l'enfant grimpe, le cercle grandit — 12 blocs au sol, 15 sur un toit de 4, 16,5 sur un toit de 6, 18 sur un toit de 8. Il disparaît dès qu'on quitte l'emplacement : ce n'est pas l'état d'un canon, c'est la question qu'on est en train de se poser.
+_Éviter_ : portée, cercle, zone (réservé au halo)
 
 **Tuile** :
 L'image de 16 × 16 pixels qui habille une face de bloc, filtrée en `nearest` et répétée à chaque bloc. Dégradé vertical et grain, jamais de cerne. Elle doit rester lisible à ×3 — ce qu'un bloc mesure à l'écran en jeu.
@@ -240,3 +248,33 @@ _Éviter_ : bonus, multiplicateur, combo
 **Prime de fin d'assaut** :
 Les pièces que la mairie verse à la mort du dernier zombie, avec tout ce qui traîne encore au sol, crédité sans rien avoir à ramasser. C'est la **seule ponctuation d'un assaut**, qui n'a aucun chrono : rien d'autre ne dit « tu as tenu ». Fixe d'une vague à l'autre, donc énorme à la vague 1 et négligeable à la vague 10 — elle finance le premier canon et disparaît d'elle-même ensuite.
 _Éviter_ : bonus de vague, récompense, score
+
+### Le bandeau
+
+**Bandeau** :
+Tout ce que le jeu affiche par-dessus le monde, et c'est une **liste fermée de cinq choses** : la barre de la mairie, les pastilles, la bourse, les flèches et la bande de phase. Le reste de l'état du jeu se lit sur les objets. Deux règles le placent : **le haut regarde, le bas agit** — les affichages en bande haute, les deux pouces maîtres du bas ; et **gauche, c'est la ville ; droite, c'est toi**. Il est ancré à l'écran et jamais au monde, se dispose selon le **ratio** de la fenêtre et jamais selon l'orientation de l'appareil, et n'a **aucun signal d'alarme** : rien n'y surgit, rien n'y tremble, rien n'y clignote pour faire peur.
+_Éviter_ : HUD, interface, ATH, surcouche
+
+**Pastille** :
+Un des cinq carrés bleu-acier qui disent les points de vie du joueur. Creux quand le point est perdu, il revient d'un flash blanc. Unités discrètes qui reviennent, contre la barre continue de la mairie qui s'effrite : c'est la forme qui dit laquelle des deux jauges finit la partie.
+_Éviter_ : cœur, jauge, barre de vie
+
+**Bourse** :
+Ce que le joueur possède et ce qu'il peut s'offrir, en haut à droite : le nombre de pièces, et sous lui les **vignettes**. Elle ne dit jamais qu'une chose de plus que le chiffre — laquelle des dépenses est payable maintenant.
+_Éviter_ : porte-monnaie, magasin, boutique
+
+**Vignette** :
+Une des quatre étiquettes de la bourse — canon, jet de feu, tapis roulant, renfort —, portant **son prix en chiffres**, allumée quand c'est payable et éteinte sinon, avec un flash blanc à l'instant où elle s'allume. Elle répond à « puis-je payer ? » ; c'est le losange qui répond à « puis-je ici ? ». La brassée de bombes n'en a pas : à 3 pièces, elle n'enseignerait rien.
+_Éviter_ : bouton, icône, case, item
+
+**Flèche** :
+Le repère de bord d'écran qui dit où est une rue active et ce qui s'y passe, de la couleur de son portique. Il y en a une par rue active, **toujours** — plaquée au bord quand la rue est hors champ, posée au-dessus du portique quand elle est visible —, et elle **se remplit** à mesure que la tête de colonne descend la rue : vide, ils viennent d'entrer ; pleine, ils frappent la mairie. C'est la seule vue du hors-champ : **ce jeu n'a pas de carte**, et n'en aura jamais.
+_Éviter_ : minicarte, radar, boussole, indicateur
+
+**Porte** :
+Une des deux tuiles du Sas — *Reprendre*, d'un appui, et *Nouvelle partie*, d'un appui maintenu une seconde pendant qu'un anneau se remplit. Le mot **Tuile** étant pris par l'image de 16 × 16 pixels, un sas a des portes.
+_Éviter_ : tuile (réservé aux textures), bouton, carte, option
+
+**Manche** :
+Le joystick tactile de la main gauche. **Flottant** : il naît là où le pouce se pose, dans la moitié gauche sous la mi-hauteur, et un anneau fantôme au repos le montre jusqu'au premier usage. Un enfant ne cherche pas un cercle, il pose son pouce.
+_Éviter_ : joystick, croix, stick, pavé directionnel
