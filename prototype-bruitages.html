@@ -158,7 +158,7 @@
 
   /* ---------- sections ---------- */
 
-  section { padding-top: 3rem; }
+  section { padding-top: 3rem; scroll-margin-top: 92px; }
   h2 {
     font-family: var(--font-display);
     font-weight: 800;
@@ -207,7 +207,8 @@
     color: var(--ink-faint);
     white-space: nowrap;
   }
-  .says { font-size: 0.88rem; color: var(--ink-dim); margin: 0; }
+  /* Les says absorbent la hauteur restante : les boutons des cartes voisines s'alignent. */
+  .says { font-size: 0.88rem; color: var(--ink-dim); margin: 0; flex: 1 0 auto; }
   .says b { color: var(--ink); font-weight: 600; }
   .play {
     min-height: 56px;
