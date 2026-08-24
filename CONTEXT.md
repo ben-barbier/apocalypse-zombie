@@ -11,7 +11,7 @@ Le code, lui, est écrit **en anglais** : la correspondance entre chaque terme d
 ### La ville
 
 **Ville** :
-Le terrain de jeu entier, 176 × 176 blocs, fait à la main et figé. Une seule ville en v1. Elle a la forme d'une **étoile à trois branches** : tout ce qui se joue tient dans les trois rues, sur la place, et sur les toits qui les bordent — le reste est un décor que la brume efface.
+Le terrain de jeu entier, 176 × 176 blocs, fait à la main et figé. Une seule ville en v1. Elle a la forme d'une **étoile à trois branches** : tout ce qui se joue tient dans les trois rues, sur la place, et sur les toits qui les bordent — le reste est un décor que la brume efface. Elle ne porte **aucun objet de décor** : ni lampadaire, ni caisse, ni banc, ni auvent. Tout ce qu'on y voit est du bâti, et la seule chose qui s'y ajoute est un canon.
 
 **Place** :
 Le moyeu de l'étoile, 32 blocs de bord à bord, au milieu duquel se dresse la mairie. C'est le **seul passage d'une rue à l'autre** : il n'existe aucun raccourci.
@@ -75,14 +75,14 @@ _Éviter_ : sauvegarde, checkpoint, état
 ### Les zombies
 
 **Zombie** :
-Un assaillant. Bête et comique, jamais effrayant. Tous les types partagent les six mêmes parties de corps ; seules la couleur, l'échelle, la vitesse et le comportement les distinguent.
+Un assaillant. Bête et comique, jamais effrayant. Tous les types partagent les **quatorze mêmes boîtes** — torse, tête et mâchoire, épaules, bras, mains, ceinture, jambes et pieds — animées par le calcul et jamais par un fichier d'animation. Seules la couleur, l'échelle, la vitesse et le comportement les distinguent : jamais la silhouette.
 
 **Traînard** :
 Le zombie de base, vert pâle, lent, tué en un coup d'épée. Présent à toutes les vagues.
 _Éviter_ : zombie normal, zombie de base, basique
 
 **Sprinteur** :
-Le zombie rapide, rouge vif et plus petit, apparu à la vague 4. Tué en un coup ; le danger vient de sa vitesse.
+Le zombie rapide, **vert vif saturé** et plus petit, apparu à la vague 4. Tué en un coup ; le danger vient de sa vitesse. Il reste dans la famille verte du Traînard et s'en détache par la saturation et la taille — jamais par le rouge, qui n'existe nulle part dans ce jeu.
 _Éviter_ : coureur, rapide
 
 **Costaud** :
@@ -122,7 +122,7 @@ Les six Costauds qui accompagnent le Colosse, ralentis à son pas et massés aut
 ### Le joueur
 
 **Joueur** :
-Le personnage dirigé par l'enfant, suivi à la troisième personne. Bâti sur les six mêmes boîtes qu'un zombie — c'est la grammaire commune à tous les personnages — plus l'épée qu'il tient en main. Tunique bleue et acier clair : les seules couleurs froides portées par un personnage, pour qu'il ne soit jamais confondu avec un assaillant.
+Le personnage dirigé par l'enfant, suivi à la troisième personne. Bâti sur les quatorze mêmes boîtes qu'un zombie — c'est la grammaire commune à tous les personnages — plus l'épée qu'il tient en main. Tunique bleue et acier clair : les seules couleurs froides portées par un personnage, pour qu'il ne soit jamais confondu avec un assaillant.
 
 **Course** :
 La seule allure du joueur : 5 blocs par seconde, toujours. Il n'y a ni marche ni sprint — mais il y a un **saut**. C'est elle qui chiffre le ravitaillement, et elle en fait un **gradient** le long d'une rue : gratuit au pied (le halo y suffit), un aller-retour de la préparation au milieu, et un aller-retour qui déborde sur l'assaut au fond — 34 secondes pour le toit le plus lointain, quand la préparation en dure 30.
@@ -210,6 +210,10 @@ _Éviter_ : coucher de soleil, golden hour, heure rasante, ambiance
 **Soleil** :
 La direction d'où vient la lumière, et rien de plus : **aucune ombre portée n'existe dans ce jeu**. Une directionnelle à 60°, doublée d'une ambiante violette qui remplit les faces à contre-jour. Aucune lumière ponctuelle n'existe non plus : rien, ici, n'éclaire son voisinage. Le relief se lit donc à la valeur des faces et à la brume — jamais à une ombre.
 _Éviter_ : directionnelle, astre, lampe, ombre portée
+
+**Tache** :
+Le quad sombre posé à plat sous chaque personnage, qui l'ancre au sol là où le jeu n'a aucune ombre portée. Elle ne dépend ni du soleil ni de la hauteur, ne s'oriente pas, ne s'étire pas, et **tous les personnages n'en coûtent qu'un seul appel d'affichage**. Ce n'est donc pas une ombre, c'est ce qui la remplace — et rien d'autre qu'un personnage n'en porte.
+_Éviter_ : ombre, ombre portée, ombre de contact, halo (réservé au tapis roulant)
 
 **Brume** :
 Le voile orange qui épaissit avec la distance et efface l'extérieur au-delà des fronts bâtis. Elle laisse voir le fond d'une rue — c'est de là que sortent les zombies, il faut les voir venir. Structurelle, pas décorative : c'est elle qui dispense de détailler ce qu'on ne joue pas.
