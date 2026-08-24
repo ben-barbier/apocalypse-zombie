@@ -32,6 +32,7 @@ Le cahier, le glossaire, les tickets, les commits et le texte affiché dans le j
 | Colonne | `column` | | Prime de bravoure | `braveryBonus` |
 | Fuite | `breach` | | Prime de fin d'assaut | `assaultBonus` |
 | Course | `RUN_SPEED` | | Escorte | `escort` |
+| Contact | `contact` | | Écroulement | `collapse` |
 
 **La règle qui gouverne cette table** : en anglais, un terme du glossaire reçoit un mot et un seul, qui ne soit ni déjà pris par un autre terme du glossaire, ni pris par l'API Three.js. C'est le flou que les listes `_Éviter_` de `CONTEXT.md` combattent, pas la racine des mots — `sweep`, `breach` et `magazine` sont retenus bien que « balayage », « percée » et « chargeur » soient bannis en français, parce qu'aucun n'a de concurrent en anglais.
 
@@ -45,7 +46,7 @@ Les `_Éviter_` du glossaire ne sont **pas** traduites : elles gouvernent le fra
 | `tower`, `turret`, `defense` | `cannon` | « tower defense » est le genre, pas l'objet |
 | `boss`, `tank` | `colossus`, `bruiser` | le défaut de sens se transporte de l'interdit français |
 | `score`, `points` | `coins` | ce jeu n'a pas de score, il a des pièces |
-| `damage` seul | `swordHits`, `shamblerHits` | **deux** unités de dégâts ([#7](https://github.com/ben-barbier/apocalypse-zombie/issues/7)) — un `damage: number` les confond |
+| `damage` seul | `swordHits`, `shamblerHits`, `contacts` | **trois** unités de dégâts ([#7](https://github.com/ben-barbier/apocalypse-zombie/issues/7), [#22](https://github.com/ben-barbier/apocalypse-zombie/issues/22)) — un `damage: number` les confond |
 | `health`, `life` | `hp` | un seul nom pour les PV du joueur, de la mairie et d'un canon au sol |
 | `ammo` | `magazine` (contenant), `firebomb` (contenu) | |
 | `particle`, `sprite` | `shard` | |
@@ -56,6 +57,7 @@ Les `_Éviter_` du glossaire ne sont **pas** traduites : elles gouvernent le fra
 | `entity`, `actor`, `unit`, `gameObject` | *rien* | pas d'abstraction générique : des zombies, un joueur, des canons, des projectiles |
 | `spawnRate` | `CADENCE` | la cadence ne varie jamais ; le verbe `spawn` reste permis |
 | `checkpoint`, `save` | `snapshot` | |
+| `death`, `die`, `respawn`, `revive` | `collapse` | le joueur ne meurt pas : à zéro il s'écroule sur place |
 
 **`state` contre `snapshot`** : `state` est l'état vivant en mémoire (`game/state.ts`, le type `Game`) ; `snapshot` est ce qui part dans `localStorage`. Le glossaire bannit « état » comme synonyme d'*Instantané* pour cette raison exacte ; en anglais les deux mots coexistent tant que la frontière est écrite.
 

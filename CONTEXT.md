@@ -139,6 +139,14 @@ _Éviter_ : arc, cône (réservé au jet de feu), balayage
 La seconde d'immobilité qui suit un contact avec un zombie, pendant laquelle le joueur ne frappe pas. Elle est suivie d'une seconde d'invulnérabilité : le joueur ne peut donc pas perdre plus d'un point de vie toutes les deux secondes.
 _Éviter_ : stun, KO, assommé
 
+**Contact** :
+Le heurt d'un zombie contre le joueur. C'est l'**unité des dégâts qu'il subit** — la troisième du jeu, à côté du coup d'épée et du coup de Traînard — et elle vaut **un point de vie, quel que soit le type du zombie** : le joueur en encaisse cinq. Le zombie qui touche ne s'arrête pas et poursuit son rail : ce n'est pas un combat, c'est un accident de circulation. C'est la **seule** chose qui coûte des points de vie au joueur — tomber d'un toit ne coûte rien. Un point revient toutes les six secondes, et **chaque contact remet ce compte à zéro** : on ne se régénère donc jamais au corps-à-corps, et la préparation suffit à faire le plein.
+_Éviter_ : dégât, collision, coup (réservé aux deux autres unités de dégâts)
+
+**Écroulement** :
+Ce qui arrive au joueur à zéro point de vie — il n'existe pas de mort du joueur. Il tombe **là où il est**, reste trois secondes au sol, puis se relève à pleins points de vie avec trois secondes d'invulnérabilité. Sa brassée disparaît avec lui : c'est la seule perte de bombes du jeu. Il ne se relève **jamais** ailleurs qu'à l'endroit de sa chute — sans quoi s'écrouler serait le trajet de retour le plus rapide de la ville. Et comme le toit est un refuge intégral, on ne s'écroule qu'au sol.
+_Éviter_ : mort, réapparition, résurrection
+
 ### Les défenses
 
 **Coup d'épée** :
