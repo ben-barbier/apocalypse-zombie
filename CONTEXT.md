@@ -294,3 +294,7 @@ _Éviter_ : tuile (réservé aux textures), bouton, carte, option
 **Manche** :
 Le joystick tactile de la main gauche. **Flottant** : il naît là où le pouce se pose, dans la moitié gauche sous la mi-hauteur, et un anneau fantôme au repos le montre jusqu'au premier usage. Un enfant ne cherche pas un cercle, il pose son pouce.
 _Éviter_ : joystick, croix, stick, pavé directionnel
+
+**Titre** :
+Le nom du jeu, *Apocalypse Zombie* — choisi par l'enfant à qui il est destiné. Le jeu ne l'**affiche jamais** : le Sas est sans un mot de texte et le bandeau est fermé à cinq choses. Il ne vit qu'en dehors du jeu — l'onglet du navigateur, le cahier, et sous l'icône de l'écran d'accueil où il se raccourcit en **Zombies**, le seul texte du projet qu'un enfant de 8 ans lira vraiment.
+_Éviter_ : écran-titre, logo, splash, sous-titre
