@@ -37,7 +37,7 @@ Le cahier, le glossaire, les tickets, les commits et le texte affiché dans le j
 | Saut | `jump` | | Bourse | `purse` |
 | Pastille | `pip` | | Flèche | `arrow` |
 | Vignette | `badge` | | Porte | `door` |
-| Liseré | `reach` | | | |
+| Liseré | `reach` | | Tache | `blot` |
 | Manche | `stick` | | | |
 
 **La règle qui gouverne cette table** : en anglais, un terme du glossaire reçoit un mot et un seul, qui ne soit ni déjà pris par un autre terme du glossaire, ni pris par l'API Three.js. C'est le flou que les listes `_Éviter_` de `CONTEXT.md` combattent, pas la racine des mots — `sweep`, `breach` et `magazine` sont retenus bien que « balayage », « percée » et « chargeur » soient bannis en français, parce qu'aucun n'a de concurrent en anglais.
@@ -69,6 +69,8 @@ Les `_Éviter_` du glossaire ne sont **pas** traduites : elles gouvernent le fra
 | `shop`, `buyMenu`, `inventory` | *rien* | il n'y a pas de menu de construction : on achète là où l'on se tient |
 | `hpBar`, `healthBar` | `hud` | la barre de la mairie et les pastilles du joueur ne partagent aucun composant |
 | `joystick`, `dpad` | `stick` | |
+| `prop`, `decoration`, `clutter` | *rien* | la ville ne porte **aucun** objet de décor ([#29](https://github.com/ben-barbier/apocalypse-zombie/issues/29)) : seul le canon se pose |
+| `shadow`, `contactShadow` | `blot` | aucune ombre portée n'existe ; la tache n'en est pas une, et `castShadow` appartient à Three.js |
 | `tooltip`, `banner`, `popup` | *rien* | rien ne surgit jamais par-dessus le jeu, le Sas excepté |
 
 **`state` contre `snapshot`** : `state` est l'état vivant en mémoire (`game/state.ts`, le type `Game`) ; `snapshot` est ce qui part dans `localStorage`. Le glossaire bannit « état » comme synonyme d'*Instantané* pour cette raison exacte ; en anglais les deux mots coexistent tant que la frontière est écrite.
