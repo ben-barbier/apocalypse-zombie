@@ -1,0 +1,1341 @@
+<title>La planche définitive</title>
+
+<!--
+  PROTOTYPE JETABLE — ticket #38 « La planche de textures définitive ».
+
+  Ce que ce fichier tranche : l'inventaire exact des tuiles, la disposition de
+  l'atlas, et la façon dont elles sont produites.
+
+  Il n'y a AUCUN asset ici. Les treize tuiles sont engendrées pixel par pixel
+  par le script du bas, avec un PRNG semé : rejouer le fichier redonne les mêmes
+  octets. C'est la réponse à « où vit la source de vérité » — dans ce script,
+  pas dans un PNG qu'on retoucherait à la main.
+
+  Rectifie le prototype de #12 sur quatre points, tous décidés depuis :
+    · le soleil monte à 60° et le jeu perd toutes ses ombres portées (#14) ;
+    · l'anneau devient trois rues de 80 blocs bordées de bâtiments 4/6/8 (#27) ;
+    · la ville est nue : aucun objet de décor (#29) ;
+    · les personnages et le canon n'ont plus AUCUNE tuile — un seul
+      InstancedMesh, donc des couleurs d'instance (#29).
+-->
+
+<style>
+  :root {
+    /* Gris d'atelier : on juge des couleurs sur un gris neutre, jamais sur du
+       noir ni du blanc. C'est le fond des logiciels de voxel. */
+    --fond: #4e555b;
+    --fond-bas: #444b51;
+    --carte: #3b4247;
+    --carte-haut: #474e54;
+    --trait: #5f676d;
+    --trait-fort: #79838a;
+    --encre: #f3f6f7;
+    --sourdine: #bcc5ca;
+    --sourdine-forte: #98a3a9;
+    --actif: #f5c542;
+    --ombre: 0 2px 0 rgba(0, 0, 0, 0.22), 0 10px 26px rgba(0, 0, 0, 0.24);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --texte: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0 0 96px;
+    background: var(--fond);
+    background-image: linear-gradient(var(--fond), var(--fond-bas));
+    background-attachment: fixed;
+    color: var(--encre);
+    font-family: var(--texte);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+  /* ---- entête ---- */
+
+  header { padding: 52px 0 32px; border-bottom: 1px solid var(--trait); margin-bottom: 40px; }
+  .fil {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--sourdine-forte);
+    margin-bottom: 14px;
+  }
+  h1 { font-size: 40px; line-height: 1.12; margin: 0 0 16px; letter-spacing: -0.015em; }
+  .chapo { font-size: 18px; color: var(--sourdine); max-width: 74ch; margin: 0; }
+  .chapo strong { color: var(--encre); }
+
+  /* ---- sections ---- */
+
+  section { margin: 0 0 56px; }
+  h2 {
+    font-size: 13px;
+    font-family: var(--mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sourdine-forte);
+    margin: 0 0 6px;
+    font-weight: 600;
+  }
+  h2 + p.intro { margin: 0 0 22px; color: var(--sourdine); max-width: 78ch; }
+  p.intro strong { color: var(--encre); }
+  p.intro code, .note code { font-family: var(--mono); font-size: 0.9em; color: var(--actif); }
+
+  .note {
+    background: var(--carte);
+    border-left: 3px solid var(--trait-fort);
+    padding: 14px 18px;
+    margin: 20px 0 0;
+    color: var(--sourdine);
+    font-size: 15px;
+    border-radius: 0 6px 6px 0;
+  }
+  .note b { color: var(--encre); }
+
+  /* ---- la planche ---- */
+
+  .planche {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+    gap: 16px;
+  }
+  .tuile {
+    background: var(--carte);
+    border-radius: 8px;
+    padding: 14px;
+    box-shadow: var(--ombre);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .tuile .haut { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .tuile .nom { font-weight: 600; font-size: 15px; }
+  .tuile .ident { font-family: var(--mono); font-size: 11px; color: var(--actif); }
+  .tuile .echelles { display: flex; align-items: flex-end; gap: 12px; }
+  .tuile canvas { image-rendering: pixelated; display: block; border-radius: 2px; }
+  .tuile .legende { font-family: var(--mono); font-size: 10px; color: var(--sourdine-forte); text-align: center; margin-top: 4px; }
+  .tuile .usage { font-size: 13px; color: var(--sourdine); margin: 0; }
+  .tuile .usage b { color: var(--encre); }
+
+  /* ---- l'atlas ---- */
+
+  .atlas-cadre {
+    background: var(--carte);
+    border-radius: 10px;
+    padding: 22px;
+    box-shadow: var(--ombre);
+    display: flex;
+    gap: 28px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .atlas-cadre canvas { image-rendering: pixelated; border-radius: 3px; display: block; }
+  .atlas-legende { flex: 1 1 320px; min-width: 300px; }
+  .atlas-legende h3 { font-size: 15px; margin: 0 0 8px; }
+  .atlas-legende p { color: var(--sourdine); font-size: 14px; margin: 0 0 12px; }
+  .atlas-legende code { font-family: var(--mono); color: var(--actif); font-size: 0.92em; }
+  .chiffres { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .chiffre { background: var(--carte-haut); border-radius: 6px; padding: 8px 12px; }
+  .chiffre b { display: block; font-family: var(--mono); font-size: 17px; }
+  .chiffre span { font-size: 11px; color: var(--sourdine-forte); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* ---- les scènes ---- */
+
+  .scene-cadre {
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: var(--ombre);
+  }
+  .scene-cadre canvas { width: 100%; height: auto; display: block; }
+  .scene-titre { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin: 0 0 12px; }
+  .scene-titre h3 { font-size: 17px; margin: 0; }
+  .scene-titre span { font-family: var(--mono); font-size: 12px; color: var(--sourdine-forte); }
+
+  /* ---- le banc de lisibilité ---- */
+
+  .banc {
+    background: var(--carte);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: var(--ombre);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px;
+  }
+  .banc figure { margin: 0; text-align: center; }
+  .banc canvas { image-rendering: pixelated; display: block; margin: 0 auto 6px; border-radius: 2px; }
+  .banc figcaption { font-size: 12px; color: var(--sourdine); }
+
+  /* ---- le verdict ---- */
+
+  .verdict { background: var(--carte); border-radius: 10px; padding: 24px 26px; box-shadow: var(--ombre); }
+  .verdict ol { margin: 0; padding-left: 22px; }
+  .verdict li { margin-bottom: 14px; color: var(--sourdine); }
+  .verdict li:last-child { margin-bottom: 0; }
+  .verdict li b { color: var(--encre); }
+  .verdict code { font-family: var(--mono); color: var(--actif); font-size: 0.92em; }
+
+  .ouvert { margin-top: 22px; }
+  .ouvert h3 { font-size: 14px; margin: 0 0 8px; color: var(--actif); }
+  .ouvert ul { margin: 0; padding-left: 22px; color: var(--sourdine); }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 22px;
+    border-top: 1px solid var(--trait);
+    font-size: 13px;
+    color: var(--sourdine-forte);
+  }
+  footer code { font-family: var(--mono); }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="fil">Prototype jetable · ticket #38 · branche prototype/planche-art</div>
+    <h1>La planche définitive</h1>
+    <p class="chapo">
+      <strong>Treize tuiles, toutes du bâti.</strong> Aucune n'existe en fichier : elles sont
+      engendrées ici pixel par pixel, avec un hasard semé — rejouer la page redonne les mêmes octets.
+      C'est cela qui est proposé comme source de vérité, et <code>public/atlas.png</code> devient
+      un produit de compilation qu'on ne retouche jamais à la main.
+    </p>
+  </header>
+
+  <section>
+    <h2>1 · L'inventaire</h2>
+    <p class="intro">
+      Ce qui n'est pas dans cette liste ne sera jamais peint. Trois retraits par rapport au prototype
+      de #12, tous décidés depuis : <strong>le métal du canon, la peau du Traînard et l'or du Colosse
+      sortent de la planche</strong> — les personnages et le canon tiennent dans un seul
+      <code>InstancedMesh</code> (#29), donc ils portent une couleur d'instance, pas une image.
+      La règle qui en sort tient en une ligne : <strong>la ville est texturée, ce qui bouge et ce qui
+      se pose est uni.</strong>
+    </p>
+    <div class="planche" id="planche"></div>
+    <div class="note">
+      <b>Les trois toits sont une rampe de valeur, et c'est une information de jeu.</b>
+      Le jeu n'a aucune ombre portée (#14) : rien d'autre que la tuile ne peut dire qu'un toit est
+      plus haut qu'un autre, donc qu'un canon y portera plus loin — 15 blocs à 4, 16,5 à 6, 18 à 8.
+      Elles montent donc en clarté avec la hauteur : plus c'est haut, plus c'est clair. La lecture
+      tient à la valeur seule, jamais à la teinte, donc elle survit à une vision des couleurs atypique.
+    </div>
+  </section>
+
+  <section>
+    <h2>2 · L'atlas</h2>
+    <p class="intro">
+      Treize tuiles dans une grille de <strong>4 × 4</strong>, chacune entourée de
+      <strong>8 pixels de marge</strong> — soit une case de 32 et une planche de
+      <strong>128 × 128</strong>. Trois cases restent libres.
+    </p>
+    <div class="atlas-cadre">
+      <div>
+        <canvas id="atlas" width="128" height="128" style="width: 384px; height: 384px"></canvas>
+        <div class="legende" style="font-family: var(--mono); font-size: 11px; color: var(--sourdine-forte); text-align: center; margin-top: 8px">
+          la planche telle qu'elle est chargée, ×3
+        </div>
+      </div>
+      <div class="atlas-legende">
+        <h3>La marge est une répétition, pas un étirement</h3>
+        <p>
+          Une tuile se répète bloc par bloc : chaque bloc porte ses propres coordonnées de 0 à 1 dans
+          sa case. Au bord d'un bloc, le filtrage doit donc trouver le pixel de <em>l'autre</em> bord
+          de la tuile — pas le pixel voisin étiré. La marge est remplie <b>cycliquement</b> : les huit
+          colonnes de droite deviennent la marge de gauche, et réciproquement. Le raccord entre deux
+          blocs voisins devient invisible, et rien ne bave d'une tuile sur sa voisine.
+        </p>
+        <p>
+          Huit pixels tiennent jusqu'au troisième niveau de mipmap, où la tuile ne fait plus que
+          2 × 2 — bien au-delà de ce qu'un bloc atteint au fond d'une rue de 80.
+        </p>
+        <div class="chiffres" id="chiffres-atlas"></div>
+      </div>
+    </div>
+    <div class="note">
+      <b>Pourquoi des mipmaps du tout, puisque le filtrage est <code>nearest</code> ?</b>
+      <code>nearest</code> gouverne l'agrandissement — un bloc sous le nez du joueur doit rester
+      franc. Au fond d'une rue de 80 blocs, c'est l'inverse : une tuile de 16 y couvre deux ou trois
+      pixels, et sans mipmap elle scintille à chaque pas de la caméra. Les deux réglages sont donc
+      distincts : <code>magFilter</code> reste <code>nearest</code>, <code>minFilter</code> passe en
+      <code>nearestMipmapLinear</code>. C'est la marge cyclique qui rend le second inoffensif.
+    </div>
+  </section>
+
+  <section>
+    <h2>3 · Le tronçon de rue</h2>
+    <p class="intro">
+      Les tuiles appliquées à ce qu'elles habillent : une rue de 6 blocs de large, ses deux bords
+      décalés d'un demi-module, un tronçon qui monte <strong>4 · 6 · 8</strong> puis retombe à 4, une
+      échelle au milieu de chaque façade, la brume orange qui mange le fond. Aucune ombre portée
+      nulle part — seulement la valeur des faces et la brume.
+    </p>
+    <div class="scene-titre">
+      <h3>Une rue depuis la place</h3>
+      <span>soleil à 60° · aucune ombre portée · brume orange</span>
+    </div>
+    <div class="scene-cadre">
+      <canvas id="rue" width="2360" height="1180" aria-label="Vue isométrique d'un tronçon de rue"></canvas>
+    </div>
+    <div class="note">
+      <b>Le bandeau d'étage est une tuile à part, et il n'y avait pas moyen d'y couper.</b>
+      Il en faut un tous les 2 blocs pour compter la hauteur depuis le sol (#15). Si la tuile de mur
+      le portait, il y en aurait un par bloc. Deux tuiles alternées verticalement — <code>wall</code>,
+      <code>wallBand</code> — coûtent une case d'atlas et règlent la question.
+    </div>
+  </section>
+
+  <section>
+    <h2>4 · La place et la mairie</h2>
+    <p class="intro">
+      La pierre de la mairie n'existe nulle part ailleurs : c'est le seul bâtiment qu'on défend, il
+      doit se reconnaître avant d'être compris. La base y est adossée, côté rue 1, et le halo du tapis
+      roulant se lit comme une peinture posée sur le pavé.
+    </p>
+    <div class="scene-titre">
+      <h3>Le pied de la rue 1</h3>
+      <span>place hexagonale · mairie · base · halo</span>
+    </div>
+    <div class="scene-cadre">
+      <canvas id="place" width="2360" height="1180" aria-label="Vue isométrique de la place et de la mairie"></canvas>
+    </div>
+  </section>
+
+  <section>
+    <h2>5 · Le banc de lisibilité</h2>
+    <p class="intro">
+      Chaque tuile répétée 3 × 3 et affichée à <strong>×3</strong> — ce qu'un bloc mesure à l'écran
+      en jeu, d'après le glossaire. C'est le seul test qui compte : une tuile qui fait tapisserie à
+      cette taille est ratée, quelle que soit sa beauté à ×6.
+    </p>
+    <div class="banc" id="banc"></div>
+  </section>
+
+  <section>
+    <h2>6 · Ce que ce prototype tranche</h2>
+    <div class="verdict">
+      <ol>
+        <li>
+          <b>Treize tuiles, toutes du bâti.</b> Sol de rue, sol de place, halo, mur, mur à bandeau,
+          échelle, trois toits, pierre et toit de la mairie, bois de la base, extérieur. Le métal du
+          canon et la peau des zombies sortent de la planche : un seul <code>InstancedMesh</code>,
+          donc des couleurs d'instance.
+        </li>
+        <li>
+          <b>La source de vérité est le script, pas le PNG.</b> <code>public/atlas.png</code> est
+          engendré et commité pour que le jeu se serve seul, jamais retouché à la main. Un hasard
+          semé rend la planche reproductible à l'octet — donc vérifiable par un test.
+        </li>
+        <li>
+          <b>Grille 4 × 4, marge cyclique de 8 pixels, planche de 128 × 128.</b>
+          <code>magFilter: nearest</code>, <code>minFilter: nearestMipmapLinear</code>. Trois cases
+          libres pour ce que la v1 découvrira.
+        </li>
+        <li>
+          <b>Les trois toits forment une rampe de valeur croissante avec la hauteur.</b> C'est la
+          seule chose qui dit, sans ombre portée, qu'un toit domine son voisin.
+        </li>
+        <li>
+          <b>La mairie s'abîme en perdant des blocs, pas en changeant de tuile.</b> Aucune tuile de
+          fissure : la silhouette qui s'effrite se lit de loin, une fissure de 16 × 16 non.
+        </li>
+      </ol>
+      <div class="ouvert">
+        <h3>Ce que ce prototype ne tranche pas</h3>
+        <ul>
+          <li>Les codes exacts de la palette — ceux d'ici sont un point de départ à regarder, pas un verdict.</li>
+          <li>L'ordre des tuiles dans la grille : il n'a aucune conséquence tant que le script le tient.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Prototype jetable · branche <code>prototype/planche-art</code> · aucune texture, aucun modèle,
+    aucun fichier extérieur : tout est engendré par le script de cette page.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ==========================================================================
+     1. L'heure orange, telle que les tickets clos l'ont laissée
+
+     Rectifie la variante B de #12 : le soleil est monté à 60° et le jeu n'a plus
+     une seule ombre portée (#14). Il reste la palette chaude, la brume orange,
+     l'ambiante violette qui remplit les contre-jours, et le contraste de
+     température — la ville est chaude, ce qui se joue est froid.
+     ========================================================================== */
+
+  const LOOK = {
+    cle: "orange",
+    ciel: ["#f6c68d", "#e29a6d"],
+    brouillard: "#e6a074",
+    densiteBrouillard: 0.44,
+    /* élévation 60°, azimut vers le sud-est : sin(60°) = 0,866 en hauteur,
+       le demi-restant réparti sur x et z. */
+    soleil: { dir: [0.375, 0.866, -0.33], couleur: "#ffd9a8", force: 0.92 },
+    ambiante: { couleur: "#6d5a86", force: 0.58 },
+    contour: null,
+    pal: {
+      /* --- la ville : chaude, et c'est tout ce qui porte une tuile --- */
+      "sol de rue": "#6d5344",
+      "sol de place": "#a98761",
+      "halo du tapis": "#d9bb8c",
+      "mur": "#b17c52",
+      "toit bas": "#7a3a2e",
+      "toit moyen": "#a2553d",
+      "toit haut": "#c8804f",
+      "pierre de la mairie": "#e8cba0",
+      "toit de la mairie": "#3d2118",
+      "bois de la base": "#6e4526",
+      "extérieur": "#8a7c4a",
+      /* --- ce qui se joue : froid, uni, sans aucune tuile --- */
+      "métal du canon": "#57616b",
+      "tunique du joueur": "#1f6fd8",
+      "peau du joueur": "#f4c79a",
+      "acier de l'épée": "#f2f6f9",
+      "Traînard": "#7ec24a",
+      "Sprinteur": "#b6ff3d",
+      "Costaud": "#9b6bff",
+      "Colosse": "#ffd24a",
+      "portique rue 1": "#5fd8f2",
+      "portique rue 2": "#f25fd8",
+      "portique rue 3": "#e8f25f"
+    }
+  };
+
+  /* ==========================================================================
+     2. Couleur et hasard déterministe
+
+     Le hasard est semé par une chaîne : la même page rejouée redonne les mêmes
+     octets. C'est ce qui permettra au test de garde de comparer l'atlas engendré
+     à celui qui est commité.
+     ========================================================================== */
+
+  function hexRgb(h) {
+    const v = parseInt(h.slice(1), 16);
+    return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+  }
+  function rgbHex(c) {
+    return "#" + c.map((n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0")).join("");
+  }
+  function melange(a, b, t) {
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  }
+  function eclaircit(c, k) {
+    return c.map((n) => (k >= 0 ? n + (255 - n) * k : n * (1 + k)));
+  }
+  function graine(chaine) {
+    let h = 2166136261;
+    for (let i = 0; i < chaine.length; i++) {
+      h ^= chaine.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function alea(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0;
+      a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* La lumière reçue par une face, normalisée pour que le dessus soit neutre :
+     les latérales s'assombrissent, la teinte de l'astre reste lisible, rien ne
+     crame. Sans ombre portée, c'est la seule chose qui donne du relief. */
+  function lumiereFace(normale, look) {
+    const amb = hexRgb(look.ambiante.couleur);
+    const sol = hexRgb(look.soleil.couleur);
+    const d = look.soleil.dir;
+    const n = Math.hypot(d[0], d[1], d[2]);
+    const nd = Math.max(0, (normale[0] * d[0] + normale[1] * d[1] + normale[2] * d[2]) / n);
+    if (look._k === undefined) {
+      const ndTop = d[1] / n;
+      const top = [0, 1, 2].map(
+        (i) => (amb[i] / 255) * look.ambiante.force + (sol[i] / 255) * look.soleil.force * ndTop
+      );
+      const lum = 0.299 * top[0] + 0.587 * top[1] + 0.114 * top[2];
+      look._k = 1 / Math.max(0.35, lum);
+    }
+    return [0, 1, 2].map(
+      (i) => ((amb[i] / 255) * look.ambiante.force + (sol[i] / 255) * look.soleil.force * nd) * look._k
+    );
+  }
+
+  function faceEclairee(hex, normale, look) {
+    const base = hexRgb(hex);
+    const l = lumiereFace(normale, look);
+    return [0, 1, 2].map((i) => Math.min(255, base[i] * l[i]));
+  }
+
+  /* ==========================================================================
+     3. Les treize tuiles
+
+     `plan` dit si la tuile habille une face verticale ou horizontale, et il n'est
+     pas décoratif : le dégradé vertical du glossaire n'a de sens que sur une
+     façade. Appliqué à un sol, il devient un dégradé DANS le plan du sol, et la
+     répétition le transforme en bandes — la tapisserie que le banc de lisibilité
+     est là pour attraper. Les tuiles horizontales n'ont donc que le grain.
+     ========================================================================== */
+
+  const TUILES = [
+    { id: "street", nom: "Sol de rue", role: "sol de rue", plan: "h",
+      usage: "Les <b>trois rues</b>, larges de 6 blocs. Pas de trottoir : tout le sol d'une rue est ce sol-là." },
+    { id: "plaza", nom: "Sol de place", role: "sol de place", plan: "h",
+      usage: "La <b>place hexagonale</b>, 32 blocs bord à bord. Doit se distinguer de la rue au premier coup d'œil : c'est la frontière du terrain sûr." },
+    { id: "glow", nom: "Halo du tapis", role: "halo du tapis", plan: "h",
+      usage: "Le pavé de la place <b>repeint</b> là où le tapis roulant ravitaille depuis la base. Une peinture posée au sol, jamais une lumière." },
+    { id: "wall", nom: "Mur", role: "mur", plan: "v",
+      usage: "L'allège : le bloc plein de chaque étage. Il n'y a <b>qu'un seul mur</b> dans le jeu, aucune variante de façade ne viendra rompre la répétition d'une rue." },
+    { id: "wallBand", nom: "Mur à bandeau", role: "mur", plan: "v",
+      usage: "Le haut de l'étage : <b>une fenêtre, et le bandeau qui la coiffe</b>. Alterné avec l'allège, il en met un tous les 2 blocs — c'est ce qui permet de compter la hauteur d'un bâtiment depuis la rue." },
+    { id: "ladder", nom: "Échelle", role: "mur", plan: "v",
+      usage: "Au <b>milieu de la façade de rue</b>, une par bâtiment. La seule montée du jeu, donc la seule chose que l'enfant ait à découvrir : elle doit crier." },
+    { id: "roof4", nom: "Toit bas", role: "toit bas", plan: "h",
+      usage: "Les bâtiments de <b>4 blocs</b> — les neuf de la place, et le pied de chaque tronçon. Portée du boulet : 15." },
+    { id: "roof6", nom: "Toit moyen", role: "toit moyen", plan: "h",
+      usage: "Les bâtiments de <b>6 blocs</b>. Portée du boulet : 16,5." },
+    { id: "roof8", nom: "Toit haut", role: "toit haut", plan: "h",
+      usage: "Les bâtiments de <b>8 blocs</b> — le sommet de chaque tronçon, <b>le meilleur poste de tir du secteur</b>. Portée du boulet : 18." },
+    { id: "townhall", nom: "Pierre de la mairie", role: "pierre de la mairie", plan: "v",
+      usage: "Le seul bâtiment qu'on défend. Sa pierre <b>n'existe nulle part ailleurs</b> : elle doit se reconnaître avant d'être comprise." },
+    { id: "townhallRoof", nom: "Toit de la mairie", role: "toit de la mairie", plan: "h",
+      usage: "Ce qui fait que la mairie <b>domine</b> la place au lieu d'y être un cube de plus." },
+    { id: "depot", nom: "Bois de la base", role: "bois de la base", plan: "v",
+      usage: "Le hangar adossé à la face de la mairie qui regarde la rue 1, où se prennent les bombes de feu." },
+    { id: "outside", nom: "Extérieur", role: "extérieur", plan: "h",
+      usage: "Le décor sommaire au-delà des fronts bâtis, d'où sortent les zombies. La brume en mange la moitié : c'est ce qui le rend économique." }
+  ];
+
+  /* Rend une tuile dans une grille de 256 couleurs [r,g,b]. */
+  function motifTuile(def, look) {
+    const base = hexRgb(look.pal[def.role]);
+    const r = alea(graine(def.id + "|" + look.cle));
+    const grille = new Array(256);
+    const pose = (x, y, c) => {
+      if (x < 0 || x > 15 || y < 0 || y > 15) return;
+      grille[y * 16 + x] = c;
+    };
+    for (let i = 0; i < 256; i++) grille[i] = base.slice();
+
+    const id = def.id;
+
+    if (id === "plaza" || id === "glow") {
+      // quatre pavés de 8×8, chacun d'une teinte propre, séparés par un joint
+      for (let by = 0; by < 2; by++) {
+        for (let bx = 0; bx < 2; bx++) {
+          const t = eclaircit(base, (r() - 0.5) * 0.22);
+          for (let y = 0; y < 8; y++) {
+            for (let x = 0; x < 8; x++) {
+              const bord = x === 7 || y === 7;
+              pose(bx * 8 + x, by * 8 + y, bord ? eclaircit(t, -0.3) : eclaircit(t, (r() - 0.5) * 0.07));
+            }
+          }
+        }
+      }
+      if (id === "glow") {
+        // le halo est le MÊME pavé, repeint : deux liserés clairs qui font une
+        // grille continue une fois la tuile répétée.
+        for (let i = 0; i < 16; i++) {
+          pose(i, 0, eclaircit(base, 0.42));
+          pose(0, i, eclaircit(base, 0.42));
+          pose(i, 15, eclaircit(base, 0.14));
+          pose(15, i, eclaircit(base, 0.14));
+        }
+      }
+    } else if (id === "street") {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) pose(x, y, eclaircit(base, (r() - 0.5) * 0.13));
+      }
+      // des cailloux, jamais un marquage : la rue ne dit rien, ce sont les
+      // portiques et la flèche du bandeau qui disent laquelle est active.
+      for (let n = 0; n < 9; n++) {
+        const x = (r() * 15) | 0;
+        const y = (r() * 15) | 0;
+        const caillou = eclaircit(base, 0.22);
+        pose(x, y, caillou);
+        pose(x + 1, y, eclaircit(caillou, -0.1));
+      }
+    } else if (id === "wall" || id === "wallBand" || id === "ladder") {
+      // appareil décalé d'une assise à l'autre. Des joints horizontaux seuls
+      // faisaient un mur de planches dès qu'un bloc ne portait pas de fenêtre.
+      const joint = eclaircit(base, -0.24);
+      for (let y = 0; y < 16; y++) {
+        const assise = (y / 4) | 0;
+        const decal = assise % 2 ? 4 : 0;
+        for (let x = 0; x < 16; x++) {
+          const bordH = y % 4 === 3;
+          const bordV = (x + decal) % 8 === 7;
+          const p2 = alea(graine("brique" + assise + (((x + decal) / 8) | 0)))();
+          pose(x, y, bordH || bordV ? joint : eclaircit(base, (p2 - 0.5) * 0.13 + (r() - 0.5) * 0.07));
+        }
+      }
+      if (id === "wallBand") {
+        // Un étage fait 2 blocs : l'allège en bas (le mur plein), la fenêtre en
+        // haut, et le bandeau qui la coiffe. Donc UNE fenêtre par étage, et elle
+        // est sur le même bloc que le bandeau.
+        //
+        // Elle ne reflète PAS le ciel : #23 réserve le froid à ce qui se joue,
+        // et 87 bâtiments de fenêtres froides dilueraient le seul repère de
+        // température du jeu. C'est un trou sombre et chaud — du contraste de
+        // valeur, pas de température. Rectificatif du prototype de #12.
+        const vitre = melange(base, [26, 16, 12], 0.72);
+        const cadre = eclaircit(base, -0.45);
+        for (let y = 6; y <= 13; y++) {
+          for (let x = 4; x <= 11; x++) {
+            const bord = x === 4 || x === 11 || y === 6 || y === 13;
+            pose(x, y, bord ? cadre : eclaircit(vitre, y < 10 ? 0.14 : -0.06));
+          }
+        }
+        pose(7, 7, eclaircit(vitre, 0.55));
+        pose(8, 7, eclaircit(vitre, 0.55));
+        // le bandeau coiffe le bloc : une arête claire, une ombre d'un pixel
+        // dessous. Deux pixels suffisent à le compter depuis la rue.
+        for (let x = 0; x < 16; x++) {
+          pose(x, 0, eclaircit(base, 0.36));
+          pose(x, 1, eclaircit(base, 0.18));
+          pose(x, 2, eclaircit(base, -0.36));
+        }
+      }
+      if (id === "ladder") {
+        // deux montants de bois clair et des barreaux tous les 4 pixels :
+        // le contraste est volontairement brutal, c'est le seul repère du jeu
+        // qui doive s'apprendre tout seul.
+        const bois = eclaircit(hexRgb(look.pal["bois de la base"]), 0.42);
+        const creux = eclaircit(base, -0.4);
+        for (let y = 0; y < 16; y++) {
+          pose(4, y, creux);
+          pose(11, y, creux);
+          pose(5, y, bois);
+          pose(10, y, bois);
+        }
+        for (let y = 1; y < 16; y += 4) {
+          for (let x = 6; x <= 9; x++) {
+            pose(x, y, eclaircit(bois, -0.12));
+            pose(x, y + 1, eclaircit(bois, -0.34));
+          }
+        }
+      }
+    } else if (id === "roof4" || id === "roof6" || id === "roof8") {
+      // Un toit du jeu est une TERRASSE : on y marche, on y pose un canon. Le
+      // motif de rangs décalés du prototype de #12 était celui d'une toiture en
+      // pente vue de côté — répété sur une terrasse, il en faisait un mur de
+      // brique posé à plat, et la ville entière se lisait comme un empilement de
+      // façades. Ici : quatre dalles de 8 × 8, joints creusés, gravier par-dessus.
+      const joint = eclaircit(base, -0.3);
+      for (let by = 0; by < 2; by++) {
+        for (let bx = 0; bx < 2; bx++) {
+          const t = eclaircit(base, (r() - 0.5) * 0.12);
+          for (let y = 0; y < 8; y++) {
+            for (let x = 0; x < 8; x++) {
+              const bord = x === 7 || y === 7;
+              pose(bx * 8 + x, by * 8 + y, bord ? joint : eclaircit(t, (r() - 0.5) * 0.16));
+            }
+          }
+        }
+      }
+      // du gravier : c'est lui qui empêche la dalle de faire carrelage à ×3
+      for (let n = 0; n < 13; n++) {
+        const x = (r() * 16) | 0;
+        const y = (r() * 16) | 0;
+        pose(x, y, eclaircit(base, 0.2));
+      }
+    } else if (id === "townhall") {
+      // grand appareil : des assises de 8 pixels, décalées d'un rang à l'autre
+      const joint = eclaircit(base, -0.3);
+      for (let y = 0; y < 16; y++) {
+        const rang = (y / 8) | 0;
+        const decal = rang % 2 ? 8 : 0;
+        for (let x = 0; x < 16; x++) {
+          const bordH = y % 8 === 7;
+          const bordV = (x + decal) % 16 === 15;
+          const p = alea(graine("townhall" + rang + (((x + decal) / 16) | 0)))();
+          pose(x, y, bordH || bordV ? joint : eclaircit(base, (p - 0.5) * 0.14));
+        }
+      }
+    } else if (id === "townhallRoof") {
+      // écailles : deux rangs décalés, un liseré clair en haut de chaque écaille
+      for (let y = 0; y < 16; y++) {
+        const rang = (y / 8) | 0;
+        const decal = rang % 2 ? 4 : 0;
+        for (let x = 0; x < 16; x++) {
+          const xx = (x + decal) % 8;
+          const yy = y % 8;
+          const arc = yy === 0 || (yy === 7 && (xx === 0 || xx === 7));
+          const bordV = xx === 7;
+          let t = eclaircit(base, arc ? 0.24 : bordV ? -0.3 : (yy / 8) * -0.18);
+          pose(x, y, eclaircit(t, (r() - 0.5) * 0.08));
+        }
+      }
+    } else if (id === "depot") {
+      for (let x = 0; x < 16; x++) {
+        const planche = (x / 4) | 0;
+        const t = eclaircit(base, (alea(graine("planche" + planche))() - 0.5) * 0.24);
+        for (let y = 0; y < 16; y++) {
+          const bord = x % 4 === 3;
+          const veine = r() < 0.13;
+          pose(x, y, bord ? eclaircit(t, -0.36) : eclaircit(t, veine ? -0.14 : 0.02));
+        }
+      }
+    } else if (id === "outside") {
+      for (let y = 0; y < 16; y++) {
+        for (let x = 0; x < 16; x++) pose(x, y, eclaircit(base, (r() - 0.5) * 0.28));
+      }
+      for (let n = 0; n < 14; n++) {
+        const x = (r() * 16) | 0;
+        const y = (r() * 14) | 0;
+        const brin = eclaircit(base, 0.3);
+        pose(x, y, brin);
+        pose(x, y + 1, eclaircit(brin, -0.12));
+      }
+    }
+
+    // --- le traitement du glossaire : dégradé vertical, puis grain, jamais de cerne ---
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        let c = grille[y * 16 + x];
+        if (def.plan === "v") c = eclaircit(c, 0.12 - (y / 15) * 0.22);
+        c = eclaircit(c, (alea(graine(id + x + "x" + y))() - 0.5) * 0.1);
+        grille[y * 16 + x] = c;
+      }
+    }
+    return grille;
+  }
+
+  /* La grille en canvas, à l'échelle demandée. */
+  const CACHE_GRILLE = new Map();
+  function grilleDe(def, look) {
+    const k = def.id + "|" + look.cle;
+    if (!CACHE_GRILLE.has(k)) CACHE_GRILLE.set(k, motifTuile(def, look));
+    return CACHE_GRILLE.get(k);
+  }
+
+  function canvasTuile(def, look, echelle, repet) {
+    const n = repet || 1;
+    const g16 = grilleDe(def, look);
+    const c = document.createElement("canvas");
+    c.width = 16 * n * echelle;
+    c.height = 16 * n * echelle;
+    const g = c.getContext("2d");
+    const brut = document.createElement("canvas");
+    brut.width = 16;
+    brut.height = 16;
+    const gb = brut.getContext("2d");
+    const img = gb.createImageData(16, 16);
+    for (let i = 0; i < 256; i++) {
+      const c3 = g16[i];
+      img.data[i * 4] = c3[0];
+      img.data[i * 4 + 1] = c3[1];
+      img.data[i * 4 + 2] = c3[2];
+      img.data[i * 4 + 3] = 255;
+    }
+    gb.putImageData(img, 0, 0);
+    g.imageSmoothingEnabled = false;
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        g.drawImage(brut, i * 16 * echelle, j * 16 * echelle, 16 * echelle, 16 * echelle);
+      }
+    }
+    return c;
+  }
+
+  /* ==========================================================================
+     4. L'atlas : 4 × 4 cases de 32, marge cyclique de 8
+
+     La marge n'étire pas le bord, elle REPREND l'autre bord de la tuile. Comme
+     chaque bloc porte ses propres coordonnées de 0 à 1 dans sa case, c'est ce
+     qui rend le raccord entre deux blocs voisins invisible — et ce qui empêche
+     une tuile de baver sur sa voisine quand le mipmap descend.
+     ========================================================================== */
+
+  const ATLAS = { grille: 4, tuile: 16, marge: 8 };
+  ATLAS.case = ATLAS.tuile + ATLAS.marge * 2; // 32
+  ATLAS.taille = ATLAS.case * ATLAS.grille;   // 128
+
+  function dessineAtlas(look) {
+    const T = ATLAS.taille;
+    const c = document.createElement("canvas");
+    c.width = T;
+    c.height = T;
+    const g = c.getContext("2d");
+    const img = g.createImageData(T, T);
+    // les cases vides restent en magenta franc : une case oubliée doit hurler
+    for (let i = 0; i < T * T; i++) {
+      img.data[i * 4] = 255;
+      img.data[i * 4 + 1] = 0;
+      img.data[i * 4 + 2] = 255;
+      img.data[i * 4 + 3] = 255;
+    }
+    TUILES.forEach((def, n) => {
+      const g16 = grilleDe(def, look);
+      const cx = (n % ATLAS.grille) * ATLAS.case;
+      const cy = ((n / ATLAS.grille) | 0) * ATLAS.case;
+      for (let py = 0; py < ATLAS.case; py++) {
+        for (let px = 0; px < ATLAS.case; px++) {
+          const sx = (((px - ATLAS.marge) % 16) + 16) % 16;
+          const sy = (((py - ATLAS.marge) % 16) + 16) % 16;
+          const col = g16[sy * 16 + sx];
+          const i = ((cy + py) * T + (cx + px)) * 4;
+          img.data[i] = col[0];
+          img.data[i + 1] = col[1];
+          img.data[i + 2] = col[2];
+          img.data[i + 3] = 255;
+        }
+      }
+    });
+    g.putImageData(img, 0, 0);
+    return c;
+  }
+
+  /* ==========================================================================
+     5. Rendu isométrique : projection, faces texturées, brume
+     ========================================================================== */
+
+  /* Isométrie : x - z file horizontalement, x + z file vers le bas. `k` est
+     l'inclinaison — 0,5 est l'iso 2:1 classique ; au-dessus, la vue plonge et
+     une rue étroite se dégage du front bâti le plus proche. */
+  function projecteur(o) {
+    const k = o.k === undefined ? 0.5 : o.k;
+    return function (x, y, z) {
+      return [o.ox + (x - z) * o.u, o.oy + (x + z) * o.u * k - y * o.v];
+    };
+  }
+
+  const CACHE_MOTIF = new Map();
+  function motifCanvas(def, look) {
+    const k = def.id + "|" + look.cle;
+    if (!CACHE_MOTIF.has(k)) CACHE_MOTIF.set(k, canvasTuile(def, look, 1, 1));
+    return CACHE_MOTIF.get(k);
+  }
+  function tuileParId(id) {
+    return TUILES.find((t) => t.id === id);
+  }
+  function motif(g, id, look) {
+    if (!g.__motifs) g.__motifs = new Map();
+    const k = id + "|" + look.cle;
+    if (!g.__motifs.has(k)) g.__motifs.set(k, g.createPattern(motifCanvas(tuileParId(id), look), "repeat"));
+    return g.__motifs.get(k);
+  }
+
+  /* Une face : un parallélogramme, la tuile répétée tous les blocs, la lumière
+     par-dessus en multiply, puis la brume. */
+  function remplitFace(g, chemin, pat, O, U, V, lum, brume, brouillard) {
+    g.beginPath();
+    g.moveTo(chemin[0][0], chemin[0][1]);
+    for (let i = 1; i < chemin.length; i++) g.lineTo(chemin[i][0], chemin[i][1]);
+    g.closePath();
+
+    if (pat) {
+      g.save();
+      g.clip();
+      g.transform(U[0] / 16, U[1] / 16, V[0] / 16, V[1] / 16, O[0], O[1]);
+      g.fillStyle = pat;
+      g.fillRect(-600, -600, 1200, 1200);
+      g.restore();
+      g.save();
+      g.globalCompositeOperation = "multiply";
+      g.fillStyle = rgbHex(lum.map((n) => Math.min(255, n * 255)));
+      g.fill();
+      g.restore();
+    } else {
+      g.fillStyle = rgbHex(lum);
+      g.fill();
+    }
+
+    if (brume > 0) {
+      g.save();
+      g.globalAlpha = brume;
+      g.fillStyle = brouillard;
+      g.fill();
+      g.restore();
+    }
+  }
+
+  /* Une boîte : {x,y,z,w,h,d, c: couleur unie, t: tuile}. Une boîte porte l'un
+     ou l'autre, jamais les deux — la ville est texturée, ce qui bouge est uni. */
+  function dessineBoite(g, b, look, o, brumeDe) {
+    const p = projecteur(o);
+    const { x, y, z, w, h, d } = b;
+    const brume = brumeDe ? brumeDe(b) : 0;
+    // une face peut demander une autre tuile que la boîte : l'échelle est
+    // plaquée sur la seule façade de rue, le reste du bâtiment est du mur.
+    const sous = (a, b2) => [b2[0] - a[0], b2[1] - a[1]];
+
+    function face(idTuile, chemin, normale, O, U, V) {
+      const pat = idTuile ? motif(g, idTuile, look) : null;
+      const lum = pat ? lumiereFace(normale, look) : faceEclairee(b.c, normale, look);
+      remplitFace(g, chemin, pat, O, U, V, lum, brume, look.brouillard);
+    }
+
+    // dessus (+Y) — sauté quand un bloc en porte un autre : le dessus d'un
+    // étage intermédiaire n'est jamais vu, et le peindre coûterait un tiers
+    // des faces de la scène.
+    let O = p(x, y + h, z);
+    if (!b.sansDessus) {
+      face(b.tDessus !== undefined && b.tDessus !== null ? b.tDessus : b.t,
+        [O, p(x + w, y + h, z), p(x + w, y + h, z + d), p(x, y + h, z + d)],
+        [0, 1, 0], O, sous(O, p(x + 1, y + h, z)), sous(O, p(x, y + h, z + 1)));
+    }
+    // face droite (+X)
+    O = p(x + w, y + h, z);
+    face(b.tX !== undefined ? b.tX : b.t,
+      [O, p(x + w, y + h, z + d), p(x + w, y, z + d), p(x + w, y, z)],
+      [1, 0, 0], O, sous(O, p(x + w, y + h, z + 1)), sous(O, p(x + w, y + h - 1, z)));
+    // face gauche (+Z)
+    O = p(x, y + h, z + d);
+    face(b.tZ !== undefined ? b.tZ : b.t,
+      [O, p(x + w, y + h, z + d), p(x + w, y, z + d), p(x, y, z + d)],
+      [0, 0, 1], O, sous(O, p(x + 1, y + h, z + d)), sous(O, p(x, y + h - 1, z + d)));
+  }
+
+  /* Tri : on trie des OBJETS ENTIERS, pas des boîtes isolées. Entre boîtes d'un
+     même objet la relation « devant » boucle, et le cycle faisait ressortir la
+     corniche de la mairie par-dessus son propre toit (#12). */
+  const EPS = 1e-6;
+  function devant(a, b) {
+    if (a.x >= b.x + b.w - EPS) return 1;
+    if (b.x >= a.x + a.w - EPS) return -1;
+    if (a.z >= b.z + b.d - EPS) return 1;
+    if (b.z >= a.z + a.d - EPS) return -1;
+    if (a.y >= b.y + b.h - EPS) return 1;
+    if (b.y >= a.y + a.h - EPS) return -1;
+    return 0;
+  }
+  function trie(unites) {
+    const n = unites.length;
+    const prof = (b) => b.x + b.y + b.z;
+    const depart = unites.map((_, i) => i).sort((i, j) => prof(unites[i]) - prof(unites[j]));
+    const derriere = Array.from({ length: n }, () => []);
+    for (let i = 0; i < n; i++) {
+      for (let j = i + 1; j < n; j++) {
+        const r = devant(unites[i], unites[j]);
+        if (r === 1) derriere[i].push(j);
+        else if (r === -1) derriere[j].push(i);
+      }
+    }
+    const etat = new Uint8Array(n);
+    const sortie = [];
+    const visite = (i) => {
+      if (etat[i] !== 0) return;
+      etat[i] = 1;
+      for (const j of derriere[i]) visite(j);
+      etat[i] = 2;
+      sortie.push(unites[i]);
+    };
+    depart.forEach(visite);
+    return sortie;
+  }
+  function emprise(boites) {
+    const x = Math.min(...boites.map((b) => b.x));
+    const y = Math.min(...boites.map((b) => b.y));
+    const z = Math.min(...boites.map((b) => b.z));
+    return {
+      x, y, z,
+      w: Math.max(...boites.map((b) => b.x + b.w)) - x,
+      h: Math.max(...boites.map((b) => b.y + b.h)) - y,
+      d: Math.max(...boites.map((b) => b.z + b.d)) - z,
+      boites
+    };
+  }
+
+  /* ==========================================================================
+     6. Les modèles
+
+     Les personnages et le canon sont en boîtes UNIES : dans le jeu, tout le
+     monde tient dans un seul InstancedMesh et porte une couleur d'instance
+     (#29). C'est pour ça qu'aucun d'eux n'a de tuile dans la planche — et
+     c'est ce qui donne la règle : la ville est texturée, ce qui bouge est uni.
+     Les corps du jeu font quatorze boîtes ; six suffisent ici à juger le
+     contraste de température, qui est la seule chose que cette page teste.
+     ========================================================================== */
+
+  function boite(x, y, z, w, h, d, opts) {
+    return Object.assign({ x, y, z, w, h, d }, opts || {});
+  }
+
+  /* Un bâtiment : un empilement d'étages de 6 × 1 × 8, un bandeau tous les
+     2 blocs, le toit de la hauteur au sommet, et l'échelle plaquée au milieu
+     de la façade de rue. L'ordre de déclaration va du plus lointain au plus
+     proche : à l'intérieur d'un objet, c'est lui qui fait foi. */
+  function batiment(x, z, hauteur, cote) {
+    const b = [];
+    const toit = hauteur === 4 ? "roof4" : hauteur === 6 ? "roof6" : "roof8";
+    for (let y = 0; y < hauteur; y++) {
+      const bandeau = y % 2 === 1; // un bandeau tous les 2 blocs
+      b.push(boite(x, y, z, 6, 1, 8, {
+        t: bandeau ? "wallBand" : "wall",
+        tDessus: y === hauteur - 1 ? toit : null,
+        sansDessus: y !== hauteur - 1
+      }));
+    }
+    // l'échelle : une colonne d'un bloc de large, plaquée sur la seule face
+    // accessible — celle qui donne sur la rue.
+    const zf = cote === "nord" ? z + 8 : z - 0.03;
+    b.push(boite(x + 2.5, 0, zf, 1, hauteur, 0.03, { t: "ladder", sansDessus: true }));
+    return emprise(b);
+  }
+
+  function personnage(x, y, z, couleur, echelle, tete) {
+    const e = echelle || 1;
+    const c = { c: couleur };
+    const ct = { c: tete || couleur };
+    return emprise([
+      boite(x + 0.15, y + 0.5 * e, z + 0.15, 0.25 * e, 0.5 * e, 0.25 * e, c), // bras arrière
+      boite(x + 0.25, y, z + 0.3, 0.22 * e, 0.5 * e, 0.25 * e, c),            // jambe arrière
+      boite(x + 0.55, y, z + 0.3, 0.22 * e, 0.5 * e, 0.25 * e, c),            // jambe avant
+      boite(x + 0.22, y + 0.5 * e, z + 0.28, 0.56 * e, 0.6 * e, 0.3 * e, c),  // torse
+      boite(x + 0.62, y + 0.5 * e, z + 0.3, 0.25 * e, 0.5 * e, 0.25 * e, c),  // bras avant
+      boite(x + 0.28, y + 1.1 * e, z + 0.26, 0.45 * e, 0.42 * e, 0.4 * e, ct) // tête
+    ]);
+  }
+
+  /* La tache : le quad sombre posé à plat sous chaque personnage, qui l'ancre
+     au sol là où le jeu n'a aucune ombre portée (#29). Ce n'est pas une ombre :
+     elle ne dépend ni du soleil ni de la hauteur. */
+  function tache(g, o, x, y, z, taille, brume) {
+    const p = projecteur(o);
+    const s = taille || 0.55;
+    const O = p(x, y + 0.02, z);
+    g.save();
+    g.globalAlpha = 0.3 * (1 - brume);
+    g.beginPath();
+    const pts = [O, p(x + s, y + 0.02, z), p(x + s, y + 0.02, z + s), p(x, y + 0.02, z + s)];
+    g.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < 4; i++) g.lineTo(pts[i][0], pts[i][1]);
+    g.closePath();
+    g.fillStyle = "#241a12";
+    g.fill();
+    g.restore();
+  }
+
+  function canon(x, y, z, pal) {
+    const m = { c: pal["métal du canon"] };
+    const sombre = { c: rgbHex(eclaircit(hexRgb(pal["métal du canon"]), -0.3)) };
+    return emprise([
+      boite(x, y, z, 1.4, 0.35, 1.4, sombre),          // socle
+      boite(x + 0.2, y + 0.35, z + 0.2, 1, 0.6, 1, m), // fût
+      boite(x + 0.55, y + 0.75, z + 0.9, 0.35, 0.35, 1.1, m) // bouche, vers la rue
+    ]);
+  }
+
+  function portique(x, y, z, largeur, couleur) {
+    const c = { c: couleur };
+    return emprise([
+      boite(x, y, z, 0.6, 5, 0.6, c),
+      boite(x + largeur - 0.6, y, z, 0.6, 5, 0.6, c),
+      boite(x, y + 5, z, largeur, 0.7, 0.6, c)
+    ]);
+  }
+
+  /* ==========================================================================
+     7. Les deux scènes
+     ========================================================================== */
+
+  /* Cadrage automatique : on projette l'emprise de tout ce qui va être dessiné,
+     puis on choisit l'échelle qui la fait tenir dans le canvas. */
+  function cadre(W, H, boites, k, marge) {
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const b of boites) {
+      for (const [x, y, z] of [
+        [b.x, b.y, b.z], [b.x + b.w, b.y, b.z], [b.x, b.y, b.z + b.d], [b.x + b.w, b.y, b.z + b.d],
+        [b.x, b.y + b.h, b.z], [b.x + b.w, b.y + b.h, b.z], [b.x, b.y + b.h, b.z + b.d], [b.x + b.w, b.y + b.h, b.z + b.d]
+      ]) {
+        const ex = x - z;
+        const ey = (x + z) * k - y;
+        if (ex < minX) minX = ex;
+        if (ex > maxX) maxX = ex;
+        if (ey < minY) minY = ey;
+        if (ey > maxY) maxY = ey;
+      }
+    }
+    const m = marge === undefined ? 0.96 : marge;
+    const u = Math.min((W * m) / (maxX - minX), (H * m) / (maxY - minY));
+    return {
+      u,
+      v: u,
+      k,
+      ox: W / 2 - ((minX + maxX) / 2) * u,
+      oy: H / 2 - ((minY + maxY) / 2) * u
+    };
+  }
+
+  function ciel(g, W, H, look) {
+    const grad = g.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, look.ciel[0]);
+    grad.addColorStop(0.5, look.ciel[1]);
+    grad.addColorStop(1, look.brouillard);
+    g.fillStyle = grad;
+    g.fillRect(0, 0, W, H);
+  }
+
+  /* Le sol, tuile par tuile. Les blocs sont peints du fond vers l'avant. */
+  function sol(g, o, look, cases, brumeDe) {
+    const p = projecteur(o);
+    const lum = lumiereFace([0, 1, 0], look);
+    cases
+      .slice()
+      .sort((a, b) => a.x + a.z - (b.x + b.z))
+      .forEach((t) => {
+        const O = p(t.x, 0, t.z);
+        remplitFace(
+          g,
+          [O, p(t.x + t.w, 0, t.z), p(t.x + t.w, 0, t.z + t.d), p(t.x, 0, t.z + t.d)],
+          motif(g, t.tex, look),
+          O,
+          [p(t.x + 1, 0, t.z)[0] - O[0], p(t.x + 1, 0, t.z)[1] - O[1]],
+          [p(t.x, 0, t.z + 1)[0] - O[0], p(t.x, 0, t.z + 1)[1] - O[1]],
+          lum,
+          brumeDe({ x: t.x, z: t.z }),
+          look.brouillard
+        );
+      });
+  }
+
+  /* Chaque scène se construit d'abord, se dessine ensuite. Ce n'est pas de la
+     coquetterie : c'est ce qui permet de vérifier la géométrie sans navigateur —
+     que la rue n'est pas masquée par le front bâti le plus proche, que rien ne
+     sort du cadre. Le prototype de #12 ne se vérifiait qu'à l'œil. */
+
+  /* --- Scène 1 : un tronçon de rue, en écorché ---------------------------- */
+
+  function construitRue(W, H, look) {
+    const pal = look.pal;
+    const HAUTEURS = [4, 6, 8, 4, 6, 8, 4, 6]; // deux tronçons : 4·6·8 puis retour à 4
+    const N = HAUTEURS.length;
+    const LONG = N * 6; // 48 blocs de rue montrés sur les 80
+
+    const groupes = [];
+    // le front bâti d'en face : huit bâtiments, façades et échelles visibles
+    for (let i = 0; i < N; i++) groupes.push(batiment(i * 6, -8, HAUTEURS[i], "nord"));
+    // le front d'en deçà : DEUX bâtiments seulement, aux extrémités. Une rue est
+    // un canyon de 6 blocs : dessiné en entier, le front proche la masquerait
+    // tout entière — c'est vrai de toute isométrie, et le jeu s'en tire par une
+    // caméra qui grimpe (#14). Ici c'est une maquette coupée, pas une vue de
+    // jeu, et le décalage d'un demi-module se lit sur ces deux-là.
+    groupes.push(batiment(3, 6, 6, "sud"));
+    groupes.push(batiment(LONG - 9, 6, 4, "sud"));
+
+    // ce qui se joue : froid, uni, sans aucune tuile
+    // tout ce qui se joue se tient entre les deux bâtiments d'en deçà, dans la
+    // portion de rue qu'ils ne masquent pas — la maquette est coupée, elle doit
+    // au moins montrer ce qu'elle prétend montrer.
+    groupes.push(canon(13, 8, -4.5, pal));  // sur le toit de 8 du premier tronçon
+    groupes.push(canon(16, 0, 0.6, pal));   // et un au sol, contre le front d'en face
+    const zombies = [
+      { x: 22, z: 1.2, c: pal["Traînard"], e: 1 },
+      { x: 25.5, z: 3.4, c: pal["Traînard"], e: 1 },
+      { x: 20, z: 4.4, c: pal["Sprinteur"], e: 0.92 },
+      { x: 30, z: 2.2, c: pal["Costaud"], e: 1.25 },
+      { x: 33.5, z: 4.6, c: pal["Traînard"], e: 1 }
+    ];
+    zombies.forEach((z) => groupes.push(personnage(z.x, 0, z.z, z.c, z.e)));
+    const joueur = { x: 12, z: 3.6 };
+    groupes.push(personnage(joueur.x, 0, joueur.z, pal["tunique du joueur"], 1, pal["peau du joueur"]));
+
+    // cadrage sur la rue et le front d'en face ; le front proche déborde en bas
+    const pourCadre = groupes.flatMap((gr) => gr.boites).filter((b) => b.z < 6);
+    pourCadre.push(boite(0, 0, 0, LONG, 0, 6));
+    const o = cadre(W, H, pourCadre, 0.55, 0.93);
+
+    const MINX = -2, MAXX = LONG + 2;
+    const brumeDe = (b) => {
+      const t = (b.x - MINX) / (MAXX - MINX);
+      return Math.max(0, Math.min(0.86, (t - 0.28) * 1.5 * look.densiteBrouillard * 2.1));
+    };
+
+    const cases = [];
+    for (let x = -2; x < LONG; x += 2) {
+      for (let z = 0; z < 6; z += 2) cases.push({ x, z, w: 2, d: 2, tex: "street" });
+    }
+    for (let x = LONG; x < LONG + 10; x += 2) {
+      for (let z = -8; z < 14; z += 2) cases.push({ x, z, w: 2, d: 2, tex: "outside" });
+    }
+    for (let x = -8; x < -2; x += 2) {  // le pied de la rue donne sur la place
+      for (let z = -2; z < 8; z += 2) cases.push({ x, z, w: 2, d: 2, tex: "plaza" });
+    }
+
+    return { groupes, cases, o, brumeDe, corps: zombies.concat([joueur]), LONG };
+  }
+
+  /* --- Scène 2 : le pied de la rue 1, la mairie, la base, le halo ---------- */
+
+  function construitPlace(W, H, look) {
+    const pal = look.pal;
+    const groupes = [];
+
+    // la mairie : 10 × 12 × 10, coiffée d'un toit qui la fait dominer
+    const mairie = [];
+    for (let y = 0; y < 12; y++) mairie.push(boite(8, y, 8, 10, 1, 10, { t: "townhall", sansDessus: true }));
+    mairie.push(boite(7.4, 12, 7.4, 11.2, 0.6, 11.2, { t: "townhallRoof", tX: "townhallRoof", tZ: "townhallRoof" }));
+    mairie.push(boite(8.6, 12.6, 8.6, 8.8, 2.2, 8.8, { t: "townhallRoof", tX: "townhallRoof", tZ: "townhallRoof" }));
+    groupes.push(emprise(mairie));
+
+    // la base : le hangar adossé à la face qui regarde la rue 1
+    const base = [];
+    for (let y = 0; y < 4; y++) base.push(boite(10, y, 18, 6, 1, 3, { t: "depot", sansDessus: y !== 3 }));
+    groupes.push(emprise(base));
+
+    // les bâtiments qui ferment la place : tous à 4 blocs, leurs toits font un
+    // balcon continu autour d'elle
+    [[-6, 20], [0, 20], [20, 20], [24, 8], [24, 0]].forEach(([x, z]) => groupes.push(batiment(x, z, 4, "nord")));
+
+    groupes.push(portique(9, 0, 27, 8, pal["portique rue 1"])); // rue 1 : cyan
+    groupes.push(canon(4, 4, 21, pal));                          // sur un toit de 4
+
+    const joueur = { x: 12.5, z: 21.5 };
+    groupes.push(personnage(joueur.x, 0, joueur.z, pal["tunique du joueur"], 1, pal["peau du joueur"]));
+    const zombies = [
+      { x: 12.2, z: 30, c: pal["Traînard"], e: 1 },
+      { x: 14.6, z: 32.5, c: pal["Costaud"], e: 1.25 }
+    ];
+    zombies.forEach((z) => groupes.push(personnage(z.x, 0, z.z, z.c, z.e)));
+
+    const pourCadre = groupes.flatMap((gr) => gr.boites);
+    pourCadre.push(boite(-8, 0, -6, 42, 0, 42));
+    const o = cadre(W, H, pourCadre, 0.55, 0.9);
+
+    const brumeDe = (b) => {
+      const t = 1 - (b.x + b.z + 14) / 60;
+      return Math.max(0, Math.min(0.8, t * look.densiteBrouillard * 1.5));
+    };
+
+    const cases = [];
+    const baseX = 13, baseZ = 19.5; // le halo se mesure depuis la BASE, pas la mairie
+    for (let x = -8; x < 34; x += 2) {
+      for (let z = -6; z < 36; z += 2) {
+        const cx = x + 1 - 13, cz = z + 1 - 13;
+        // la place est hexagonale : trois pans droits face aux trois rues
+        const hex = Math.max(Math.abs(cz), Math.abs(cz) * 0.5 + Math.abs(cx) * 0.866) < 16;
+        const dansRue = x >= 9 && x < 17 && z >= 26;
+        let tex = dansRue ? "street" : hex ? "plaza" : "outside";
+        if (tex === "plaza" && Math.hypot(x + 1 - baseX, z + 1 - baseZ) < 11) tex = "glow";
+        cases.push({ x, z, w: 2, d: 2, tex });
+      }
+    }
+
+    return { groupes, cases, o, brumeDe, corps: zombies.concat([joueur]) };
+  }
+
+  function dessineScene(g, W, H, look, sc) {
+    ciel(g, W, H, look);
+    sol(g, sc.o, look, sc.cases, sc.brumeDe);
+    trie(sc.groupes).forEach((gr) => gr.boites.forEach((b) => dessineBoite(g, b, look, sc.o, sc.brumeDe)));
+    // les taches après les corps : elles se posent sur le sol, pas dessous
+    sc.corps.forEach((c) =>
+      tache(g, sc.o, c.x + 0.2, 0, c.z + 0.2, 0.62 * (c.e || 1), sc.brumeDe({ x: c.x, z: c.z }))
+    );
+  }
+
+  /* ==========================================================================
+     8. La page
+     ========================================================================== */
+
+  function net(canvas, L, Ht) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(L * dpr);
+    canvas.height = Math.round(Ht * dpr);
+    // pas de style inline : la feuille de style tient la largeur à 100 %, la
+    // hauteur suit, et la scène reste nette sur un écran à densité double.
+    const g = canvas.getContext("2d");
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return g;
+  }
+
+  function rendu() {
+    const look = LOOK;
+
+    // --- 1. l'inventaire ---
+    const planche = document.getElementById("planche");
+    TUILES.forEach((def) => {
+      const carte = document.createElement("div");
+      carte.className = "tuile";
+
+      const haut = document.createElement("div");
+      haut.className = "haut";
+      const nom = document.createElement("span");
+      nom.className = "nom";
+      nom.textContent = def.nom;
+      const ident = document.createElement("code");
+      ident.className = "ident";
+      ident.textContent = def.id;
+      haut.append(nom, ident);
+
+      const echelles = document.createElement("div");
+      echelles.className = "echelles";
+      [[6, "×6"], [3, "×3 — en jeu"], [1, "×1"]].forEach(([e, texte]) => {
+        const bloc = document.createElement("div");
+        bloc.append(canvasTuile(def, look, e, 1));
+        const l = document.createElement("div");
+        l.className = "legende";
+        l.textContent = texte;
+        bloc.append(l);
+        echelles.append(bloc);
+      });
+
+      const usage = document.createElement("p");
+      usage.className = "usage";
+      usage.innerHTML = def.usage;
+
+      carte.append(haut, echelles, usage);
+      planche.append(carte);
+    });
+
+    // --- 2. l'atlas ---
+    const atlas = dessineAtlas(look);
+    const cible = document.getElementById("atlas");
+    const ga = cible.getContext("2d");
+    ga.imageSmoothingEnabled = false;
+    ga.drawImage(atlas, 0, 0);
+
+    const octets = ATLAS.taille * ATLAS.taille * 4;
+    [
+      [ATLAS.taille + " × " + ATLAS.taille, "la planche"],
+      [TUILES.length + " / 16", "cases occupées"],
+      [ATLAS.marge + " px", "marge cyclique"],
+      [Math.round(octets / 1024) + " Kio", "en mémoire, non compressé"]
+    ].forEach(([v, l]) => {
+      const d = document.createElement("div");
+      d.className = "chiffre";
+      const b = document.createElement("b");
+      b.textContent = v;
+      const s = document.createElement("span");
+      s.textContent = l;
+      d.append(b, s);
+      document.getElementById("chiffres-atlas").append(d);
+    });
+
+    // --- 3 et 4. les scènes ---
+    const LS = 1132, HS = 566;
+    dessineScene(net(document.getElementById("rue"), LS, HS), LS, HS, look, construitRue(LS, HS, look));
+    dessineScene(net(document.getElementById("place"), LS, HS), LS, HS, look, construitPlace(LS, HS, look));
+
+    // --- 5. le banc de lisibilité : chaque tuile répétée 3 × 3, à ×3 ---
+    const banc = document.getElementById("banc");
+    TUILES.forEach((def) => {
+      const f = document.createElement("figure");
+      f.append(canvasTuile(def, look, 3, 3));
+      const c = document.createElement("figcaption");
+      c.textContent = def.nom;
+      f.append(c);
+      banc.append(f);
+    });
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", rendu);
+  else rendu();
+})();
+</script>
