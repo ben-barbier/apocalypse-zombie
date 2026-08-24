@@ -284,9 +284,9 @@
       <canvas id="rue" width="2360" height="1180" aria-label="Vue isométrique d'un tronçon de rue"></canvas>
     </div>
     <div class="note">
-      <b>Le bandeau d'étage est une tuile à part, et il n'y avait pas moyen d'y couper.</b>
-      Il en faut un tous les 2 blocs pour compter la hauteur depuis le sol (#15). Si la tuile de mur
-      le portait, il y en aurait un par bloc. Deux tuiles alternées verticalement — <code>wall</code>,
+      <b>Le corniche est une tuile à part, et il n'y avait pas moyen d'y couper.</b>
+      Il en faut une tous les 2 blocs pour compter la hauteur depuis le sol (#15). Si la tuile de mur
+      la portait, il y en aurait une par bloc. Deux tuiles alternées verticalement — <code>wall</code>,
       <code>wallBand</code> — coûtent une case d'atlas et règlent la question.
     </div>
   </section>
@@ -322,7 +322,7 @@
     <div class="verdict">
       <ol>
         <li>
-          <b>Treize tuiles, toutes du bâti.</b> Sol de rue, sol de place, halo, mur, mur à bandeau,
+          <b>Treize tuiles, toutes du bâti.</b> Sol de rue, sol de place, halo, mur, mur à corniche,
           échelle, trois toits, pierre et toit de la mairie, bois de la base, extérieur. Le métal du
           canon et la peau des zombies sortent de la planche : un seul <code>InstancedMesh</code>,
           donc des couleurs d'instance.
@@ -495,14 +495,14 @@
   const TUILES = [
     { id: "street", nom: "Sol de rue", role: "sol de rue", plan: "h",
       usage: "Les <b>trois rues</b>, larges de 6 blocs. Pas de trottoir : tout le sol d'une rue est ce sol-là." },
-    { id: "plaza", nom: "Sol de place", role: "sol de place", plan: "h",
+    { id: "square", nom: "Sol de place", role: "sol de place", plan: "h",
       usage: "La <b>place hexagonale</b>, 32 blocs bord à bord. Doit se distinguer de la rue au premier coup d'œil : c'est la frontière du terrain sûr." },
-    { id: "glow", nom: "Halo du tapis", role: "halo du tapis", plan: "h",
+    { id: "halo", nom: "Halo du tapis", role: "halo du tapis", plan: "h",
       usage: "Le pavé de la place <b>repeint</b> là où le tapis roulant ravitaille depuis la base. Une peinture posée au sol, jamais une lumière." },
     { id: "wall", nom: "Mur", role: "mur", plan: "v",
       usage: "L'allège : le bloc plein de chaque étage. Il n'y a <b>qu'un seul mur</b> dans le jeu, aucune variante de façade ne viendra rompre la répétition d'une rue." },
-    { id: "wallBand", nom: "Mur à bandeau", role: "mur", plan: "v",
-      usage: "Le haut de l'étage : <b>une fenêtre, et le bandeau qui la coiffe</b>. Alterné avec l'allège, il en met un tous les 2 blocs — c'est ce qui permet de compter la hauteur d'un bâtiment depuis la rue." },
+    { id: "cornice", nom: "Mur à corniche", role: "mur", plan: "v",
+      usage: "Le haut de l'étage : <b>une fenêtre, et la corniche qui la coiffe</b>. Alterné avec l'allège, elle en met une tous les 2 blocs — c'est ce qui permet de compter la hauteur d'un bâtiment depuis la rue." },
     { id: "ladder", nom: "Échelle", role: "mur", plan: "v",
       usage: "Au <b>milieu de la façade de rue</b>, une par bâtiment. La seule montée du jeu, donc la seule chose que l'enfant ait à découvrir : elle doit crier." },
     { id: "roof4", nom: "Toit bas", role: "toit bas", plan: "h",
@@ -511,13 +511,13 @@
       usage: "Les bâtiments de <b>6 blocs</b>. Portée du boulet : 16,5." },
     { id: "roof8", nom: "Toit haut", role: "toit haut", plan: "h",
       usage: "Les bâtiments de <b>8 blocs</b> — le sommet de chaque tronçon, <b>le meilleur poste de tir du secteur</b>. Portée du boulet : 18." },
-    { id: "townhall", nom: "Pierre de la mairie", role: "pierre de la mairie", plan: "v",
+    { id: "townHall", nom: "Pierre de la mairie", role: "pierre de la mairie", plan: "v",
       usage: "Le seul bâtiment qu'on défend. Sa pierre <b>n'existe nulle part ailleurs</b> : elle doit se reconnaître avant d'être comprise." },
-    { id: "townhallRoof", nom: "Toit de la mairie", role: "toit de la mairie", plan: "h",
+    { id: "townHallRoof", nom: "Toit de la mairie", role: "toit de la mairie", plan: "h",
       usage: "Ce qui fait que la mairie <b>domine</b> la place au lieu d'y être un cube de plus." },
-    { id: "depot", nom: "Bois de la base", role: "bois de la base", plan: "v",
+    { id: "base", nom: "Bois de la base", role: "bois de la base", plan: "v",
       usage: "Le hangar adossé à la face de la mairie qui regarde la rue 1, où se prennent les bombes de feu." },
-    { id: "outside", nom: "Extérieur", role: "extérieur", plan: "h",
+    { id: "outskirts", nom: "Extérieur", role: "extérieur", plan: "h",
       usage: "Le décor sommaire au-delà des fronts bâtis, d'où sortent les zombies. La brume en mange la moitié : c'est ce qui le rend économique." }
   ];
 
@@ -534,7 +534,7 @@
 
     const id = def.id;
 
-    if (id === "plaza" || id === "glow") {
+    if (id === "square" || id === "halo") {
       // quatre pavés de 8×8, chacun d'une teinte propre, séparés par un joint
       for (let by = 0; by < 2; by++) {
         for (let bx = 0; bx < 2; bx++) {
@@ -547,7 +547,7 @@
           }
         }
       }
-      if (id === "glow") {
+      if (id === "halo") {
         // le halo est le MÊME pavé, repeint : deux liserés clairs qui font une
         // grille continue une fois la tuile répétée.
         for (let i = 0; i < 16; i++) {
@@ -570,7 +570,7 @@
         pose(x, y, caillou);
         pose(x + 1, y, eclaircit(caillou, -0.1));
       }
-    } else if (id === "wall" || id === "wallBand" || id === "ladder") {
+    } else if (id === "wall" || id === "cornice" || id === "ladder") {
       // appareil décalé d'une assise à l'autre. Des joints horizontaux seuls
       // faisaient un mur de planches dès qu'un bloc ne portait pas de fenêtre.
       const joint = eclaircit(base, -0.24);
@@ -584,10 +584,10 @@
           pose(x, y, bordH || bordV ? joint : eclaircit(base, (p2 - 0.5) * 0.13 + (r() - 0.5) * 0.07));
         }
       }
-      if (id === "wallBand") {
+      if (id === "cornice") {
         // Un étage fait 2 blocs : l'allège en bas (le mur plein), la fenêtre en
-        // haut, et le bandeau qui la coiffe. Donc UNE fenêtre par étage, et elle
-        // est sur le même bloc que le bandeau.
+        // haut, et la corniche qui la coiffe. Donc UNE fenêtre par étage, et elle
+        // est sur le même bloc que la corniche.
         //
         // Elle ne reflète PAS le ciel : #23 réserve le froid à ce qui se joue,
         // et 87 bâtiments de fenêtres froides dilueraient le seul repère de
@@ -603,7 +603,7 @@
         }
         pose(7, 7, eclaircit(vitre, 0.55));
         pose(8, 7, eclaircit(vitre, 0.55));
-        // le bandeau coiffe le bloc : une arête claire, une ombre d'un pixel
+        // la corniche coiffe le bloc : une arête claire, une ombre d'un pixel
         // dessous. Deux pixels suffisent à le compter depuis la rue.
         for (let x = 0; x < 16; x++) {
           pose(x, 0, eclaircit(base, 0.36));
@@ -654,7 +654,7 @@
         const y = (r() * 16) | 0;
         pose(x, y, eclaircit(base, 0.2));
       }
-    } else if (id === "townhall") {
+    } else if (id === "townHall") {
       // grand appareil : des assises de 8 pixels, décalées d'un rang à l'autre
       const joint = eclaircit(base, -0.3);
       for (let y = 0; y < 16; y++) {
@@ -663,11 +663,11 @@
         for (let x = 0; x < 16; x++) {
           const bordH = y % 8 === 7;
           const bordV = (x + decal) % 16 === 15;
-          const p = alea(graine("townhall" + rang + (((x + decal) / 16) | 0)))();
+          const p = alea(graine("townHall" + rang + (((x + decal) / 16) | 0)))();
           pose(x, y, bordH || bordV ? joint : eclaircit(base, (p - 0.5) * 0.14));
         }
       }
-    } else if (id === "townhallRoof") {
+    } else if (id === "townHallRoof") {
       // écailles : deux rangs décalés, un liseré clair en haut de chaque écaille
       for (let y = 0; y < 16; y++) {
         const rang = (y / 8) | 0;
@@ -681,7 +681,7 @@
           pose(x, y, eclaircit(t, (r() - 0.5) * 0.08));
         }
       }
-    } else if (id === "depot") {
+    } else if (id === "base") {
       for (let x = 0; x < 16; x++) {
         const planche = (x / 4) | 0;
         const t = eclaircit(base, (alea(graine("planche" + planche))() - 0.5) * 0.24);
@@ -691,7 +691,7 @@
           pose(x, y, bord ? eclaircit(t, -0.36) : eclaircit(t, veine ? -0.14 : 0.02));
         }
       }
-    } else if (id === "outside") {
+    } else if (id === "outskirts") {
       for (let y = 0; y < 16; y++) {
         for (let x = 0; x < 16; x++) pose(x, y, eclaircit(base, (r() - 0.5) * 0.28));
       }
@@ -967,7 +967,7 @@
     return Object.assign({ x, y, z, w, h, d }, opts || {});
   }
 
-  /* Un bâtiment : un empilement d'étages de 6 × 1 × 8, un bandeau tous les
+  /* Un bâtiment : un empilement d'étages de 6 × 1 × 8, une corniche tous les
      2 blocs, le toit de la hauteur au sommet, et l'échelle plaquée au milieu
      de la façade de rue. L'ordre de déclaration va du plus lointain au plus
      proche : à l'intérieur d'un objet, c'est lui qui fait foi. */
@@ -975,9 +975,9 @@
     const b = [];
     const toit = hauteur === 4 ? "roof4" : hauteur === 6 ? "roof6" : "roof8";
     for (let y = 0; y < hauteur; y++) {
-      const bandeau = y % 2 === 1; // un bandeau tous les 2 blocs
+      const corniche = y % 2 === 1; // une corniche tous les 2 blocs
       b.push(boite(x, y, z, 6, 1, 8, {
-        t: bandeau ? "wallBand" : "wall",
+        t: corniche ? "cornice" : "wall",
         tDessus: y === hauteur - 1 ? toit : null,
         sansDessus: y !== hauteur - 1
       }));
@@ -1162,10 +1162,10 @@
       for (let z = 0; z < 6; z += 2) cases.push({ x, z, w: 2, d: 2, tex: "street" });
     }
     for (let x = LONG; x < LONG + 10; x += 2) {
-      for (let z = -8; z < 14; z += 2) cases.push({ x, z, w: 2, d: 2, tex: "outside" });
+      for (let z = -8; z < 14; z += 2) cases.push({ x, z, w: 2, d: 2, tex: "outskirts" });
     }
     for (let x = -8; x < -2; x += 2) {  // le pied de la rue donne sur la place
-      for (let z = -2; z < 8; z += 2) cases.push({ x, z, w: 2, d: 2, tex: "plaza" });
+      for (let z = -2; z < 8; z += 2) cases.push({ x, z, w: 2, d: 2, tex: "square" });
     }
 
     return { groupes, cases, o, brumeDe, corps: zombies.concat([joueur]), LONG };
@@ -1179,14 +1179,14 @@
 
     // la mairie : 10 × 12 × 10, coiffée d'un toit qui la fait dominer
     const mairie = [];
-    for (let y = 0; y < 12; y++) mairie.push(boite(8, y, 8, 10, 1, 10, { t: "townhall", sansDessus: true }));
-    mairie.push(boite(7.4, 12, 7.4, 11.2, 0.6, 11.2, { t: "townhallRoof", tX: "townhallRoof", tZ: "townhallRoof" }));
-    mairie.push(boite(8.6, 12.6, 8.6, 8.8, 2.2, 8.8, { t: "townhallRoof", tX: "townhallRoof", tZ: "townhallRoof" }));
+    for (let y = 0; y < 12; y++) mairie.push(boite(8, y, 8, 10, 1, 10, { t: "townHall", sansDessus: true }));
+    mairie.push(boite(7.4, 12, 7.4, 11.2, 0.6, 11.2, { t: "townHallRoof", tX: "townHallRoof", tZ: "townHallRoof" }));
+    mairie.push(boite(8.6, 12.6, 8.6, 8.8, 2.2, 8.8, { t: "townHallRoof", tX: "townHallRoof", tZ: "townHallRoof" }));
     groupes.push(emprise(mairie));
 
     // la base : le hangar adossé à la face qui regarde la rue 1
     const base = [];
-    for (let y = 0; y < 4; y++) base.push(boite(10, y, 18, 6, 1, 3, { t: "depot", sansDessus: y !== 3 }));
+    for (let y = 0; y < 4; y++) base.push(boite(10, y, 18, 6, 1, 3, { t: "base", sansDessus: y !== 3 }));
     groupes.push(emprise(base));
 
     // les bâtiments qui ferment la place : tous à 4 blocs, leurs toits font un
@@ -1221,8 +1221,8 @@
         // la place est hexagonale : trois pans droits face aux trois rues
         const hex = Math.max(Math.abs(cz), Math.abs(cz) * 0.5 + Math.abs(cx) * 0.866) < 16;
         const dansRue = x >= 9 && x < 17 && z >= 26;
-        let tex = dansRue ? "street" : hex ? "plaza" : "outside";
-        if (tex === "plaza" && Math.hypot(x + 1 - baseX, z + 1 - baseZ) < 11) tex = "glow";
+        let tex = dansRue ? "street" : hex ? "square" : "outskirts";
+        if (tex === "square" && Math.hypot(x + 1 - baseX, z + 1 - baseZ) < 11) tex = "halo";
         cases.push({ x, z, w: 2, d: 2, tex });
       }
     }
