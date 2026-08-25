@@ -41,8 +41,16 @@ Le cahier, le glossaire, les tickets, les commits et le texte affiché dans le j
 | Manche | `stick` | | Mur | `wall` |
 | Toit | `roof` | | Corniche | `cornice` |
 | Planche | `atlas` | | | |
+| Banc | `bench` | | Indicateur | `indicator` |
+| Pilote | `pilot` | | Seuil | `threshold` |
+| Profil | `profile` | | Campagne | `campaign` |
+| Guetteur | `watcher` | | Verdict | `verdict` |
+| Enfant | `child` | | Balayage | `scan` |
+| Pressé | `racer` | | Profondeur | `venture` |
 
 **La règle qui gouverne cette table** : en anglais, un terme du glossaire reçoit un mot et un seul, qui ne soit ni déjà pris par un autre terme du glossaire, ni pris par l'API Three.js. C'est le flou que les listes `_Éviter_` de `CONTEXT.md` combattent, pas la racine des mots — `sweep`, `breach` et `magazine` sont retenus bien que « balayage », « percée » et « chargeur » soient bannis en français, parce qu'aucun n'a de concurrent en anglais.
+
+C'est cette règle qui a écarté deux mots naturels pour les termes du banc : *Balayage* ne peut pas être `sweep`, déjà la **Fauchée**, d'où `scan` ; et *Profondeur* ne peut pas être `depth`, que Three.js emploie (`BoxGeometry`, `depthTest`) et que les 8 blocs de profondeur du front bâti réclameraient au rendu, d'où `venture`.
 
 ## Mots interdits dans le code
 
@@ -78,6 +86,12 @@ Les `_Éviter_` du glossaire ne sont **pas** traduites : elles gouvernent le fra
 | `prop`, `decoration`, `clutter` | *rien* | la ville ne porte **aucun** objet de décor ([#29](https://github.com/ben-barbier/apocalypse-zombie/issues/29)) : seul le canon se pose |
 | `shadow`, `contactShadow` | `blot` | aucune ombre portée n'existe ; la tache n'en est pas une, et `castShadow` appartient à Three.js |
 | `tooltip`, `banner`, `popup` | *rien* | rien ne surgit jamais par-dessus le jeu, le Sas excepté |
+| `sweep` (au banc) | `scan` | `sweep` est la Fauchée ; un terme ne reçoit qu'un mot |
+| `depth` (profondeur d'aventure) | `venture` | pris par Three.js, et réclamé par les 8 blocs du front bâti |
+| `bot`, `ai`, `agent` | `pilot` | ce qui joue à la place de l'enfant porte un nom |
+| `metric`, `stat`, `kpi` | `indicator` | huit chiffres, liste fermée ([#41](https://github.com/ben-barbier/apocalypse-zombie/issues/41)) |
+| `benchmark`, `simulator` | `bench` | |
+| `difficulty` | *rien* | la difficulté n'est un réglage de rien : ni du rendu, ni du banc |
 
 **`state` contre `snapshot`** : `state` est l'état vivant en mémoire (`game/state.ts`, le type `Game`) ; `snapshot` est ce qui part dans `localStorage`. Le glossaire bannit « état » comme synonyme d'*Instantané* pour cette raison exacte ; en anglais les deux mots coexistent tant que la frontière est écrite.
 

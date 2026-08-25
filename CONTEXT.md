@@ -298,3 +298,53 @@ _Éviter_ : joystick, croix, stick, pavé directionnel
 **Titre** :
 Le nom du jeu, *Apocalypse Zombie* — choisi par l'enfant à qui il est destiné. Le jeu ne l'**affiche jamais** : le Sas est sans un mot de texte et le bandeau est fermé à cinq choses. Il ne vit qu'en dehors du jeu — l'onglet du navigateur, le cahier, et sous l'icône de l'écran d'accueil où il se raccourcit en **Zombies**, le seul texte du projet qu'un enfant de 8 ans lira vraiment.
 _Éviter_ : écran-titre, logo, splash, sous-titre
+
+### Le banc
+
+**Banc** :
+L'outil qui joue des parties entières **sans rendu**, à barème injecté et à hasard semé — une partie vaut environ 55 000 pas et une seconde de calcul, donc cent variantes en deux minutes. Il n'a **pas d'horloge** : il compte des pas de 1/60 de seconde, il n'en lit aucun. C'est lui qui rend l'équilibrage réfutable : sans lui, le barème est un fichier de chiffres que personne ne sait contredire. Il **refuse, il ne corrige jamais** — les seuls leviers sont la table, les prix et la portée.
+_Éviter_ : simulateur, test d'équilibrage, benchmark
+
+**Pilote** :
+Ce qui joue à la place de l'enfant. Il écrit **la même structure d'entrées** que la manette et le tactile — sinon le banc éprouverait un autre jeu que celui qu'on joue — et il est aussi pur que la logique de jeu : ni horloge, ni hasard libre. Son hasard à lui vient d'un **second générateur**, semé à part, pour qu'une retouche du pilote ne décale jamais le tirage du monde.
+_Éviter_ : robot, IA, agent, joueur artificiel
+
+**Profil** :
+Un réglage du pilote, et ce qui distingue une manière de jouer d'une autre. Cinq boutons, jamais un script écrit à la main : jusqu'où il descend, ce qu'il achète et dans quel ordre, s'il ravitaille, à combien de pastilles il se replie, et son retard de réaction à un paquet neuf. Il y en a **trois**, parce que l'économie n'a que trois bornes à tenir : un plancher, une référence, un plafond.
+_Éviter_ : personnalité, stratégie, scénario
+
+**Guetteur** :
+Le profil qui ne quitte ni la place ni les toits qui la ferment : il frappe ce qui vient à lui, pose un canon dès qu'il peut là où il se tient, ne ravitaille jamais, et rachète un renfort dès que la barre passe sous la moitié. Il borne le **plancher** de la masse monétaire. C'est le seul endroit du cahier où la soupape du renfort s'éprouve : lui seul a le droit de laisser le Colosse toucher la mairie, et il doit tenir quand même.
+_Éviter_ : passif, campeur, débutant
+
+**Enfant** :
+Le profil de référence, **celui que les seuils lient** : il descend au tiers d'une rue, pose sur les toits de 8 du premier tronçon, ne ravitaille que dans le halo, et encaisse les contacts au lieu de les fuir. Tous les refus du banc se prononcent sur lui ; les deux autres ne font que borner.
+_Éviter_ : joueur moyen, normal, standard
+
+**Pressé** :
+Le profil qui va au fond de la rue active, pose sur les tronçons profonds, ravitaille toujours et ne laisse rien passer. Il borne le **plafond** de la masse monétaire, et c'est à lui qu'on demande si jouer mieux sert à quelque chose : en Rallonge, il doit tenir au moins trois vagues de plus que l'enfant.
+_Éviter_ : optimal, parfait, expert
+
+**Profondeur** :
+La fraction d'une rue jusqu'où un profil descend — du pied, où le halo suffit, au fond, où le ravitaillement se fait sous le feu. C'est la mesure du gradient : le banc dit ce que **coûte** chaque profondeur, jamais celle qu'un enfant choisira. D'où le seuil, qui n'est pas « il descend assez loin » mais **le barème est acceptable à toutes les profondeurs** : un jeu qui ne tient que si l'on va au fond est cassé pour un enfant timide.
+_Éviter_ : distance, avancée, engagement
+
+**Indicateur** :
+Un des **huit** chiffres qu'une partie de banc rend : dégâts cumulés sur la mairie, durée, pic de zombies vivants, part tuée à l'épée, pièces gagnées, canons posés et leurs niveaux, écroulements, fuites. Liste fermée — ce qui ne s'y trouve pas ne se mesure pas.
+_Éviter_ : métrique, statistique, mesure
+
+**Seuil** :
+Un chiffre et une comparaison, jamais un avis : c'est ce qui rend le banc utilisable par un agent. Il vaut toujours **pour un profil donné** — les mêmes deux cents points de dégâts louent le guetteur et condamnent le pressé — et il se juge sur la **pire** des graines, jamais sur leur moyenne, qui noierait le cas qu'on cherche. Un seuil de barème refuse le barème ; un **garde-fou de pilote** dit seulement que le profil a déraillé, et c'est la partie qui est nulle.
+_Éviter_ : limite, tolérance, critère
+
+**Campagne** :
+Un lancer nommé du banc, sur un axe nommé. Il en existe deux formes et deux seulement : le **verdict**, qui juge, et le **balayage**, qui explore.
+_Éviter_ : suite, batterie, série
+
+**Verdict** :
+La campagne qui juge : trois profils sur cinq graines, et une réponse binaire assortie des seules cases franchies, chacune en valeur contre seuil. C'est le code de sortie qui la porte — un agent lit un code et une liste, pas un tableau qu'il faudrait interpréter.
+_Éviter_ : rapport, résultat, note
+
+**Balayage** :
+La campagne qui explore : un profil, une graine, une vingtaine de variantes le long d'un seul axe, et un tableau pour toute sortie. Elle **ne juge jamais** — c'est ce qui la sépare du verdict, et c'est pourquoi elle n'a pas de seuil.
+_Éviter_ : fauchée (réservée à l'épée), série, exploration
