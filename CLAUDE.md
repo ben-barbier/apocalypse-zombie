@@ -6,15 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 *Apocalypse Zombie* — tower defense 3D voxel, vue à la troisième personne, un seul build web (manette sur PC, tactile sur iPad), pour un enfant de 8 ans.
 
-**Il n'y a pas encore une ligne de code.** Le dépôt est à l'état de **cahier de conception** : le livrable en cours est un jeu de décisions verrouillées, assez complet pour qu'un agent code la v1 sans reposer une question de conception. Écrire le code sera un effort séparé.
+**Il n'y a pas encore une ligne de code.** Le dépôt est à l'état de **spec** : le livrable en cours est un jeu de décisions verrouillées, assez complet pour qu'un agent code la v1 sans reposer une question de conception. Écrire le code sera un effort séparé.
 
-Trois choses vivent sur `main` :
+Quatre choses vivent sur `main` :
 
+- `docs/spec/` — la **spec** : la source de vérité du jeu, onze chapitres, **en cours de rédaction**. Son [`README`](docs/spec/README.md) porte le sommaire, la page des interdits et les règles d'écriture. C'est elle qu'on lit pour connaître une **valeur** ; tant qu'un chapitre manque, sa source reste les tickets que le sommaire nomme.
 - `CONTEXT.md` — le **glossaire** : le vocabulaire tranché, et lui seul. À relire avant tout travail, à enrichir à la clôture d'un ticket, jamais avant qu'un terme soit réellement tranché.
 - `docs/adr/` — les décisions d'architecture.
 - `docs/research/` — les recherches à sources primaires. Chaque affirmation y porte une étiquette (`[source]`, `[mesuré]`, `[calcul]`, `[incertain]`, `[à mesurer]`) ; ne jamais citer un chiffre de ces documents sans son étiquette.
 
-**Les décisions ne vivent pas dans ces fichiers, elles vivent dans les tickets GitHub.** `CONTEXT.md` ne dit que le vocabulaire ; les ADR ne portent que ce qui contraint le code.
+**La spec est la source de vérité ; les tickets GitHub sont l'archive du raisonnement** — on y va pour comprendre un **motif**, jamais pour connaître une **valeur** : beaucoup ont été rectifiés, et lus seuls ils mentent. Le glossaire nomme, la spec calcule ; les ADR ne portent que ce qui contraint le code. Une décision qui change se change dans la spec, par PR : **on ne rouvre jamais un ticket fermé**.
 
 ## Le workflow : la carte wayfinder
 
@@ -41,7 +42,7 @@ Un ticket par session, jamais deux (les tickets de recherche exceptés). Le skil
 
 Le cadre technique est tranché (ticket [#13](https://github.com/ben-barbier/apocalypse-zombie/issues/13)) et attend la première ligne de code : npm avec lockfile commité, TypeScript 7 `strict`, Vite 8, Vitest 4, `three@0.185.1` épinglé sans accent circonflexe + `@types/three` (`three` ne publie aucun champ `types`), **zéro autre dépendance d'exécution**. Scripts prévus : `dev`, `build`, `test`, `bench`, `check` (`tsc` + garde d'architecture). Tests co-localisés (`sword.test.ts` à côté de `sword.ts`), donc un test seul se lance par son chemin : `npx vitest run src/game/sword.test.ts`.
 
-**Prototypes** : un fichier HTML autonome par prototype, Three.js embarqué dedans, aucune dépendance — il s'ouvre directement dans un navigateur. Ils vivent sur des branches `prototype/*` (`prototype/deplacement-camera`, `prototype/planche-art`), sont **jetables** et ne sont **jamais** fusionnés dans `main`.
+**Prototypes** : un fichier HTML autonome par prototype, Three.js embarqué dedans, aucune dépendance — il s'ouvre directement dans un navigateur. Ils vivent sur des branches `prototype/*` (`prototype/deplacement-camera`, `prototype/planche-art`), sont **jetables** et ne sont **jamais** fusionnés dans `main` — donc tout ce qui doit survivre à un prototype est recopié en toutes lettres dans la spec, qui ne renvoie jamais à une branche `prototype/*`.
 
 ## L'architecture, déjà tranchée
 
@@ -70,7 +71,7 @@ bench/        le banc d'équilibrage (une partie ≈ 50 000 pas, ~1 s, sans rend
 public/       atlas.png · index.html
 ```
 
-Tests : unitaires Vitest sur `src/game/` en environnement `node`, écrits **contre les chiffres du cahier** (176 zombies dans la table des vagues, 40 s pour descendre une rue, 200 coups de Traînard sur la mairie…) ; garde d'architecture ; banc d'équilibrage ; rejouabilité comparée octet à octet. **Aucun test de rendu, aucune capture, aucun navigateur automatisé en v1.**
+Tests : unitaires Vitest sur `src/game/` en environnement `node`, écrits **contre les chiffres de la spec** (la table des vagues, la durée de traversée d'une rue, les points de vie de la mairie…) ; garde d'architecture ; banc d'équilibrage ; rejouabilité comparée octet à octet. **Aucun test de rendu, aucune capture, aucun navigateur automatisé en v1.**
 
 ## La langue
 

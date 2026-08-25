@@ -1,6 +1,6 @@
 # Le code est en anglais, la conception reste en français
 
-Le cahier, le glossaire, les tickets, les commits et le texte affiché dans le jeu sont en **français** ; les dossiers, fichiers, identifiants, types et commentaires du code sont en **anglais**. Cette ADR existe parce qu'un lecteur qui ouvre `src/game/zombies.ts` et lit `bruiser` doit pouvoir remonter à *Costaud* sans deviner : la traduction est fixée ici, une fois, et un terme du glossaire reçoit **un mot et un seul**.
+La spec, le glossaire, les tickets, les commits et le texte affiché dans le jeu sont en **français** ; les dossiers, fichiers, identifiants, types et commentaires du code sont en **anglais**. Les **artefacts du dépôt portent leur nom d'usage anglais** — `docs/adr/`, `docs/research/`, `docs/spec/` — et la prose qui les décrit reste française : on écrit « la spec » comme on écrit déjà « le build », « le commit » ou « le draw call ». La règle ci-dessous gouverne le vocabulaire **du jeu**, pas les objets du dépôt. Cette ADR existe parce qu'un lecteur qui ouvre `src/game/zombies.ts` et lit `bruiser` doit pouvoir remonter à *Costaud* sans deviner : la traduction est fixée ici, une fois, et un terme du glossaire reçoit **un mot et un seul**.
 
 ## Table de correspondance
 

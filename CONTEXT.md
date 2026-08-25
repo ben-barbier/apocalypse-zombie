@@ -1,6 +1,6 @@
 # Apocalypse Zombie
 
-Tower defense 3D en style voxel, vue à la 3e personne, pour un enfant de 8 ans. Ce fichier est le **glossaire** du projet : le vocabulaire tranché, et lui seul. Les décisions vivent dans les tickets de la [carte de conception](https://github.com/ben-barbier/apocalypse-zombie/issues/1), pas ici.
+Tower defense 3D en style voxel, vue à la 3e personne, pour un enfant de 8 ans. Ce fichier est le **glossaire** du projet : le vocabulaire tranché, et lui seul. Les décisions vivent dans la [spec](docs/spec/), pas ici.
 
 Les termes s'y ajoutent **au fil des tickets**, quand ils sont réellement tranchés.
 
@@ -296,7 +296,7 @@ Le joystick tactile de la main gauche. **Flottant** : il naît là où le pouce 
 _Éviter_ : joystick, croix, stick, pavé directionnel
 
 **Titre** :
-Le nom du jeu, *Apocalypse Zombie* — choisi par l'enfant à qui il est destiné. Le jeu ne l'**affiche jamais** : le Sas est sans un mot de texte et le bandeau est fermé à cinq choses. Il ne vit qu'en dehors du jeu — l'onglet du navigateur, le cahier, et sous l'icône de l'écran d'accueil où il se raccourcit en **Zombies**, le seul texte du projet qu'un enfant de 8 ans lira vraiment.
+Le nom du jeu, *Apocalypse Zombie* — choisi par l'enfant à qui il est destiné. Le jeu ne l'**affiche jamais** : le Sas est sans un mot de texte et le bandeau est fermé à cinq choses. Il ne vit qu'en dehors du jeu — l'onglet du navigateur, la spec, et sous l'icône de l'écran d'accueil où il se raccourcit en **Zombies**, le seul texte du projet qu'un enfant de 8 ans lira vraiment.
 _Éviter_ : écran-titre, logo, splash, sous-titre
 
 ### Le banc
@@ -314,7 +314,7 @@ Un réglage du pilote, et ce qui distingue une manière de jouer d'une autre. Ci
 _Éviter_ : personnalité, stratégie, scénario
 
 **Guetteur** :
-Le profil qui ne quitte ni la place ni les toits qui la ferment : il frappe ce qui vient à lui, pose un canon dès qu'il peut là où il se tient, ne ravitaille jamais, et rachète un renfort dès que la barre passe sous la moitié. Il borne le **plancher** de la masse monétaire. C'est le seul endroit du cahier où la soupape du renfort s'éprouve : lui seul a le droit de laisser le Colosse toucher la mairie, et il doit tenir quand même.
+Le profil qui ne quitte ni la place ni les toits qui la ferment : il frappe ce qui vient à lui, pose un canon dès qu'il peut là où il se tient, ne ravitaille jamais, et rachète un renfort dès que la barre passe sous la moitié. Il borne le **plancher** de la masse monétaire. C'est le seul endroit de la spec où la soupape du renfort s'éprouve : lui seul a le droit de laisser le Colosse toucher la mairie, et il doit tenir quand même.
 _Éviter_ : passif, campeur, débutant
 
 **Enfant** :
