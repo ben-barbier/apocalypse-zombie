@@ -14,16 +14,28 @@ Le code, lui, est écrit **en anglais** : la correspondance entre chaque terme d
 Le terrain de jeu entier, 216 × 216 blocs, fait à la main et figé — **87 bâtiments**, donc 87 toits et 87 échelles. Une seule ville en v1. Elle a la forme d'une **étoile à trois branches** : tout ce qui se joue tient dans les trois rues, sur la place, et sur les toits qui les bordent — le reste est un décor que la brume efface. Elle ne porte **aucun objet de décor** : ni lampadaire, ni caisse, ni banc, ni auvent. Tout ce qu'on y voit est du bâti, et la seule chose qui s'y ajoute est un canon.
 
 **Place** :
-Le moyeu de l'étoile, **hexagonal**, 32 blocs de bord à bord, un pan droit face à chacune des trois rues — sur une grille de blocs, un cercle n'est qu'un escalier. Au milieu se dresse la mairie. C'est le **seul passage d'une rue à l'autre** : il n'existe aucun raccourci. Les neuf bâtiments qui la ferment font tous **4 blocs de haut** : la place s'ouvre, la mairie domine, et leurs toits font un balcon continu autour d'elle, relié au pied de chaque rue.
+Le moyeu de l'étoile, **hexagonal**, 32 blocs de bord à bord, un pan droit face à chacune des trois rues — sur une grille de blocs, un cercle n'est qu'un escalier. Au milieu se dresse la mairie. C'est le **seul passage d'une rue à l'autre** : il n'existe aucun raccourci. Le **pourtour** la ferme entre les rues.
 _Éviter_ : centre-ville, esplanade
+
+**Pourtour** :
+Les neuf bâtiments qui ferment la place là où les fronts bâtis des rues ne la ferment pas — trois par secteur entre deux rues, jamais à cheval sur l'une d'elles. Tous **4 blocs de haut**, et c'est une décision : la place s'ouvre, la mairie domine, et leurs toits font un balcon continu autour d'elle, relié au pied de chaque rue. Six d'entre eux tombent dans le halo — c'est là que se pose le premier canon d'une partie.
+_Éviter_ : anneau, couronne, îlots
 
 **Rue** :
 Une des trois avenues droites de 80 blocs, larges de 6, qui rayonnent de la place à 120° l'une de l'autre. Chacun de ses deux bords porte **treize bâtiments**, décalés d'un demi-module d'un côté à l'autre : les façades ne se répondent jamais. C'est le terrain de jeu du tower defense : un zombie y descend assez longtemps sous le feu des canons posés sur les toits qui la bordent pour qu'un canon serve à quelque chose — c'est ce qui a fait abandonner l'anneau, dont les 6 blocs de couloir se franchissaient en quatre secondes. Les durées de traversée par type se déduisent de la longueur : sur le **rail de 92 blocs** — les 80 de la rue, plus les 12 qui séparent sa bouche de la face de la mairie —, un Traînard met 61 secondes, un Sprinteur 23, un Costaud 92, le Colosse 115.
 _Éviter_ : route (ancien nom), avenue, couloir
 
 **Front bâti** :
-La double rangée de bâtiments qui borde une rue sur 8 blocs de profondeur, et qui ferme la place entre deux rues. Continu, indestructible et infranchissable : on n'entre jamais dans un bâtiment, on monte sur son toit. Un bâtiment fait **6 blocs de façade** sur 8 de profondeur, et mesure **4, 6 ou 8 blocs de haut**, jamais autre chose : sa tuile de toit dit laquelle, et ses **corniches** — une tous les 2 blocs — permettent de la compter depuis le sol. La hauteur n'est pas décorative : elle majore la portée du boulet, et elle décide si l'on passe d'un toit à l'autre d'un saut. Les hauteurs se suivent par **tronçons** : 4, puis 6, puis 8, puis retour à 4 — une chute de 4 blocs, que le saut ne franchit pas. Un toit est une **terrasse** — on y marche, on y pose un canon —, et la tuile qui l'habille est d'autant plus claire qu'il est haut : sans ombre portée, c'est la seule chose qui dise qu'un toit domine son voisin. Chaque tronçon est donc un morceau de toit **isolé**, dont le sommet de 8 est le meilleur poste de tir de son secteur ; les deux bords d'une rue ne coupent jamais au même endroit, et **aucun ne se parcourt du pied au fond sans redescendre dans la rue**. C'est ce qui empêche le ravitaillement d'un canon avancé de se faire à l'abri.
+La double rangée de bâtiments qui borde une rue sur 8 blocs de profondeur, et qui ferme la place entre deux rues. Continu, indestructible et infranchissable : on n'entre jamais dans un bâtiment, on monte sur son toit. Un bâtiment fait **6 blocs de façade** sur 8 de profondeur, et mesure **4, 6 ou 8 blocs de haut**, jamais autre chose : sa tuile de toit dit laquelle, et ses **corniches** — une tous les 2 blocs — permettent de la compter depuis le sol. La hauteur n'est pas décorative : elle majore la portée du boulet, et elle décide si l'on passe d'un toit à l'autre d'un saut. Les hauteurs s'y suivent par **tronçons**. Un toit est une **terrasse** — on y marche, on y pose un canon —, et la tuile qui l'habille est d'autant plus claire qu'il est haut : sans ombre portée, c'est la seule chose qui dise qu'un toit domine son voisin.
 _Éviter_ : anneau (ancien nom), mur, rempart, immeubles
+
+**Module** :
+La largeur de façade d'un bâtiment, **6 blocs**, sur laquelle tout un bord de rue se découpe : treize bâtiments par bord, et les 2 blocs que 6 ne divise pas au bâtiment du fond. Les deux bords d'une rue sont décalés d'un **demi-module** — 3 blocs —, si bien que les façades ne se répondent jamais et que la rue cesse d'être un couloir symétrique.
+_Éviter_ : travée, trame, maille, largeur
+
+**Tronçon** :
+Une suite de bâtiments voisins dont les toits se franchissent au saut : les hauteurs y montent **4, puis 6, puis 8**, puis retombent à 4 — une chute de 4 blocs que le saut ne franchit pas. Chaque tronçon est donc un morceau de toit **isolé**, dont le sommet de 8 est le meilleur poste de tir de son secteur. Trois coupures par bord de rue, et les deux bords ne coupent jamais au même endroit : **aucun ne se parcourt du pied au fond sans redescendre dans la rue**, et c'est ce qui empêche le ravitaillement d'un canon avancé de se faire à l'abri.
+_Éviter_ : segment, îlot, pâté, groupe
 
 **Corniche** :
 La moulure claire qui coiffe un bloc de façade sur deux, et qui découpe un bâtiment en étages de 2 blocs. Elle n'est pas décorative : c'est **elle qu'on compte depuis la rue** pour savoir si un toit est à 4, 6 ou 8, donc jusqu'où un canon y portera. Elle vient avec la fenêtre de l'étage, sur la même tuile — l'autre bloc est l'allège, plein. Le mot est celui de l'architecture, et il est pris à dessein : *bandeau* appartient à l'interface, et un terme ne reçoit qu'un mot.
@@ -129,7 +141,7 @@ Les six Costauds qui accompagnent le Colosse, ralentis à son pas et massés aut
 Le personnage dirigé par l'enfant, suivi à la troisième personne. Bâti sur les quatorze mêmes boîtes qu'un zombie — c'est la grammaire commune à tous les personnages — plus l'épée qu'il tient en main. Tunique bleue et acier clair : les seules couleurs froides portées par un personnage, pour qu'il ne soit jamais confondu avec un assaillant.
 
 **Course** :
-La seule allure du joueur : 6 blocs par seconde, toujours. Il n'y a ni marche ni sprint — mais il y a un **saut**. C'est elle qui chiffre le ravitaillement, et elle en fait un **gradient** le long d'une rue : gratuit au pied (le halo y suffit), un aller-retour de la préparation au milieu, et un aller-retour qui déborde sur l'assaut au fond — 35 secondes pour le toit le plus lointain, quand la préparation en dure 30.
+La seule allure du joueur : 6 blocs par seconde, toujours. Il n'y a ni marche ni sprint — mais il y a un **saut**. C'est elle qui chiffre le ravitaillement, et elle en fait un **gradient** le long d'une rue : gratuit au pied (le halo y suffit), un aller-retour de la préparation au milieu, et un aller-retour qui déborde sur l'assaut au fond — 33,5 secondes pour le toit le plus lointain, quand la préparation en dure 30.
 _Éviter_ : vitesse, marche, sprint
 
 **Saut** :
