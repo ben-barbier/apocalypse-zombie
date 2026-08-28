@@ -81,7 +81,7 @@ Ce qui vient après la victoire : les vagues onze et suivantes, relancées d'un 
 _Éviter_ : mode sans fin, mode survie, mode infini, prolongation
 
 **Sas** :
-L'unique écran hors-jeu : accueil au chargement, pause d'interruption et pause voulue à la fois. La partie s'y fige et s'assombrit derrière ses deux portes, sans un mot de texte — reprendre, d'un appui, ou recommencer, d'un appui **maintenu une seconde**. Il n'a aucun réglage : ni volume, ni qualité, ni langue. Rien ne reprend jamais tout seul : c'est l'appui qui sort du Sas qui rend la manette, le son et le verrou de veille.
+L'unique écran hors-jeu : accueil au chargement, pause d'interruption, pause voulue et fin de partie à la fois — quand la mairie tombe, il ne lui reste que la porte *Nouvelle partie*. La partie s'y fige et s'assombrit derrière ses deux portes, sans un mot de texte — reprendre, d'un appui, ou recommencer, d'un appui **maintenu une seconde**. Il n'a aucun réglage : ni volume, ni qualité, ni langue. Rien ne reprend jamais tout seul : c'est l'appui qui sort du Sas qui rend la manette, le son et le verrou de veille.
 _Éviter_ : pause, menu, accueil, écran-titre
 
 **Instantané** :
