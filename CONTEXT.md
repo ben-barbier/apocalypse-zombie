@@ -129,7 +129,7 @@ Les six Costauds qui accompagnent le Colosse, ralentis à son pas et massés aut
 Le personnage dirigé par l'enfant, suivi à la troisième personne. Bâti sur les quatorze mêmes boîtes qu'un zombie — c'est la grammaire commune à tous les personnages — plus l'épée qu'il tient en main. Tunique bleue et acier clair : les seules couleurs froides portées par un personnage, pour qu'il ne soit jamais confondu avec un assaillant.
 
 **Course** :
-La seule allure du joueur : 6 blocs par seconde, toujours. Il n'y a ni marche ni sprint — mais il y a un **saut**. C'est elle qui chiffre le ravitaillement, et elle en fait un **gradient** le long d'une rue : gratuit au pied (le halo y suffit), un aller-retour de la préparation au milieu, et un aller-retour qui déborde sur l'assaut au fond — 35 secondes pour le toit le plus lointain, quand la préparation en dure 30.
+La seule allure du joueur : 6 blocs par seconde, toujours. Il n'y a ni marche ni sprint — mais il y a un **saut**. C'est elle qui chiffre le ravitaillement, et elle en fait un **gradient** le long d'une rue : gratuit au pied (le halo y suffit), un aller-retour de la préparation au milieu, et un aller-retour qui déborde sur l'assaut au fond — 33,5 secondes pour le toit le plus lointain, quand la préparation en dure 30.
 _Éviter_ : vitesse, marche, sprint
 
 **Saut** :
