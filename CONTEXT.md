@@ -299,6 +299,24 @@ _Éviter_ : joystick, croix, stick, pavé directionnel
 Le nom du jeu, *Apocalypse Zombie* — choisi par l'enfant à qui il est destiné. Le jeu ne l'**affiche jamais** : le Sas est sans un mot de texte et le bandeau est fermé à cinq choses. Il ne vit qu'en dehors du jeu — l'onglet du navigateur, la spec, et sous l'icône de l'écran d'accueil où il se raccourcit en **Zombies**, le seul texte du projet qu'un enfant de 8 ans lira vraiment.
 _Éviter_ : écran-titre, logo, splash, sous-titre
 
+### L'architecture
+
+**Pas** :
+Le battement de la simulation : 16,666 ms, soit 60 Hz, et il ne dépend jamais de la fréquence d'affichage. Une image lente ne l'allonge pas, elle en fait rattraper plusieurs — six au maximum. C'est de sa fixité que tout le reste découle : sans elle une partie ne se rejoue pas, et sans rejeu le banc ne mesure rien.
+_Éviter_ : frame, tick, mise à jour, itération
+
+**Barème** :
+L'ensemble des constantes d'équilibrage, en unités du domaine — blocs, secondes, coups d'épée, pièces — et jamais en unités par pas. Il est **injecté** dans la partie et jamais importé par une règle, ce qui permet d'en éprouver cent variantes sans toucher une ligne de logique. Il n'est **jamais** autorité contre la spec : le test qui les sépare est là pour faire du désaccord une erreur rouge.
+_Éviter_ : réglages, configuration, paramètres, difficulté
+
+**Tampon d'événements** :
+Le seul canal par lequel la simulation dit ce qu'elle vient de faire — 256 entrées pré-allouées, vidées à chaque image. Le rendu, l'audio et les tests y lisent la même phrase, et aucun des trois ne devine quoi que ce soit en comparant deux états.
+_Éviter_ : file de messages, signaux, notifications
+
+**Graine** :
+Le nombre dont part le générateur, et qui suffit — avec la suite des entrées — à rejouer une partie entière. Elle vit dans l'état et part dans l'Instantané ; sans elle, un bug vu en jouant ne se reproduit pas.
+_Éviter_ : aléa, seed, germe
+
 ### Le banc
 
 **Banc** :

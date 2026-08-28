@@ -47,6 +47,8 @@ La spec, le glossaire, les tickets, les commits et le texte affiché dans le jeu
 | Guetteur | `watcher` | | Verdict | `verdict` |
 | Enfant | `child` | | Balayage | `scan` |
 | Pressé | `racer` | | Profondeur | `venture` |
+| Pas | `step` | | Graine | `seed` |
+| Barème | `balance` | | Tampon d'événements | `events` |
 
 **La règle qui gouverne cette table** : en anglais, un terme du glossaire reçoit un mot et un seul, qui ne soit ni déjà pris par un autre terme du glossaire, ni pris par l'API Three.js. C'est le flou que les listes `_Éviter_` de `CONTEXT.md` combattent, pas la racine des mots — `sweep`, `breach` et `magazine` sont retenus bien que « balayage », « percée » et « chargeur » soient bannis en français, parce qu'aucun n'a de concurrent en anglais.
 
