@@ -278,7 +278,7 @@ L'unité d'argent, et la seule. Il en tombe **une par zombie tué**, dont la **t
 _Éviter_ : or, argent (comme unité), score
 
 **Prime de bravoure** :
-Le **doublement** de la valeur d'un zombie tué à l'épée plutôt que laissé aux canons. Elle ne s'affiche nulle part : elle se lit à la **taille de la pièce**, plus grosse, et c'est tout son enseignement. C'est ce qui garde le corps-à-corps rentable jusqu'à la dernière vague — et, parce qu'elle **substitue au lieu d'ajouter** (c'est le même zombie), c'est aussi elle qui empêche la ville de se couvrir de canons : chaque canon posé vole des kills à l'épée et rabote le revenu qui achèterait le suivant.
+Le **doublement** de la valeur d'un zombie tué à l'épée plutôt que laissé aux canons — c'est le **coup fatal** qui décide, et rien d'autre : un zombie entamé au canon puis achevé à l'épée paie double. Elle ne s'affiche nulle part : elle se lit à la **taille de la pièce**, plus grosse, et c'est tout son enseignement. C'est ce qui garde le corps-à-corps rentable jusqu'à la dernière vague — et, parce qu'elle **substitue au lieu d'ajouter** (c'est le même zombie), c'est aussi elle qui empêche la ville de se couvrir de canons : chaque canon posé vole des kills à l'épée et rabote le revenu qui achèterait le suivant.
 _Éviter_ : bonus, multiplicateur, combo
 
 **Prime de fin d'assaut** :
