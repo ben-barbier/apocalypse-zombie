@@ -29,6 +29,7 @@
  * button, and there never will be. (spec 01-12, 01-14)
  */
 import type { Balance, WaveRow } from './balance';
+import { payAssault } from './economy';
 import {
   EVENT,
   type Game,
@@ -327,6 +328,11 @@ function holdTheFew(game: Game, seconds: number): void {
  * Closes the assault on the fall of its last zombie — nothing else closes one,
  * and no clock ever has a say. (spec 01-12)
  *
+ * The town hall pays in the same breath: the ten coins that punctuate an assault
+ * which has no clock to punctuate it, and every coin still lying in the city
+ * with them. That is why a preparation always opens on a city with none.
+ * (spec 06-13, 06-14, 06-15)
+ *
  * Holding to the last zombie of the assault of wave ten is winning, and the
  * victory is won for good: nothing that comes after takes it back, and the town
  * hall may fall in overtime without unmaking it. The preparation of wave ten is
@@ -337,6 +343,7 @@ function endAssault(game: Game): void {
   const snapshot = game.snapshot;
   const assault = game.assault;
   pushEvent(assault.events, EVENT.ASSAULT_ENDED, 0, 0, 0, 0, snapshot.wave);
+  payAssault(game);
   assault.phase = PHASE.PREP;
   assault.prepLeft = 0;
   assault.fewFor = 0;

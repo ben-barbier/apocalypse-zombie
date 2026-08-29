@@ -15,6 +15,7 @@
  * parts below that are still empty move into their own modules as their chapters
  * land. (spec 10-14)
  */
+import { stepEconomy } from './economy';
 import { stepPlayer } from './player';
 import type { Game, InputState } from './state';
 import { stepSword } from './sword';
@@ -50,6 +51,3 @@ function stepCannons(_game: Game): void {}
 
 /** Flies the balls and lands the blows they booked. (spec 05-25) */
 function stepProjectiles(_game: Game): void {}
-
-/** Draws the coins to the player and pays what he buys. (spec 06-7) */
-function stepEconomy(_game: Game): void {}

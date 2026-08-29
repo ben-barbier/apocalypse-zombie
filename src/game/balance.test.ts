@@ -479,6 +479,19 @@ describe('chapter 6 — the money', () => {
   });
 
   it('holds the five prices, and no sixth', () => {
+    // spec 06-17: five outlays, and it is a closed list — the cannon, the move
+    // to tier two, the move to tier three, the armful of firebombs and the
+    // reinforcement. The firebomb is written by the bomb, since an armful is
+    // three of them, and the reinforcement carries its three steps and the price
+    // it is bought back at for ever after. (spec 06-18, 06-28)
+    expect(Object.keys(BALANCE.economy.prices)).toEqual([
+      'cannon',
+      'tierTwo',
+      'tierThree',
+      'firebomb',
+      'reinforcements',
+      'reinforcementAgain',
+    ]);
     expect(BALANCE.economy.prices.cannon).toBe(40); // spec 06-18
     expect(BALANCE.economy.prices.tierTwo).toBe(60); // spec 06-18
     expect(BALANCE.economy.prices.tierThree).toBe(120); // spec 06-18
@@ -566,5 +579,22 @@ describe('chapter 10 — the loop and the pools', () => {
     expect(BALANCE.pools.shards).toBe(600);
     expect(BALANCE.pools.events).toBe(256);
     expect(BALANCE.pools.cannons).toBe(24); // spec 05-52
+  });
+
+  it('sizes the coins off the wave table, since no chapter sizes them', () => {
+    // The derivation, written out: exactly one coin springs from every zombie
+    // felled (spec 06-2), it lies where it fell until the end of the assault
+    // (spec 06-8), the end of an assault pays every one still lying so a
+    // preparation opens on a city with none (spec 06-14, 06-15) — so what can
+    // lie at once is what one assault can fell, which is the head count of its
+    // wave, and no line of the table walks more in than the zombie pool holds
+    // (spec 03-42, 10-43). Hence exactly the sixty of the zombies.
+    expect(BALANCE.pools.coins).toBe(60);
+    expect(BALANCE.pools.coins).toBe(BALANCE.pools.zombies);
+    for (const row of BALANCE.waves) {
+      expect(
+        row.shamblers + row.sprinters + row.bruisers + row.colossi,
+      ).toBeLessThanOrEqual(BALANCE.pools.coins);
+    }
   });
 });

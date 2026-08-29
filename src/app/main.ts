@@ -40,13 +40,17 @@ import {
 import { buildCity } from '../render/city';
 import { createContext, resize } from '../render/context';
 import {
+  COIN,
+  COIN_FLIGHT,
   PRIORITY,
   STRUCK,
   type Struck,
   blink,
   buildEffects,
+  flyCoin,
   holdShards,
   isBlinking,
+  placeCoins,
   placeShards,
   scatter,
   strike,
@@ -90,7 +94,7 @@ const sheet = loadAtlas();
 const characters = buildCharacters(1 + BALANCE.pools.zombies);
 // The six hundred shards, allocated at load and never again: the quality scale
 // lowers what they hold, and the simulation hears nothing of it. (spec 07-27, 10-39)
-const effects = buildEffects(BALANCE.pools.shards);
+const effects = buildEffects(BALANCE.pools.shards, BALANCE.pools.coins);
 holdShards(effects, tierOf(quality).shards);
 let scene = createScene(BALANCE.city);
 raise();
@@ -166,6 +170,18 @@ const STAGGER_BLINK = BALANCE.player.stagger * 1000;
 const UNTOUCHABLE_BLINK = BALANCE.player.invulnerable * 1000;
 const RISEN_BLINK = BALANCE.player.riseInvulnerable * 1000;
 
+/**
+ * The spray of the payment that closes an assault, thrown from the town hall in
+ * the gold of the coins it pays. How many, how fast and how long are the
+ * drawing's own: chapter 7 settles that it is a spray of shards from the town
+ * hall and no measurement of it, and chapter 6 settles that the spray and the
+ * purse going up are the whole of what is seen — no screen, no tally, no text.
+ * (spec 06-16, 07-37)
+ */
+const SPRAY = 24;
+const SPRAY_SPEED = 6;
+const SPRAY_SPAN = 900;
+
 function fell(events: Readonly<EventBuffer>, at: number, now: number): void {
   const kind = events.value[at];
   const scale = KINDS[kind].scale;
@@ -228,6 +244,28 @@ const loop = createLoop(game, input, {
       // The one thing a fatal blow puts into the world, and it puts it in the air.
       // (spec 03-19, 03-21, 07-30)
       else if (kind === EVENT.FATAL_BLOW) fell(events, i, now);
+      // A coin he has just walked past, on its way to him. It is his already —
+      // the rules paid the purse the instant he passed — and this is only what
+      // the eye is shown of it. (spec 06-7, 06-12, 07-35)
+      else if (kind === EVENT.COIN_TAKEN) {
+        flyCoin(effects, events.x[i], events.y[i], events.z[i], events.value[i], COIN_FLIGHT, now);
+      }
+      // The town hall paying what closes an assault: one spray of shards, and
+      // the purse going up. Nothing else says it. (spec 06-16, 07-37)
+      else if (kind === EVENT.ASSAULT_BONUS) {
+        scatter(
+          effects,
+          PRIORITY.PLAIN,
+          SPRAY,
+          events.x[i],
+          events.y[i],
+          events.z[i],
+          COIN,
+          SPRAY_SPEED,
+          SPRAY_SPAN,
+          now,
+        );
+      }
       // The one body the child drives answers a blow with a rhythm rather than
       // with a flash: white at 2 Hz while he is staggered, then the same sped up
       // to 6 Hz while he is untouchable. He goes down with neither — being on
@@ -245,6 +283,8 @@ const loop = createLoop(game, input, {
     }
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
     placeCharacters(characters, held.assault.player, alpha, now, isBlinking(effects, now));
+    // The coins lying in the city, and the ones on their way to him. (spec 06-8, 07-35)
+    placeCoins(effects, held.assault.coins, held.assault.player, alpha, now);
     // The shards run on the frame, not on the step: they are erased in ms.
     // (spec 07-28, 10-22)
     placeShards(effects, now);

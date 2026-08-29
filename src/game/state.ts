@@ -73,9 +73,17 @@ export const EVENT = {
   CANNON_LOST: 13,
   /** A breach strikes the town hall, and a cube comes off it. (spec 03-18, 06-34) */
   TOWN_HALL_HIT: 14,
-  /** A coin enters the purse. (spec 06-7) */
+  /**
+   * A coin enters the purse, because he passed within four blocks of it. The
+   * spot is where it lay and the `value` is what it was worth, which is what
+   * says how large the drawing flies it in. (spec 06-7, 06-9, 07-35)
+   */
   COIN_TAKEN: 15,
-  /** The town hall pays the ten of the end of an assault. (spec 06-13) */
+  /**
+   * The town hall pays what closes an assault, and it is one movement: the ten
+   * coins and every coin still lying in the city, so the `value` carries the
+   * whole payment rather than the ten alone. (spec 06-13, 06-14)
+   */
   ASSAULT_BONUS: 16,
   /** A reinforcement is paid for. (spec 06-25) */
   REINFORCEMENT_BOUGHT: 17,
@@ -260,6 +268,47 @@ function createZombiePool(size: number): ZombiePool {
     stuckFor: new Float32Array(size),
     blowLeft: new Float32Array(size),
     struckBy: new Uint32Array(size),
+  };
+}
+
+// ------------------------------------------------------------------- the coins
+
+/**
+ * The coins lying in the city. Exactly one springs from every zombie felled, and
+ * it lies where the body stood until the player passes within four blocks of it
+ * or the assault closes: it never goes stale and it is never mislaid, so what was
+ * not walked past is paid whole at the end and a preparation always opens on a
+ * city with none of them. (spec 06-2, 06-7, 06-8, 06-14, 06-15)
+ *
+ * What it is worth rides here beside where it lies, because that one number is
+ * also what says how large it is drawn — and the size is the whole of what tells
+ * a bruiser's coin from a shambler's, and one the sword earned from one a cannon
+ * earned. There is no second telling anywhere, and there never will be.
+ * (spec 06-9, 06-10)
+ *
+ * It carries no `Prev` buffer, because in the rules it never moves: it lies
+ * still, and the pass of the player has it at that very instant. The flight the
+ * eye sees is the drawing's, and no rule of the game knows of it.
+ * (spec 06-12, 07-35, 10-24)
+ */
+export interface CoinPool {
+  /** Entries `[0, count)` lie in the city. (spec 10-13) */
+  count: number;
+  /** Where it lies, in blocks. */
+  readonly x: Float32Array;
+  readonly y: Float32Array;
+  readonly z: Float32Array;
+  /** What it is worth, in coins, which is also how large it is drawn. (spec 06-9) */
+  readonly value: Float32Array;
+}
+
+function createCoinPool(size: number): CoinPool {
+  return {
+    count: 0,
+    x: new Float32Array(size),
+    y: new Float32Array(size),
+    z: new Float32Array(size),
+    value: new Float32Array(size),
   };
 }
 
@@ -946,6 +995,14 @@ export interface Assault {
   readonly city: City;
   readonly zombies: ZombiePool;
   readonly projectiles: ProjectilePool;
+  /**
+   * What lies on the floor of the city waiting to be walked past. It sits in the
+   * volatile branch and not in the one that crosses a wave boundary, because a
+   * preparation opens on a city with no coins in it: the end of an assault pays
+   * every one of them, so not one ever has to survive a dead page.
+   * (spec 06-15, 08-70, 10-12)
+   */
+  readonly coins: CoinPool;
   readonly events: EventBuffer;
   readonly player: Player;
   /** The blow in the air, and the one the aim holds. (spec 04-25, 04-31) */
@@ -997,6 +1054,7 @@ export function createGame(balance: Balance, seed = 0): Game {
       city: createCity(balance.city),
       zombies: createZombiePool(balance.pools.zombies),
       projectiles: createProjectilePool(balance.pools.projectiles),
+      coins: createCoinPool(balance.pools.coins),
       events: createEventBuffer(balance.pools.events),
       player: createPlayer(),
       sword: createSword(),

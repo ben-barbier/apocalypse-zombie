@@ -31,6 +31,7 @@
  * and what a touch costs the player, which is one contact. (spec 03-3)
  */
 import type { Balance, ZombieBalance } from './balance';
+import { dropCoin } from './economy';
 import { collapsePlayer, isClimbing } from './player';
 import { nextFloat } from './random';
 import {
@@ -167,16 +168,21 @@ function carryZombie(pool: ZombiePool, from: number, to: number): void {
 }
 
 /**
- * The fatal blow, whatever landed it — a sword or a cannon, the pool does not
- * care which. The head goes off spinning and the rest of the body comes apart in
- * about ten shards of the colour of its kind, gone in 0,6 second; a coin springs
- * from it and flies to the player, and that coin belongs to chapter 6.
- * (spec 03-19, 03-20, 07-30)
+ * The fatal blow, and `bySword` is who landed it — the pool cares in one respect
+ * and one only, which is what the coin is worth: **the fatal blow decides, and
+ * nothing else**. One entered by a cannon and finished by the sword pays double,
+ * the other way about pays single, and nothing here remembers who struck it
+ * before, because nothing here has to. (spec 06-3, 06-4)
  *
- * **Nothing at all is left on the ground** — no corpse, no mark, no blood — and
- * that is not an omission but the whole of the rule: it is written here as the
- * body simply leaving the pool, so there is no object anywhere for a floor to
- * hold. (spec 03-21)
+ * The head goes off spinning and the rest of the body comes apart in about ten
+ * shards of the colour of its kind, gone in 0,6 second. (spec 03-19, 03-20,
+ * 07-30)
+ *
+ * **Nothing at all of the body is left on the ground** — no corpse, no mark, no
+ * blood — and that is not an omission but the whole of the rule: it is written
+ * here as the body simply leaving the pool, so there is no object anywhere for a
+ * floor to hold. The one thing it does leave is its coin, which is chapter 6's
+ * and is what the whole game is played for. (spec 03-21, 06-2)
  *
  * The picture holds 60 ms on it and those milliseconds are never caught up; the
  * loop arms that from this one fact of the buffer and from nothing else, so
@@ -187,11 +193,17 @@ function carryZombie(pool: ZombiePool, from: number, to: number): void {
  * the aim of the sword is the only such thing, and it is settled here rather than
  * left to be rediscovered. (spec 10-13, 04-31)
  */
-export function fellZombie(game: Game, at: number): void {
+export function fellZombie(game: Game, at: number, bySword: boolean): void {
   const pool = game.assault.zombies;
   // The kind rides in the `value`, because the shards of a fatal blow fly in the
   // colour of the kind and the drawing never compares two states. (spec 07-30, 10-19)
   pushEvent(game.assault.events, EVENT.FATAL_BLOW, at, pool.x[at], 0, pool.z[at], pool.type[at]);
+
+  // One coin springs from it, worth what its kind pays and twice that when the
+  // sword landed this blow. It is laid down here, at the one door every fatal
+  // blow of the game goes through, so no killer that arrives later can forget
+  // it. (spec 06-2, 06-3, 06-4)
+  dropCoin(game, pool.type[at] as ZombieType, bySword, pool.x[at], 0, pool.z[at]);
 
   const last = pool.count - 1;
   if (at !== last) carryZombie(pool, last, at);

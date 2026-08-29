@@ -240,7 +240,10 @@ function sweepThrough(game: Game): number {
       knockBack(game, at);
       continue;
     }
-    fellZombie(game, at);
+    // The sword landed it, so the coin it leaves is worth double: the bravery
+    // bonus, which is a replacement and never something added — it is the same
+    // zombie a cannon would have felled for half. (spec 06-3, 06-4)
+    fellZombie(game, at, true);
   }
   return touched;
 }
