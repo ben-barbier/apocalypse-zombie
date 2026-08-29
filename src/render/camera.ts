@@ -130,6 +130,30 @@ export function fitCamera(view: CameraView, width: number, height: number): void
 }
 
 /**
+ * Where a spot of the city falls across the screen: -1 at the left border, +1 at
+ * the right, and past those when it is out of sight — which is the whole of what
+ * a street arrow of chapter 8 asks of the camera. A spot behind it hands back the
+ * border it lies beyond, so an arrow for a street one has turned one's back on
+ * goes flat against that border rather than swinging about. (spec 08-32)
+ *
+ * It reads the heading and the seat of the lens and does its own trigonometry
+ * rather than projecting a vector, because a vector would be an allocation once
+ * a frame and there are three of these every frame. (spec 10-14)
+ */
+export function acrossOf(view: CameraView, x: number, z: number): number {
+  const cos = Math.cos(view.ang);
+  const sin = Math.sin(view.ang);
+  const offX = x - view.lens.position.x;
+  const offZ = z - view.lens.position.z;
+  // Along the line of sight, and along the way the screen runs to the right.
+  const along = offX * cos + offZ * sin;
+  const sideways = -offX * sin + offZ * cos;
+  const half = view.lens.aspect * Math.tan(((FIELD / 2) * Math.PI) / 180);
+  if (along <= 0 || half <= 0) return sideways >= 0 ? 2 : -2;
+  return sideways / (along * half);
+}
+
+/**
  * Freezes the recentring for 1,2 second, which is what a blow of his sword
  * costs it. It is armed where the buffer of events is read, because the renderer
  * takes types from the rules and never their constants — and it is armed by a

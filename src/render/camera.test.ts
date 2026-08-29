@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 import type { CameraBalance } from '../game/balance';
 import type { City, Player } from '../game/state';
 import {
+  acrossOf,
   aimCamera,
   closingPace,
   createCamera,
@@ -309,6 +310,37 @@ describe('what a building does to it', () => {
 
     frames(view, city, player, 10, 1000);
     expect(view.above).toBeGreaterThan(5.5 + 1);
+  });
+});
+
+describe('where a spot falls across the screen', () => {
+  /** A camera straight behind a player standing at the middle, on a square screen. */
+  function seated(): CameraView {
+    const view = createCamera(RULE, EXTENT);
+    settleCamera(view, flatCity(), playerAt(0, 0, 0));
+    fitCamera(view, 100, 100);
+    return view;
+  }
+
+  it('puts what it looks straight at in the middle', () => {
+    expect(acrossOf(seated(), 0, 0)).toBeCloseTo(0, 6);
+  });
+
+  it('puts what stands at the border of the sight on the border', () => {
+    const view = seated();
+    // The lens sits 6,5 blocks behind him and the half field is 30 degrees, so
+    // the right border of a square screen runs through this spot. (spec 04-15)
+    const border = RULE.back * Math.tan(Math.PI / 6);
+    expect(acrossOf(view, 0, border)).toBeCloseTo(1, 3);
+    expect(acrossOf(view, 0, -border)).toBeCloseTo(-1, 3);
+  });
+
+  it('hands back the border a spot behind it lies beyond', () => {
+    const view = seated();
+    // A street one has turned one's back on: its arrow goes flat against a
+    // border rather than swinging about. (spec 08-32)
+    expect(acrossOf(view, -20, 5)).toBeGreaterThan(1);
+    expect(acrossOf(view, -20, -5)).toBeLessThan(-1);
   });
 });
 
