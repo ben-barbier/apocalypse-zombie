@@ -51,6 +51,7 @@ import {
   flyCoin,
   holdShards,
   isBlinking,
+  placeBalls,
   placeCoins,
   placeShards,
   scatter,
@@ -98,7 +99,13 @@ const characters = buildCharacters(1 + BALANCE.pools.zombies);
 const cannons = buildCannons(BALANCE.pools.cannons);
 // The six hundred shards, allocated at load and never again: the quality scale
 // lowers what they hold, and the simulation hears nothing of it. (spec 07-27, 10-39)
-const effects = buildEffects(BALANCE.pools.shards, BALANCE.pools.coins);
+// The balls in the air ride in the same mesh, since a ball has no call of its
+// own, and they are seats of their own past the six hundred. (spec 07-32)
+const effects = buildEffects(
+  BALANCE.pools.shards,
+  BALANCE.pools.coins,
+  BALANCE.pools.projectiles,
+);
 holdShards(effects, tierOf(quality).shards);
 let scene = createScene(BALANCE.city);
 raise();
@@ -251,6 +258,11 @@ const loop = createLoop(game, input, {
       // throws a puff of white shards and lights white for 80 ms. The same call
       // for the three of them, and no special case anywhere. (spec 07-36)
       if (kind === EVENT.SWORD_HIT) blow(events, STRUCK.ZOMBIE, i, now);
+      // A ball landing its blow is the second way a body takes one, and it is a
+      // fact of its own because the sound of the sword is not owed to it: there
+      // is no sound of a ball landing at all.
+      // (spec 05-24, 07-36, 09 "Ce qui déclenche chacun")
+      else if (kind === EVENT.CANNONBALL_HIT) blow(events, STRUCK.ZOMBIE, i, now);
       else if (kind === EVENT.TOWN_HALL_HIT) blow(events, STRUCK.TOWN_HALL, i, now);
       else if (kind === EVENT.CANNON_HIT) blow(events, STRUCK.CANNON, i, now);
       // The one thing a fatal blow puts into the world, and it puts it in the air.
@@ -324,6 +336,10 @@ const loop = createLoop(game, input, {
     // The shards run on the frame, not on the step: they are erased in ms.
     // (spec 07-28, 10-22)
     placeShards(effects, now);
+    // The balls in the air, their trails and their marks, in the same mesh and
+    // after them: a ball is read off the rules like a coin lying in the city, and
+    // the bell it flies is the whole of what is added here. (spec 05-25, 07-32)
+    placeBalls(effects, held.assault.projectiles, BALANCE.cannon.ball.flight, alpha);
     aimCamera(camera, held.assault.city, held.assault.player, alpha, now);
     context.renderer.render(scene, camera.lens);
   },

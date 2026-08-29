@@ -38,7 +38,7 @@
  * hearing of it. (spec 10-39)
  */
 import * as THREE from 'three';
-import type { CoinPool, Player } from '../game/state';
+import type { CoinPool, Player, ProjectilePool } from '../game/state';
 
 /** A quarter of a block, and the one size a shard ever has. (spec 07-25) */
 export const SHARD_SIDE = 0.25;
@@ -136,6 +136,62 @@ export const BLINK_FAST = 6;
 export const PUFF = 6;
 export const PUFF_SPEED = 3;
 export const PUFF_SPAN = 80;
+
+/**
+ * The ball in the air, the trail behind it and the mark under it — the whole of
+ * what a shot is to the eye, and every one of the nine is a shard like any other:
+ * the same quarter-block cube, the same one mesh, no shape of its own and **no
+ * call of its own**. (spec 07-25, 07-26, 07-32)
+ *
+ * They are read off the pool of the rules every frame rather than thrown once and
+ * left to age, and that is what the ball is: a slot of the rules, exactly like a
+ * coin lying in the city. It follows that nothing here can ever be given up when
+ * the pool of shards fills — the mark says where the blow is going to land, and a
+ * child who lost it would lose the whole of the bell. (spec 07-29, 07-34, 10-19)
+ *
+ * **Black, all nine of them.** Black says "this is picked up, or is going to fall
+ * here", and a ball is the second of those two: it is the one black thing in
+ * flight in the whole game. (spec 07-13, 07-32, 07-33, 07-34)
+ */
+const BALL_SHARDS = 1;
+
+/** The four that space out behind it. (spec 07-33) */
+const TRAIL_SHARDS = 4;
+
+/** The four laid flat at the corners of where it comes down. (spec 07-34) */
+const MARK_SHARDS = 4;
+
+/** What one ball in the air seats, and what the mesh is grown by for each of them. */
+export const PER_BALL = BALL_SHARDS + TRAIL_SHARDS + MARK_SHARDS;
+
+/**
+ * How far back along the flight each shard of the trail sits, as a fraction of
+ * the whole flight, and how high over the straight line the ball rides at the top
+ * of its bell, as a fraction of the distance it covers.
+ *
+ * Chapter 5 settles that the shot is a bell and no measurement of it at all —
+ * what it settles is that the blow lands on its date whatever the distance — so
+ * both of these are the drawing's own and no rule of the game reads either. A
+ * quarter of the way up gives three blocks over a shot of twelve and four and a
+ * half over one of eighteen, which reads as a lob thrown over a built frontage
+ * rather than as a stone skimmed along the street. (spec 05-25, 05-26)
+ */
+const TRAIL_GAP = 0.07;
+const ARCH_OF = 0.25;
+
+/**
+ * How wide the mark opens at the moment of the shot, in blocks, and how far its
+ * shards float over the floor so the two do not fight for it. One block is the
+ * one measure this city gives anything, and the four close on the spot as the
+ * ball comes down — at the date they meet there, which is the instant the blow
+ * lands. (spec 07-34)
+ */
+const MARK_SIDE = 1;
+const MARK_LIFT = 0.02;
+
+/** The four corners of the mark, each as a fraction of its side. (spec 07-34) */
+const MARK_X = [-0.5, 0.5, 0.5, -0.5];
+const MARK_Z = [-0.5, -0.5, 0.5, 0.5];
 
 /**
  * How large a coin lies, in blocks, for what it is worth.
@@ -314,14 +370,21 @@ const SPAN = new THREE.Vector3();
  * in the city at once, and the quality scale never touches it — it is a datum of
  * the game and not an effect. (spec 07-27, 10-13, 10-37, 10-39)
  */
-export function buildEffects(holds: number, coins: number): Effects {
+export function buildEffects(holds: number, coins: number, balls = 0): Effects {
+  // The pool of shards is the six hundred and stays the six hundred; the mesh is
+  // that many seats plus the ones the balls in the air ask for, because a ball,
+  // its trail and its mark have no call of their own and ride here. What they
+  // seat is not of the pool: it is read off the rules every frame, like a coin
+  // lying in the city, and the quality scale never reaches it — a ball is a datum
+  // of the game and not an effect. (spec 07-27, 07-32, 10-39)
+  const seats = holds + balls * PER_BALL;
   const shards = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, 1, 1),
     // Unlit, opaque, and blind to the haze: white must come out pure white, and
     // a cannon firing at the far end of a street must be seen to fire.
     // (spec 07-8, 07-12, 07-17)
     new THREE.MeshBasicMaterial(),
-    holds,
+    seats,
   );
   shards.name = 'shards';
   const paint = shards.material as THREE.MeshBasicMaterial;
@@ -331,7 +394,7 @@ export function buildEffects(holds: number, coins: number): Effects {
   // The colour of every slot is written once here, so the attribute exists
   // before the first frame and no frame ever makes one. (spec 10-14)
   PAINT.set(WHITE);
-  for (let i = 0; i < holds; i += 1) shards.setColorAt(i, PAINT);
+  for (let i = 0; i < seats; i += 1) shards.setColorAt(i, PAINT);
 
   // A coin lying and a coin on its way to him ride in the same mesh, so the
   // whole of the money of an assault is two calls whatever falls. (spec 07-21)
@@ -828,6 +891,133 @@ export function placeShards(effects: Effects, now: number): void {
 
   effects.count = live;
   mesh.count = live;
+  mesh.instanceMatrix.needsUpdate = true;
+  const painted = mesh.instanceColor;
+  if (painted !== null) painted.needsUpdate = true;
+}
+
+/** Seats one black shard of a shot and hands back the seat that comes next. */
+function seatBlack(effects: Effects, at: number, x: number, y: number, z: number): number {
+  SPOT.set(x, y, z);
+  effects.shards.setMatrixAt(at, SEAT.compose(SPOT, FLAT, SIZE));
+  effects.shards.setColorAt(at, PAINT);
+  return at + 1;
+}
+
+/**
+ * How far along its flight a ball is, from nought to one, read off where it
+ * stands rather than off the count it holds. The rules write a straight
+ * interpolation between the two spots, so the spot a frame sits at falls on that
+ * line and this is one projection onto it — which is what keeps the bell smooth
+ * between two steps instead of climbing in six-and-thirty stairs. A shot with
+ * nowhere to go is the one case the line cannot answer, and there the count
+ * answers instead. (spec 05-25, 05-26, 10-24)
+ */
+function flownOf(
+  balls: Readonly<ProjectilePool>,
+  at: number,
+  x: number,
+  y: number,
+  z: number,
+  flight: number,
+): number {
+  const spanX = balls.toX[at] - balls.fromX[at];
+  const spanY = balls.toY[at] - balls.fromY[at];
+  const spanZ = balls.toZ[at] - balls.fromZ[at];
+  const chord = spanX * spanX + spanY * spanY + spanZ * spanZ;
+  const flown =
+    chord > 1e-6
+      ? ((x - balls.fromX[at]) * spanX +
+          (y - balls.fromY[at]) * spanY +
+          (z - balls.fromZ[at]) * spanZ) /
+        chord
+      : 1 - balls.left[at] / flight;
+  return flown < 0 ? 0 : flown > 1 ? 1 : flown;
+}
+
+/**
+ * Seats one shard of a shot at a fraction of the flight, on the bell. The bell is
+ * drawn and nothing else: the rules hold a straight line between two spots and a
+ * date, and what is added here is the height the eye is given. (spec 05-26)
+ */
+function seatOnArch(
+  effects: Effects,
+  at: number,
+  balls: Readonly<ProjectilePool>,
+  ball: number,
+  arch: number,
+  flown: number,
+): number {
+  const spanX = balls.toX[ball] - balls.fromX[ball];
+  const spanY = balls.toY[ball] - balls.fromY[ball];
+  const spanZ = balls.toZ[ball] - balls.fromZ[ball];
+  return seatBlack(
+    effects,
+    at,
+    balls.fromX[ball] + spanX * flown,
+    balls.fromY[ball] + spanY * flown + 4 * arch * flown * (1 - flown),
+    balls.fromZ[ball] + spanZ * flown,
+  );
+}
+
+/**
+ * Places every ball in the air for this frame, with its trail and its mark. It
+ * seats them after the shards of the pool and allocates nothing: past the seats
+ * the mesh holds, a shot goes unseated rather than anything growing, and the pool
+ * of ninety-six puts that out of reach. (spec 10-13, 10-14)
+ *
+ * The trail is the four spots the ball held a moment ago, so it follows the bell
+ * exactly and is never anywhere the ball has not been; at the muzzle the four sit
+ * together and they space out behind it as it flies. The mark is the four corners
+ * of where it is due, closing on that spot as it comes down — and it is the mark,
+ * not the ball, that makes the bell readable without ever following it with the
+ * eye. (spec 07-33, 07-34)
+ */
+export function placeBalls(
+  effects: Effects,
+  balls: Readonly<ProjectilePool>,
+  flight: number,
+  alpha: number,
+): void {
+  const mesh = effects.shards;
+  const seats = mesh.instanceMatrix.count;
+  let put = effects.count;
+  PAINT.set(BLACK);
+
+  for (let at = 0; at < balls.count; at += 1) {
+    if (put + PER_BALL > seats) break;
+
+    const x = between(balls.xPrev[at], balls.x[at], alpha);
+    const y = between(balls.yPrev[at], balls.y[at], alpha);
+    const z = between(balls.zPrev[at], balls.z[at], alpha);
+    const flown = flownOf(balls, at, x, y, z, flight);
+
+    const spanX = balls.toX[at] - balls.fromX[at];
+    const spanY = balls.toY[at] - balls.fromY[at];
+    const spanZ = balls.toZ[at] - balls.fromZ[at];
+    const arch = Math.sqrt(spanX * spanX + spanY * spanY + spanZ * spanZ) * ARCH_OF;
+
+    put = seatOnArch(effects, put, balls, at, arch, flown);
+    for (let k = 1; k <= TRAIL_SHARDS; k += 1) {
+      const back = flown - k * TRAIL_GAP;
+      put = seatOnArch(effects, put, balls, at, arch, back < 0 ? 0 : back);
+    }
+
+    // The four close as it comes down, and they are laid flat on the floor it
+    // comes down on. (spec 07-34)
+    const open = (1 - flown) * MARK_SIDE;
+    for (let k = 0; k < MARK_SHARDS; k += 1) {
+      put = seatBlack(
+        effects,
+        put,
+        balls.toX[at] + MARK_X[k] * open,
+        balls.toY[at] + SHARD_SIDE / 2 + MARK_LIFT,
+        balls.toZ[at] + MARK_Z[k] * open,
+      );
+    }
+  }
+
+  mesh.count = put;
   mesh.instanceMatrix.needsUpdate = true;
   const painted = mesh.instanceColor;
   if (painted !== null) painted.needsUpdate = true;
