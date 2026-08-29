@@ -32,8 +32,10 @@
  * (spec 05-17 to 05-20, 07-22, 07-25, 08-4)
  *
  * What is not here: the conveyor that runs to the base, which arrives with the
- * resupply, and the ball and the flame, which arrive with theirs. (spec 04-52,
- * 05-21, 05-30)
+ * resupply, and the flame, which arrives with its own. The ball is not here
+ * either, and it never will be — it is a shard like every other effect, and it
+ * rides in the one mesh of `effects.ts` rather than in a call of its own.
+ * (spec 04-52, 05-30, 07-32)
  */
 import * as THREE from 'three';
 import type { CannonBalance } from '../game/balance';

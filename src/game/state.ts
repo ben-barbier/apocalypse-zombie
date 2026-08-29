@@ -108,6 +108,15 @@ export const EVENT = {
    * arc is drawn there and nowhere else. (spec 04-17, 04-22, 04-32, 07-31)
    */
   SWEEP: 23,
+  /**
+   * A ball lands its blow on a zombie without felling it — the second of the two
+   * facts that say a body took a blow, and the reason it is not `SWORD_HIT`: the
+   * "tchac" of chapter 9 is a blow of *his sword*, and there is no sound of a
+   * ball landing at all. What this one carries is the white puff every chapter
+   * owes to whatever takes a blow. (spec 05-24, 07-36, 09 "Ce qui déclenche
+   * chacun")
+   */
+  CANNONBALL_HIT: 24,
 } as const;
 
 export type EventType = (typeof EVENT)[keyof typeof EVENT];
@@ -345,6 +354,15 @@ function createSword(): Sword {
 }
 
 // ------------------------------------------------------------- the projectiles
+
+/**
+ * What a ball holds instead of a target once the body it was booked for has
+ * fallen. It is past every slot a pool of sixty ever has, so nothing can be
+ * mistaken for it: a ball whose target has gone flies on to its date and crashes
+ * where it was due, since a ball never runs out and there is nothing to
+ * spare. (spec 05-28, 10-13)
+ */
+export const NO_TARGET = 0xffff;
 
 /**
  * A ball in flight is an interpolation between two spots and a date: there is no

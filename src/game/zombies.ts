@@ -37,6 +37,7 @@ import { nextFloat } from './random';
 import {
   EVENT,
   type Game,
+  NO_TARGET,
   type RailPool,
   ZOMBIE,
   type ZombieType,
@@ -190,8 +191,9 @@ function carryZombie(pool: ZombiePool, from: number, to: number): void {
  *
  * The last of the pool is carried into the slot that comes free, so the living
  * stay `[0, count)`. Whatever holds an index into the pool follows that move —
- * the aim of the sword is the only such thing, and it is settled here rather than
- * left to be rediscovered. (spec 10-13, 04-31)
+ * the aim of the sword and the balls in the air are the two such things, and both
+ * are settled here rather than left to be rediscovered. (spec 04-31, 05-27,
+ * 10-13)
  */
 export function fellZombie(game: Game, at: number, bySword: boolean): void {
   const pool = game.assault.zombies;
@@ -212,6 +214,18 @@ export function fellZombie(game: Game, at: number, bySword: boolean): void {
   const sword = game.assault.sword;
   if (sword.aimAt === at) sword.aimAt = -1;
   else if (sword.aimAt === last) sword.aimAt = at;
+
+  // The balls in the air hold an index into this pool as well, and a booked blow
+  // stays booked for the body it was booked for: what was carried in is followed,
+  // and what has just fallen leaves its ball nothing to land on. Without this the
+  // reservation of 05-27 would go on holding a slot that now belongs to somebody
+  // else, and a cannon would refuse to fire at a body that nothing is aimed at.
+  // (spec 05-27, 05-28, 10-13)
+  const balls = game.assault.projectiles;
+  for (let i = 0; i < balls.count; i += 1) {
+    if (balls.target[i] === at) balls.target[i] = NO_TARGET;
+    else if (balls.target[i] === last) balls.target[i] = at;
+  }
 }
 
 /**

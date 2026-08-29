@@ -10,7 +10,7 @@
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import type { CoinPool, Player } from '../game/state';
+import type { CoinPool, Player, ProjectilePool } from '../game/state';
 import {
   ARC,
   ARC_SPAN,
@@ -21,6 +21,7 @@ import {
   COIN_FLIGHT,
   type Effects,
   LIT_FOR,
+  PER_BALL,
   PRIORITY,
   PUFF,
   PUFF_SPAN,
@@ -36,6 +37,7 @@ import {
   isBlinking,
   isLit,
   lightUp,
+  placeBalls,
   placeCoins,
   placeShards,
   scatter,
@@ -663,5 +665,137 @@ describe('a coin on its way to him', () => {
     for (let i = 0; i < COINS * 3; i += 1) flyCoin(effects, i, 0, 0, 1, COIN_FLIGHT, 0);
     expect(effects.takenCount).toBe(COINS);
     expect(effects.takenX.length).toBe(COINS);
+  });
+});
+
+// ------------------------------------------------------------------- the balls
+
+/** The pool of chapter 10, allocated at load. (spec 10 "Les pools") */
+const BALLS = 96;
+
+/** The flight of a ball, in seconds. (spec 05-25) */
+const FLIGHT = 0.6;
+
+/**
+ * One ball in the air at a fraction of its flight, in a pool of one. The rules
+ * write a straight interpolation between the two spots, so that is what this
+ * writes, and the bell is what the drawing adds to it. (spec 05-26)
+ */
+function oneBall(
+  from: readonly number[],
+  to: readonly number[],
+  flown: number,
+): ProjectilePool {
+  const at = (k: number): number => from[k] + (to[k] - from[k]) * flown;
+  const one = (value: number): Float32Array => Float32Array.from([value]);
+  return {
+    count: 1,
+    x: one(at(0)),
+    y: one(at(1)),
+    z: one(at(2)),
+    xPrev: one(at(0)),
+    yPrev: one(at(1)),
+    zPrev: one(at(2)),
+    fromX: one(from[0]),
+    fromY: one(from[1]),
+    fromZ: one(from[2]),
+    toX: one(to[0]),
+    toY: one(to[1]),
+    toZ: one(to[2]),
+    left: one(FLIGHT * (1 - flown)),
+    target: Uint16Array.from([0]),
+  };
+}
+
+/** Where one instance of the mesh sits. */
+function seatedAt(effects: Effects, at: number): THREE.Vector3 {
+  effects.shards.getMatrixAt(at, SEAT);
+  return SPOT.setFromMatrixPosition(SEAT).clone();
+}
+
+describe('the ball, its trail and its mark', () => {
+  it('seats nine shards a ball, past the six hundred and in the same one call', () => {
+    // spec 07-32, 07-33, 07-34: the ball is a black shard with no call of its
+    // own, its trail is four and its mark is four.
+    expect(PER_BALL).toBe(9);
+    const effects = buildEffects(POOL, COINS, BALLS);
+    expect(effects.shards.instanceMatrix.count).toBe(POOL + BALLS * PER_BALL);
+    expect(effects.draws.length).toBe(3);
+
+    placeBalls(effects, oneBall([0, 1, 0], [12, 0, 0], 0.5), FLIGHT, 1);
+    expect(effects.shards.count).toBe(PER_BALL);
+    expect(effects.count).toBe(0); // not one slot of the pool was taken
+  });
+
+  it('paints all nine black, which is the one colour in flight', () => {
+    // spec 07-13, 07-32: black says "this is going to fall here", and a ball is
+    // the only black thing in flight in the whole game.
+    const effects = buildEffects(POOL, COINS, BALLS);
+    placeBalls(effects, oneBall([0, 1, 0], [12, 0, 0], 0.5), FLIGHT, 1);
+    const black = new THREE.Color(BLACK);
+    for (let i = 0; i < PER_BALL; i += 1) {
+      effects.shards.getColorAt(i, PAINT);
+      expect(PAINT.getHex()).toBe(black.getHex());
+    }
+  });
+
+  it('rides over the straight line and comes back down onto its spot', () => {
+    // spec 05-25: the shot is a bell, and where it lands is where it was due.
+    const effects = buildEffects(POOL, COINS, BALLS);
+    placeBalls(effects, oneBall([0, 0, 0], [12, 0, 0], 0.5), FLIGHT, 1);
+    const top = seatedAt(effects, 0);
+    expect(top.x).toBeCloseTo(6, 6);
+    expect(top.y).toBeGreaterThan(1);
+
+    placeBalls(effects, oneBall([0, 0, 0], [12, 0, 0], 1), FLIGHT, 1);
+    const down = seatedAt(effects, 0);
+    expect(down.x).toBeCloseTo(12, 6);
+    expect(down.y).toBeCloseTo(0, 6);
+  });
+
+  it('trails four behind it, never in front of it', () => {
+    // spec 07-33: four black shards that space out behind it.
+    const effects = buildEffects(POOL, COINS, BALLS);
+    placeBalls(effects, oneBall([0, 0, 0], [12, 0, 0], 0.8), FLIGHT, 1);
+    const ball = seatedAt(effects, 0);
+    let last = ball.x;
+    for (let k = 1; k <= 4; k += 1) {
+      const behind = seatedAt(effects, k);
+      expect(behind.x).toBeLessThan(last);
+      last = behind.x;
+    }
+  });
+
+  it('closes its mark on the spot as the ball comes down', () => {
+    // spec 07-34: four black shards laid flat at the four corners of where it
+    // falls, which tighten during the descent.
+    const effects = buildEffects(POOL, COINS, BALLS);
+    const at = 1 + 4; // the ball, then its four trailing shards
+
+    placeBalls(effects, oneBall([0, 0, 0], [12, 0, 0], 0), FLIGHT, 1);
+    const open = seatedAt(effects, at);
+    expect(Math.abs(open.x - 12)).toBeCloseTo(0.5, 6);
+    expect(Math.abs(open.z)).toBeCloseTo(0.5, 6);
+
+    placeBalls(effects, oneBall([0, 0, 0], [12, 0, 0], 1), FLIGHT, 1);
+    const shut = seatedAt(effects, at);
+    expect(shut.x).toBeCloseTo(12, 6);
+    expect(shut.z).toBeCloseTo(0, 6);
+  });
+
+  it('never takes a slot the pool of shards was going to use', () => {
+    // spec 07-27, 07-29: the six hundred are the pool's, and a ball is a datum
+    // of the game read off the rules — it can never be given up when the pool
+    // fills, and it never crowds a fatal blow out of it.
+    const effects = buildEffects(POOL, COINS, BALLS);
+    scatter(effects, PRIORITY.FATAL, 10, 0, 1, 0, WHITE, 3, 600, 0);
+    placeShards(effects, 0);
+    expect(effects.count).toBe(10);
+
+    placeBalls(effects, oneBall([0, 1, 0], [12, 0, 0], 0.5), FLIGHT, 1);
+    expect(effects.count).toBe(10);
+    expect(effects.shards.count).toBe(10 + PER_BALL);
+    effects.shards.getColorAt(0, PAINT);
+    expect(PAINT.getHex()).toBe(new THREE.Color(WHITE).getHex());
   });
 });

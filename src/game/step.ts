@@ -18,6 +18,7 @@
 import { stepCannons } from './cannons';
 import { stepEconomy } from './economy';
 import { stepPlayer } from './player';
+import { stepProjectiles } from './projectiles';
 import type { Game, InputState } from './state';
 import { stepSword } from './sword';
 import { stepTownHall } from './townhall';
@@ -32,7 +33,7 @@ export function step(game: Game, input: Readonly<InputState>): void {
   stepSword(game, input, seconds);
   stepZombies(game, seconds);
   stepCannons(game, input);
-  stepProjectiles(game);
+  stepProjectiles(game, seconds);
   stepEconomy(game);
   stepWaves(game, seconds);
   stepTownHall(game, seconds);
@@ -46,6 +47,3 @@ export function step(game: Game, input: Readonly<InputState>): void {
  * (spec 10-30, 10-31)
  */
 function stepInput(_game: Game, _input: Readonly<InputState>): void {}
-
-/** Flies the balls and lands the blows they booked. (spec 05-25) */
-function stepProjectiles(_game: Game): void {}
