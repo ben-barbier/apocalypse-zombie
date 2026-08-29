@@ -60,12 +60,15 @@ describe('the five tiers', () => {
 describe('the sensor', () => {
   it('measures what chapter 10 says it measures', () => {
     // spec 10-40: the sliding median over 2 s, down past 20 ms held 2 s, up
-    // under 15 ms held 10 s.
+    // under 17,5 ms held 10 s.
     expect(SPAN).toBe(2000);
     expect(DOWN_ABOVE).toBe(20);
     expect(DOWN_FOR).toBe(2000);
-    expect(UP_BELOW).toBe(15);
+    expect(UP_BELOW).toBe(17.5);
     expect(UP_FOR).toBe(10000);
+    // spec 10-21: and it stands above the 16,666 ms of a perfect frame at
+    // 60 Hz, without which the scale could only ever go down.
+    expect(UP_BELOW).toBeGreaterThan(1000 / 60);
   });
 
   it('says nothing before the median has two seconds to slide over', () => {
@@ -87,13 +90,25 @@ describe('the sensor', () => {
     expect(quality.tier).toBe(2);
   });
 
-  it('goes back up under fifteen milliseconds held ten seconds', () => {
+  it('goes back up under seventeen and a half milliseconds held ten seconds', () => {
     // spec 10-40.
     const quality = createQuality();
     senseQuality(quality, 0);
     const now = feed(quality, 25, SPAN + DOWN_FOR + 50, 0);
     expect(quality.tier).toBe(1);
     feed(quality, 10, UP_FOR + SPAN + 200, now);
+    expect(quality.tier).toBe(0);
+  });
+
+  it('climbs back on a display that is merely perfect at sixty hertz', () => {
+    // spec 10-40, 10-21: a flawless frame is 16,666 ms, so it must count as
+    // calm — a threshold under the step would let the scale fall and never
+    // climb.
+    const quality = createQuality();
+    senseQuality(quality, 0);
+    const now = feed(quality, 25, SPAN + DOWN_FOR + 50, 0);
+    expect(quality.tier).toBe(1);
+    feed(quality, 1000 / 60, UP_FOR + SPAN + 200, now);
     expect(quality.tier).toBe(0);
   });
 

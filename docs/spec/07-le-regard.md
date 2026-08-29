@@ -150,6 +150,20 @@ C'est une **information de jeu** : sans ombre portée, rien d'autre que la tuile
 | Niveaux de mipmap que la marge de 8 couvre | **3** |
 | Échelle de lisibilité de référence | **×3** — un bloc à l'écran en jeu |
 
+### La lumière et la brume
+
+| Rôle | Valeur |
+|---|---|
+| Soleil (directionnelle) | `#fff2dd` |
+| Ambiante violette | `#6d5ac4` |
+| Brume | `#d9955c` |
+| Hauteur du soleil | **60°** *(déjà en 07-2)* |
+| Azimut du soleil | **45°** |
+| Début de la brume | **96 blocs** — apothème + longueur de rue (chapitre 2) |
+| Fin de la brume | **108 blocs** — 96 + l'extérieur (chapitre 2) |
+
+Les deux distances de brume sont **dérivées** du [chapitre 2](02-la-ville.md), et non choisies : 16 blocs d'apothème plus 80 blocs de rue font les 96 où la brume commence, et les 12 blocs d'extérieur font les 108 où elle est totale. Elles se recalculent depuis la ville ; elles ne se règlent pas à l'œil.
+
 ### La palette de la ville — chaude, et seule à porter une tuile
 
 | Rôle | Code |
