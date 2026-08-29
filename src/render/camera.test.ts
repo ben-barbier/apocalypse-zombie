@@ -341,19 +341,24 @@ describe('where it stands', () => {
     expect(view.above).toBe(RULE.above);
   });
 
-  it('would open at the base fourteen blocks up on the axis, which is what moved him', () => {
+  it('would open at the base with the whole climb spent and the recoil halved', () => {
     // spec 01-22, 04-18: at the base itself, on the axis of street one and half a
-    // block in front of the face of the shed, the recoil lands inside the town
-    // hall and the roof of the shed cuts the line of sight — the climb is spent
-    // and the child looks for his own body under a roof. This is the screen the
-    // opening spot was moved off, and it is why the opening is no longer there.
+    // block in front of the face of the shed, the nominal recoil lands inside the
+    // town hall and the roof of the shed cuts the line of sight. So the camera
+    // spends the whole of its ten blocks and then comes in to little over half
+    // its recoil, and the child watches himself from straight over his own head.
+    // This is the screen the opening spot was moved off, and it is why the
+    // opening is no longer there.
     const city = middleOfTheCity();
     const player = playerAt(AT_THE_SHED, 0, 0);
     const view = createCamera(RULE, EXTENT);
     settleCamera(view, city, player);
 
-    expect(view.above).toBeCloseTo(14, 6); // the fourteen blocks that were seen
-    expect(floorUnder(city, view.lens.position.x, view.lens.position.z)).toBe(7);
+    expect(view.above).toBeCloseTo(RULE.above + RULE.climb, 6); // all ten of it
+    expect(view.back).toBeLessThan(4);
+    expect(view.back).toBeGreaterThanOrEqual(RULE.minBack);
+    // It ends up over the roof of the shed rather than over the town hall.
+    expect(floorUnder(city, view.lens.position.x, view.lens.position.z)).toBe(SHED_HIGH);
   });
 
   it('opens with neither the town hall nor the shed in the frame, and the gateway in it', () => {
@@ -519,6 +524,244 @@ describe('what a building does to it', () => {
   });
 });
 
+/**
+ * The whole city of chapter 2, laid cell by cell: the three streets and their
+ * two frontages with the suites of heights the chapter writes out, the paving of
+ * the hexagon, the town hall and the shed that carry their height and are never
+ * walked on, and the ring of four that closes the hub. It is written out here
+ * from the chapter and from nowhere else, because `src/render/` takes types from
+ * the rules and never the one function that engenders the real plan.
+ * (spec 02-2, 02-6 to 02-11, 02-14, 02-19, 02-20, 02-34, 10-2)
+ */
+const WHOLE_SIDE = 216; // spec 02-1
+const STREETS = 3; // spec 02-2
+const STREET_LENGTH = 80; // spec 02-12
+const STREET_WIDTH = 6; // spec 02-12
+const FRONTAGE_DEPTH = 8; // spec 02-14
+const ALIGNED_BAYS = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 8]; // spec 02-19
+const ALIGNED_HEIGHTS = [4, 6, 8, 4, 6, 8, 4, 6, 8, 4, 6, 8, 8]; // spec 02-23
+const SHIFTED_BAYS = [3, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 11]; // spec 02-19
+const SHIFTED_HEIGHTS = [4, 6, 8, 8, 4, 6, 8, 4, 6, 8, 4, 6, 8]; // spec 02-23
+
+/** How high the bay a distance down an edge falls in stands. (spec 02-19) */
+function bayHigh(bays: number[], heights: number[], from: number): number {
+  let start = 0;
+  for (let b = 0; b < bays.length; b += 1) {
+    start += bays[b]!;
+    if (from < start) return heights[b]!;
+  }
+  return heights[heights.length - 1]!;
+}
+
+function wholeCity(): City {
+  const side = WHOLE_SIDE;
+  const half = side / 2;
+  const height = new Uint8Array(side * side);
+  const walkable = new Uint8Array(side * side);
+  const halfWidth = STREET_WIDTH / 2;
+  const frontage = halfWidth + FRONTAGE_DEPTH;
+  const far = MOUTH + STREET_LENGTH;
+
+  for (let i = 0; i < side; i += 1) {
+    for (let j = 0; j < side; j += 1) {
+      const x = i + 0.5 - half;
+      const z = j + 0.5 - half;
+      const at = i * side + j;
+      let settled = false;
+
+      // A street, and the frontage of eight that borders it on either side.
+      for (let k = 0; k < STREETS && !settled; k += 1) {
+        const ux = Math.cos((k * 2 * Math.PI) / STREETS);
+        const uz = Math.sin((k * 2 * Math.PI) / STREETS);
+        const along = x * ux + z * uz;
+        if (along <= MOUTH || along >= far) continue;
+        const across = -x * uz + z * ux;
+        const off = Math.abs(across);
+        if (off < halfWidth) {
+          walkable[at] = 1; // all of it is street floor: no verge (spec 02-15)
+          settled = true;
+        } else if (off < frontage) {
+          const aligned = across > 0;
+          walkable[at] = 1;
+          height[at] = bayHigh(
+            aligned ? ALIGNED_BAYS : SHIFTED_BAYS,
+            aligned ? ALIGNED_HEIGHTS : SHIFTED_HEIGHTS,
+            along - MOUTH,
+          );
+          settled = true;
+        }
+      }
+      if (settled) continue;
+
+      if (hexAt(x, z) < APOTHEM) {
+        // The two builds nobody walks on carry their height all the same.
+        if (Math.abs(x) < TOWN_HALL_HALF && Math.abs(z) < TOWN_HALL_HALF) {
+          height[at] = TOWN_HALL_HIGH;
+        } else if (x > TOWN_HALL_HALF && x < TOWN_HALL_HALF + SHED_OUT && Math.abs(z) < SHED_HALF) {
+          height[at] = SHED_HIGH;
+        } else {
+          walkable[at] = 1; // the paving of the square
+        }
+        continue;
+      }
+
+      // What the square, the streets and their frontages leave inside the disk.
+      if (Math.hypot(x, z) > PERIMETER_REACH) continue;
+      walkable[at] = 1;
+      height[at] = PERIMETER_HIGH;
+    }
+  }
+  return { ...flatCity(), side, height, walkable };
+}
+
+/** How high what stands in a cell of that grid goes. */
+function standsIn(city: City, x: number, z: number): number {
+  const half = city.side / 2;
+  const i = Math.floor(x + half);
+  const j = Math.floor(z + half);
+  if (i < 0 || j < 0 || i >= city.side || j >= city.side) return 0;
+  return city.height[i * city.side + j]!;
+}
+
+/**
+ * Where the line of sight starts from: the middle of a body, which stands two
+ * blocks at a scale of one, and what hides that middle is what hides him.
+ * (spec 07-18)
+ */
+const MIDDLE = 1;
+
+/**
+ * How much built ground stands over the line of sight, in blocks, walked far
+ * finer than the camera walks it — six hundred readings over a recoil, one
+ * every hundredth of a block. Nought is a clear view of his middle.
+ */
+function overTheSight(city: City, view: CameraView, px: number, py: number, pz: number): number {
+  const eyeY = py + MIDDLE;
+  const runX = view.lens.position.x - px;
+  const runZ = view.lens.position.z - pz;
+  const rise = view.lens.position.y - eyeY;
+  let most = 0;
+  for (let s = 1; s <= 600; s += 1) {
+    const t = s / 600;
+    const over = standsIn(city, px + runX * t, pz + runZ * t) - (eyeY + rise * t);
+    if (over > most) most = over;
+  }
+  return most;
+}
+
+/**
+ * How far the nearest thing taller than his eye stands, in blocks, looked for
+ * three cells about him. It is what tells the placements that stay masked apart
+ * from the rest: every one of them has him pressed against a wall.
+ */
+function nearestOver(city: City, x: number, y: number, z: number): number {
+  const half = city.side / 2;
+  const i = Math.floor(x + half);
+  const j = Math.floor(z + half);
+  let least = 99;
+  for (let di = -3; di <= 3; di += 1) {
+    for (let dj = -3; dj <= 3; dj += 1) {
+      const ii = i + di;
+      const jj = j + dj;
+      if (ii < 0 || jj < 0 || ii >= city.side || jj >= city.side) continue;
+      if (city.height[ii * city.side + jj]! <= y + MIDDLE) continue;
+      const lowX = ii - half;
+      const lowZ = jj - half;
+      const away = Math.hypot(
+        Math.max(lowX - x, 0, x - (lowX + 1)),
+        Math.max(lowZ - z, 0, z - (lowZ + 1)),
+      );
+      if (away < least) least = away;
+    }
+  }
+  return least;
+}
+
+/** A body on the floor his cell carries, roof or street alike. (spec 04-9) */
+function standing(x: number, y: number, z: number, ang: number): Player {
+  const player = playerAt(x, z, ang);
+  player.y = y;
+  player.yPrev = y;
+  return player;
+}
+
+describe('the sight, swept over the whole city', () => {
+  /**
+   * All 6 712 cells of the city he is allowed to stand on, off the middle of each
+   * by a turning offset so the sweep never sits on the lattice, and thirty-two
+   * headings at each, turned along with it — 214 784 placements of the camera
+   * over 1 024 headings in all. Every one of them is read back against a line of
+   * sight walked six hundred times over, a hundredth of a block a reading, where
+   * the camera walks it a cell at a time.
+   *
+   * A camera that read the grid every half block left the city over that line in
+   * 46 737 of these placements, better than a fifth of the sweep: a line that
+   * clips the corner of a frontage takes a couple of tenths of a block out of it
+   * and lands in no reading, so the camera called the way clear and the child
+   * lost his own body behind a wall. Three spots chosen by hand catch none of
+   * that — it is a defect one only ever catches by sweeping. (spec 04-18)
+   */
+  it('leaves nothing of the city over the line of sight it has not paid for', () => {
+    const city = wholeCity();
+    const half = city.side / 2;
+    const view = createCamera(RULE, EXTENT);
+    const TURNS = 32;
+
+    let placements = 0;
+    let masked = 0;
+    let worst = 0;
+    const unpaid: string[] = [];
+    const unhugged: string[] = [];
+
+    for (let i = 0; i < city.side; i += 1) {
+      for (let j = 0; j < city.side; j += 1) {
+        const at = i * city.side + j;
+        if (city.walkable[at] !== 1) continue;
+        // Off the middle of the cell, and never the same way twice running.
+        const px = i + 0.5 - half + (((i * 5 + j * 3) % 7) - 3) / 8;
+        const pz = j + 0.5 - half + (((i * 3 + j * 5) % 7) - 3) / 8;
+        const py = city.height[at]!;
+        const turned = (((i * 11 + j * 7) % 32) / 32) * ((2 * Math.PI) / TURNS);
+
+        for (let turn = 0; turn < TURNS; turn += 1) {
+          placements += 1;
+          const ang = turned + (turn * 2 * Math.PI) / TURNS;
+          settleCamera(view, city, standing(px, py, pz, ang));
+          const over = overTheSight(city, view, px, py, pz);
+          if (over <= 1e-6) continue;
+
+          masked += 1;
+          if (over > worst) worst = over;
+          // Masked while it still had a block of climb or of recoil in hand: that
+          // is the defect, and there is to be none of it. (spec 04-18)
+          const spent =
+            Math.abs(view.back - RULE.minBack) < 1e-9 &&
+            Math.abs(view.above - (RULE.above + RULE.climb)) < 1e-9;
+          if (!spent && unpaid.length < 8) {
+            unpaid.push(`${px} ${pz} ${py} ${ang} back ${view.back} above ${view.above}`);
+          }
+          // And every one of those stands with a wall against him.
+          if (nearestOver(city, px, py, pz) > 2 && unhugged.length < 8) {
+            unhugged.push(`${px} ${pz} ${py} ${ang}`);
+          }
+        }
+      }
+    }
+
+    expect(placements).toBeGreaterThan(200000);
+    expect(unpaid).toEqual([]);
+    expect(unhugged).toEqual([]);
+    // What is left over is a bound of the rule and not of the reading: pressed
+    // against a wall taller than his eye, no camera 3,2 blocks out and ten
+    // blocks up sees over it, and 04-18 grants nothing further. It is 9 318 of
+    // the 214 784 placements, on 959 of the 6 712 spots — a twenty-third of the
+    // sweep, and it was better than a fifth of it while the grid was read every
+    // half block. (spec 04-18)
+    expect(masked / placements).toBeLessThan(0.05);
+    expect(worst).toBeLessThan(7);
+  }, 120000);
+});
+
 /** Raises the two builds in the grid, height alone: nobody ever walks there. (spec 02-9) */
 function raiseHub(city: City): void {
   for (let i = 0; i < SIDE; i += 1) {
@@ -578,13 +821,15 @@ describe('the town hall and the shed', () => {
     settleCamera(view, city, player);
 
     expect(lensIsIn(view)).toBe(false);
-    // It sits over the town hall, so it stands over the seven of it. (spec 02-7)
-    expect(Math.abs(view.lens.position.x)).toBeLessThan(TOWN_HALL_HALF);
-    expect(view.lens.position.y).toBeGreaterThanOrEqual(TOWN_HALL_HIGH);
-    // And it climbed rather than came in, which is the order of the chapter.
-    expect(view.back).toBe(RULE.back); // spec 04-18
-    expect(view.above).toBeGreaterThan(RULE.above);
-    expect(view.above).toBeLessThanOrEqual(RULE.above + RULE.climb);
+    // It stands clear over the roof of the shed, and its sight grazes that roof
+    // rather than running through it. (spec 02-8, 02-9)
+    expect(floorUnder(city, view.lens.position.x, view.lens.position.z)).toBe(SHED_HIGH);
+    expect(view.lens.position.y).toBeGreaterThan(SHED_HIGH);
+    // And it climbed the whole ten before it came in at all, which is the order
+    // of the chapter, and it never came under 3,2. (spec 04-18)
+    expect(view.above).toBeCloseTo(RULE.above + RULE.climb, 6);
+    expect(view.back).toBeLessThan(RULE.back);
+    expect(view.back).toBeGreaterThanOrEqual(RULE.minBack);
   });
 
   it('never holds it inside either of them, wherever he stands on the square', () => {
@@ -689,7 +934,15 @@ describe('what it never does', () => {
   });
 
   it('allocates nothing once it is built', () => {
-    // spec 10-14: the loop allocates nothing, ever.
-    expect((source.match(/\bnew\b/g) ?? []).length).toBe(1);
+    // spec 10-14: the loop allocates nothing, ever. Three things are ever built
+    // in this file — the one lens, and the two arrays the march of the sight
+    // writes over frame after frame — and all three are built once, at load or
+    // at the opening of a run, none of them in anything a frame calls.
+    expect(source.match(/\bnew\s+[\w.]+/g)).toEqual([
+      'new Float64Array',
+      'new Float64Array',
+      'new THREE.PerspectiveCamera',
+    ]);
+    expect(source.slice(source.indexOf('function march'))).not.toMatch(/\bnew\b/);
   });
 });

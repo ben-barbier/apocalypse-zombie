@@ -31,10 +31,11 @@
  * and it is the only place any of them is ever put to work. (spec 10-15, 10-16)
  *
  * It reads the grid of heights the rules engender — the one collision structure
- * of the game — and never a plan of its own (spec 04-8), and it follows the spot
- * the drawing sits between the two last steps rather than the last one, without
- * which it would judder on a screen faster than the step (spec 10-24). Nothing
- * here is allocated per frame. (spec 10-14)
+ * of the game — and never a plan of its own, walking it cell by cell so that
+ * nothing this city holds ever slips between two readings (spec 04-8), and it
+ * follows the spot the drawing sits between the two last steps rather than the
+ * last one, without which it would judder on a screen faster than the step
+ * (spec 10-24). Nothing here is allocated per frame. (spec 10-14)
  */
 import * as THREE from 'three';
 import type { CameraBalance } from '../game/balance';
@@ -49,19 +50,13 @@ import { hazeFar, type CityExtent } from './scene';
 const LOOK = 1;
 
 /**
- * How often the line of sight is sampled against the grid, in blocks. Half a
- * block over a recoil of six and a half is thirteen readings, and a frontage is
- * eight blocks thick: nothing this city holds slips between two of them.
- * (spec 02-20)
+ * The most cells a line of sight is ever walked over. A straight line of `n`
+ * blocks crosses at most `2n` cell borders on a grid of one block, so a recoil
+ * of six and a half touches fourteen cells at the very most; sixty-four holds
+ * any recoil chapter 4 could be given, and the march stops there rather than
+ * write past the end of its own arrays.
  */
-const PROBE = 0.5;
-
-/**
- * How many recoils are tried between the nominal one and the shortest. They are
- * only ever tried once the climb has been spent, which is what makes the order
- * of 04-18 the order of the loop itself.
- */
-const TRIES = 8;
+const CROSSINGS = 64;
 
 /** What counts as having moved at all between two steps, in blocks. (spec 04-16) */
 const STIRRED = 1e-4;
@@ -106,6 +101,16 @@ export interface CameraView {
  */
 let askedBack = 0;
 let askedAbove = 0;
+
+/**
+ * The one march of a frame: how far along the line of sight each cell it
+ * crosses is entered, in blocks from his middle, and how high what stands in
+ * that cell goes. They are laid down once at load and written over every frame,
+ * never handed back and never grown. (spec 10-14)
+ */
+const enteredAt = new Float64Array(CROSSINGS);
+const standsAt = new Float64Array(CROSSINGS);
+let crossings = 0;
 
 /**
  * Builds the one camera. The recoil and the height it opens on are the nominal
@@ -179,86 +184,134 @@ function betweenTurns(from: number, to: number, alpha: number): number {
 }
 
 /**
- * How high what stands in the cell a spot falls in goes, in blocks, and nought
- * past the city. It is the very reading `game/state.ts` does, written again here
- * because `src/render/` takes types from the rules and never their functions:
- * the two read the same one grid, so they cannot part. (spec 04-8, 10-2)
+ * Walks the line of sight over the grid and lays down **every cell it touches**,
+ * with the distance at which it enters each — not one reading every so often.
  *
- * It asks the height alone and never the right to be there, and that is the
- * whole of why the town hall and the shed carry theirs: a view is stopped by
- * what stands in the way, not by what one is allowed to walk on, and those two
- * are precisely the builds one is never allowed to walk on at all. (spec 02-9,
- * 04-18)
- */
-function floorAt(city: City, x: number, z: number): number {
-  const half = city.side / 2;
-  const i = Math.floor(x + half);
-  const j = Math.floor(z + half);
-  if (i < 0 || j < 0 || i >= city.side || j >= city.side) return 0;
-  return city.height[i * city.side + j];
-}
-
-/**
- * How high the far end of a line of sight must stand for the whole of that line
- * to clear the roofs it crosses.
+ * Reading a spot every half block is what let the city hide behind its own
+ * sampling: a line that clips the corner of a frontage is inside it over a
+ * couple of tenths of a block and lands in no reading at all, so the camera
+ * called the way clear where a wall stood and the child lost his own body behind
+ * it. A march over the borders themselves cannot miss a cell however thin the
+ * slice it takes off it — and it is the cheaper of the two into the bargain,
+ * swept over the whole city: nine readings a frame against eighteen, and never
+ * over fourteen where sampling nine recoils could take ninety-two.
+ * (spec 04-8, 04-18)
  *
- * It marches the line over the grid of heights. A roof of `floor` blocks met at
- * `t` of the way along asks the far end to stand at `eye + (floor - eye) / t`,
- * and the highest of those asks is the answer — which is what lets one march
- * settle the climb outright, instead of trying heights one after another. What
- * comes back is never under the floor the camera itself would stand on, since
- * the far end of the line is sampled too. (spec 04-8, 04-18)
+ * It is the crossing of the grid itself: the two distances to the next border,
+ * whichever is nearer taken first, and neither ever recomputed. (spec 10-14)
+ *
+ * What it reads of a cell is the height alone and never the right to be there,
+ * which is the whole of why the town hall and the shed carry theirs: a view is
+ * stopped by what stands in the way, not by what one is allowed to walk on, and
+ * those two are precisely the builds one is never allowed to walk on at all. It
+ * is the very reading `game/state.ts` does, written again here because
+ * `src/render/` takes types from the rules and never their functions — the two
+ * read the same one grid, so they cannot part. Past the city there is nothing to
+ * stop a view, and the march reads nought. (spec 02-9, 04-18, 10-2)
  */
-function clearing(
+function march(
   city: City,
-  eyeX: number,
-  eyeY: number,
-  eyeZ: number,
-  toX: number,
-  toZ: number,
-): number {
-  const runX = toX - eyeX;
-  const runZ = toZ - eyeZ;
-  const span = Math.hypot(runX, runZ);
-  const steps = Math.max(1, Math.ceil(span / PROBE));
-  let asked = 0; // the ground is the lowest thing it can ever ask for
-  for (let s = 1; s <= steps; s += 1) {
-    const t = s / steps;
-    const floor = floorAt(city, eyeX + runX * t, eyeZ + runZ * t);
-    const wants = eyeY + (floor - eyeY) / t;
-    if (wants > asked) asked = wants;
+  fromX: number,
+  fromZ: number,
+  wayX: number,
+  wayZ: number,
+  most: number,
+): void {
+  const half = city.side / 2;
+  let i = Math.floor(fromX + half);
+  let j = Math.floor(fromZ + half);
+  const stepI = wayX < 0 ? -1 : 1;
+  const stepJ = wayZ < 0 ? -1 : 1;
+  // How far along the line one whole cell of either axis is worth.
+  const overI = wayX === 0 ? Infinity : Math.abs(1 / wayX);
+  const overJ = wayZ === 0 ? Infinity : Math.abs(1 / wayZ);
+  const intoI = fromX + half - i;
+  const intoJ = fromZ + half - j;
+  let nextI = wayX === 0 ? Infinity : (wayX > 0 ? 1 - intoI : intoI) * overI;
+  let nextJ = wayZ === 0 ? Infinity : (wayZ > 0 ? 1 - intoJ : intoJ) * overJ;
+  let along = 0;
+
+  crossings = 0;
+  for (;;) {
+    const inside = i >= 0 && j >= 0 && i < city.side && j < city.side;
+    enteredAt[crossings] = along;
+    standsAt[crossings] = inside ? city.height[i * city.side + j] : 0;
+    crossings += 1;
+    if (crossings >= CROSSINGS) return;
+    if (nextI < nextJ) {
+      along = nextI;
+      i += stepI;
+      nextI += overI;
+    } else {
+      along = nextJ;
+      j += stepJ;
+      nextJ += overJ;
+    }
+    if (along > most) return; // a cell touched right at the far end still counts
   }
-  return asked;
 }
 
 /**
  * Settles the recoil and the height the sight asks for, in the order chapter 4
- * writes them: the nominal recoil first, climbing as far as the ten blocks it is
- * allowed; and only when those ten are spent does it try a shorter recoil, down
- * to 3,2 blocks and never under. (spec 04-18)
+ * writes them: the climb first, as far as the ten blocks it is allowed, and a
+ * shorter recoil only once those ten are spent — down to 3,2 blocks and never
+ * under. (spec 04-18)
+ *
+ * One march answers for every recoil at once, because they all lie on the one
+ * line and differ only in where they stop. A roof of `stands` blocks entered
+ * `entered` blocks along asks a camera `back` blocks out to stand at
+ * `eye + (stands - eye) × back / entered`, which grows with `back`: the further
+ * out it stands, the higher it has to be. So the recoils that clear are exactly
+ * those under a limit, and the limit is the one that spends the whole climb on
+ * the roof that asks for most — `room × entered / rise` — or the entry itself,
+ * where a roof so near that no climb clears it is simply not reached at all.
+ * The largest recoil under every one of those limits is the answer, and it is
+ * read off rather than tried, so nothing is discretised and nothing is walked
+ * twice. (spec 04-8, 04-18, 10-14)
  */
 function ask(view: CameraView, city: City, px: number, py: number, pz: number): void {
   const rule = view.rule;
   const eyeY = py + LOOK;
-  const cos = Math.cos(view.ang);
-  const sin = Math.sin(view.ang);
   const nominal = py + rule.above;
   const ceiling = nominal + rule.climb;
+  const room = ceiling - eyeY; // all the height 04-18 grants over his middle
 
-  for (let k = 0; k <= TRIES; k += 1) {
-    const back = rule.back - ((rule.back - rule.minBack) * k) / TRIES;
-    const asked = clearing(city, px, eyeY, pz, px - cos * back, pz - sin * back);
-    if (asked <= ceiling) {
-      askedBack = back;
-      askedAbove = (asked > nominal ? asked : nominal) - py;
-      return;
+  march(city, px, pz, -Math.cos(view.ang), -Math.sin(view.ang), rule.back);
+
+  // How far out it may still stand and have the whole climb clear the way.
+  let back = rule.back;
+  for (let n = 1; n < crossings; n += 1) {
+    const rise = standsAt[n] - eyeY;
+    if (rise <= 0) continue; // nothing his own middle does not already look over
+    const entered = enteredAt[n];
+    // Flush against it — he stands on the very border of a wall taller than he
+    // is — and there is no recoil at all that gets the sight over it.
+    if (entered <= 0) {
+      back = rule.minBack;
+      break;
     }
+    const held = (room * entered) / rise;
+    const limit = held > entered ? held : entered;
+    if (limit < back) back = limit;
   }
+  if (back < rule.minBack) back = rule.minBack; // never under 3,2 (spec 04-18)
 
+  // And how high it has to stand at that recoil, which is the climb it buys.
+  let asked = nominal;
+  for (let n = 1; n < crossings; n += 1) {
+    const entered = enteredAt[n];
+    if (entered > back) break; // the march runs outwards, so the rest is behind it
+    const rise = standsAt[n] - eyeY;
+    if (rise <= 0) continue;
+    const wants = entered > 0 ? eyeY + (rise * back) / entered : ceiling;
+    if (wants > asked) asked = wants;
+  }
   // Nothing clears, even in as close as it may come: it holds the shortest
   // recoil and the whole of the climb, and gives up neither. (spec 04-18)
-  askedBack = rule.minBack;
-  askedAbove = rule.above + rule.climb;
+  if (asked > ceiling) asked = ceiling;
+
+  askedBack = back;
+  askedAbove = asked - py;
 }
 
 /**
