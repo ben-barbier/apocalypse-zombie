@@ -22,7 +22,7 @@
  * all (spec 07-27), and the quality scale takes that pool from 600 down to 200
  * without ever touching the simulation (spec 10-39). They live in the renderer.
  */
-import type { Balance } from './balance';
+import type { Balance, CityBalance } from './balance';
 import { createRandom, type Random } from './random';
 
 /** The three streets of the star, and there will never be a fourth. (spec 02-2) */
@@ -382,6 +382,416 @@ function createPlayer(): Player {
   };
 }
 
+// --------------------------------------------------------------------- the city
+
+/**
+ * The city, rebuilt at load from the rules of chapter 2 and never stored: the
+ * star of three branches, the hexagonal square, the town hall, the base, the two
+ * frontages of a street with their two height sequences, the ladders, the
+ * gateways, the rails and the halo. The constants rebuild it exactly, whereas a
+ * grid of 46 656 cells neither reads back nor compares, and goes stale at the
+ * first retouch. (spec 02 "Pourquoi le plan est une règle et non une image")
+ *
+ * All of it comes down to a grid of heights, one cell per block, which says at
+ * what height one walks and whether one has the right to be there: it is the one
+ * collision structure of the game. A roof is therefore never a case of its own,
+ * only a taller cell. (spec 04-8, 04-9)
+ *
+ * Chapter 10 lists no module for it, and its list is closed, so the plan is
+ * engendered here beside the one object it belongs to.
+ */
+
+/** The eighty-seven buildings: seventy-eight along the streets, nine on the perimeter. (spec 02-17) */
+export interface BuildingPool {
+  /** Entries `[0, count)` stand — and all of them do, since nothing is built here. (spec 02-1) */
+  count: number;
+  /** The middle of the footprint, in blocks. */
+  readonly x: Float32Array;
+  readonly z: Float32Array;
+  /** Four, six or eight blocks, and never anything else. (spec 02-20) */
+  readonly height: Uint8Array;
+  /** The street it fronts, or -1 for the nine of the perimeter. (spec 02-10) */
+  readonly street: Int8Array;
+  /** Which of the two edges: 0 the aligned one, 1 the shifted one. (spec 02-18) */
+  readonly edge: Uint8Array;
+  /** Its rank from the mouth of the street, or from one end of a square face. (spec 02-19) */
+  readonly bay: Uint8Array;
+  /** The middle of the one face that carries its one ladder. (spec 02-26) */
+  readonly ladderX: Float32Array;
+  readonly ladderZ: Float32Array;
+  /** The heading one pushes towards to climb it, which is into the building. (spec 04-13) */
+  readonly ladderAng: Float32Array;
+  /** 1 where the halo reaches the roof, which is what a conveyor asks. (spec 02-33) */
+  readonly haloed: Uint8Array;
+}
+
+function createBuildingPool(size: number): BuildingPool {
+  return {
+    count: 0,
+    x: new Float32Array(size),
+    z: new Float32Array(size),
+    height: new Uint8Array(size),
+    street: new Int8Array(size),
+    edge: new Uint8Array(size),
+    bay: new Uint8Array(size),
+    ladderX: new Float32Array(size),
+    ladderZ: new Float32Array(size),
+    ladderAng: new Float32Array(size),
+    haloed: new Uint8Array(size),
+  };
+}
+
+/**
+ * The three rails: one fixed polyline per street, traced once and for all from
+ * the entrance of the street to the face of the town hall. A street is straight
+ * and aims at the town hall, so a rail holds two stops and ninety-two blocks.
+ * (spec 02-13, 03-6)
+ */
+export interface RailPool {
+  /** Stops in one polyline. */
+  readonly stops: number;
+  /** `STREETS * stops` entries, one rail after the other. */
+  readonly x: Float32Array;
+  readonly z: Float32Array;
+  /** How far along its rail each stop sits, in blocks. (spec 03-7) */
+  readonly at: Float32Array;
+  /** From the entrance to the face of the town hall, in blocks. (spec 02-13) */
+  readonly length: number;
+}
+
+/** One gateway at the mouth of each street, on the square side. (spec 02-27) */
+export interface GatewayPool {
+  readonly x: Float32Array;
+  readonly z: Float32Array;
+  /** The heading of the street it opens. (spec 02-16) */
+  readonly ang: Float32Array;
+}
+
+/** The one terrain, engendered at load and only read from there on. (spec 04-8) */
+export interface City {
+  /** The side of the grid, in cells. (spec 02-1) */
+  readonly side: number;
+  /** The height one walks at, in blocks, cell by cell. (spec 04-8) */
+  readonly height: Uint8Array;
+  /** 1 where one has the right to be, 0 everywhere else. (spec 02-4, 04-8) */
+  readonly walkable: Uint8Array;
+  readonly buildings: BuildingPool;
+  readonly rails: RailPool;
+  readonly gateways: GatewayPool;
+}
+
+/** The cell a spot falls in, or -1 past the city. */
+export function cellAt(city: City, x: number, z: number): number {
+  const half = city.side / 2;
+  const i = Math.floor(x + half);
+  const j = Math.floor(z + half);
+  if (i < 0 || j < 0 || i >= city.side || j >= city.side) return -1;
+  return i * city.side + j;
+}
+
+/** Whether one has the right to be there. (spec 02-4, 04-8) */
+export function walkableAt(city: City, x: number, z: number): boolean {
+  const at = cellAt(city, x, z);
+  return at >= 0 && city.walkable[at] === 1;
+}
+
+/**
+ * The height one walks at, in blocks: nought on the floor of a street or of the
+ * square, the height of the building on a roof. Whether one has the right to be
+ * there is the other half of a cell, and `walkableAt` answers it. (spec 04-8, 04-9)
+ */
+export function heightAt(city: City, x: number, z: number): number {
+  const at = cellAt(city, x, z);
+  return at < 0 ? 0 : city.height[at];
+}
+
+/** Which segment of a polyline an advance falls in. (spec 03-7) */
+function segmentAt(rails: RailPool, street: number, progress: number): number {
+  const first = street * rails.stops;
+  let k = 0;
+  while (k < rails.stops - 2 && progress > rails.at[first + k + 1]) k += 1;
+  return k;
+}
+
+function alongRail(
+  coords: Float32Array,
+  rails: RailPool,
+  street: number,
+  progress: number,
+): number {
+  const first = street * rails.stops;
+  const k = segmentAt(rails, street, progress);
+  const from = rails.at[first + k];
+  const span = rails.at[first + k + 1] - from;
+  let f = span === 0 ? 0 : (progress - from) / span;
+  if (f < 0) f = 0;
+  if (f > 1) f = 1;
+  const a = coords[first + k];
+  return a + (coords[first + k + 1] - a) * f;
+}
+
+/** Where a rail stands at a given advance, the entrance being nought. (spec 03-7, 03-8) */
+export function railX(rails: RailPool, street: number, progress: number): number {
+  return alongRail(rails.x, rails, street, progress);
+}
+
+export function railZ(rails: RailPool, street: number, progress: number): number {
+  return alongRail(rails.z, rails, street, progress);
+}
+
+/**
+ * Engenders the whole plan. It runs once, at load, and allocates the two grids
+ * and the three pools there and nowhere else. (spec 10-13, 10-14)
+ *
+ * The frame of a street: `along` counts from the middle of the city outwards,
+ * `across` sideways. The three streets therefore carry one drawing turned by
+ * 120°, and no street is a case of its own. (spec 02-16)
+ */
+export function createCity(balance: CityBalance): City {
+  const side = balance.side;
+  const half = side / 2;
+  const height = new Uint8Array(side * side);
+  const walkable = new Uint8Array(side * side);
+
+  const perEdge = balance.street.baysPerEdge;
+  const perSector = balance.perimeterCount / STREETS;
+  const buildings = createBuildingPool(STREETS * 2 * perEdge + balance.perimeterCount);
+  buildings.count = buildings.height.length;
+
+  const mouth = balance.apothem; // the square ends where a street begins (spec 02-7)
+  const far = mouth + balance.street.length; // and the street ends there (spec 02-12)
+  const halfWidth = balance.street.width / 2;
+  const frontage = halfWidth + balance.street.frontageDepth; // (spec 02-14)
+  const townHall = balance.townHallSide / 2;
+
+  const dirX = (k: number): number => Math.cos((k * 2 * Math.PI) / STREETS);
+  const dirZ = (k: number): number => Math.sin((k * 2 * Math.PI) / STREETS);
+  /** The heading of the square face the perimeter closes, between two streets. */
+  const faceAng = (p: number): number => (Math.PI / STREETS) * (1 + 2 * p);
+
+  /**
+   * The perimeter is what closes the hub, and it is bounded by a disk and not by
+   * a strip of even thickness: everything the square, the streets and their
+   * frontages leave inside 26 blocks of the middle of the city — the apothem,
+   * the depth of a frontage, and two blocks over. It therefore runs ten blocks
+   * deep on the normal of a face and only seven and a half in a corner of the
+   * hexagon, which is what the tally of chapter 2 counts. (spec 02-10)
+   */
+  const perimeterReach = balance.apothem + balance.street.frontageDepth + 2;
+  /**
+   * A sector holds one street and the three buildings that close the hub beside
+   * it. The street and its two frontages take the angle their outer edge — eleven
+   * blocks off the rail — subtends at the mouth, from either side; what is left
+   * is cut in three. That cut is the one the tally of the chapter asks for: the
+   * halo reaches the three buildings of each of the two sectors that flank street
+   * one, which are the six of the perimeter eligible to a conveyor. (spec 02-33)
+   */
+  const sectorAng = (2 * Math.PI) / STREETS;
+  const takenAng = Math.atan(frontage / balance.apothem);
+  const freeAng = sectorAng - 2 * takenAng;
+  const islandAng = (k: number, rank: number): number =>
+    k * sectorAng + takenAng + ((rank + 0.5) * freeAng) / perSector;
+
+  /** How far the boundary of the square stands at a heading. (spec 02-6) */
+  const faceStep = Math.PI / STREETS; // sixty degrees from one face normal to the next
+  function squareReach(ang: number): number {
+    const off = (((ang + faceStep / 2) % faceStep) + faceStep) % faceStep - faceStep / 2;
+    return balance.apothem / Math.cos(off);
+  }
+
+  const spotX = (ang: number, along: number, across: number): number =>
+    Math.cos(ang) * along - Math.sin(ang) * across;
+  const spotZ = (ang: number, along: number, across: number): number =>
+    Math.sin(ang) * along + Math.cos(ang) * across;
+
+  // The middle of the base, two blocks of shed out from the face of the town hall
+  // that watches street one; the halo is measured from there. (spec 02-8, 02-31)
+  const baseAt = townHall + balance.baseWidth / 2;
+  const baseX = dirX(0) * baseAt;
+  const baseZ = dirZ(0) * baseAt;
+  const inHalo = (x: number, z: number): boolean =>
+    Math.hypot(x - baseX, z - baseZ) < balance.halo;
+
+  const baysOf = (edge: number): readonly number[] =>
+    edge === 0 ? balance.alignedBays : balance.shiftedBays;
+  const heightsOf = (edge: number): readonly number[] =>
+    edge === 0 ? balance.alignedHeights : balance.shiftedHeights;
+
+  /** Which bay of an edge a distance from the mouth falls in. (spec 02-19) */
+  function bayOf(edge: number, from: number): number {
+    const bays = baysOf(edge);
+    let start = 0;
+    for (let b = 0; b < bays.length; b += 1) {
+      start += bays[b];
+      if (from < start) return b;
+    }
+    return bays.length - 1;
+  }
+
+  const streetBuilding = (k: number, edge: number, bay: number): number =>
+    (k * 2 + edge) * perEdge + bay;
+  const perimeterBuilding = (p: number, rank: number): number =>
+    STREETS * 2 * perEdge + p * perSector + rank;
+
+  // ---- the seventy-eight buildings of the streets, and their ladders
+  for (let k = 0; k < STREETS; k += 1) {
+    const ang = (k * 2 * Math.PI) / STREETS;
+    for (let edge = 0; edge < 2; edge += 1) {
+      // The two edges are told apart by their shift and by their cuts alone: which
+      // of them lies left going down the street is not a decision. (spec 02
+      // "Pourquoi le décalage d'un demi-module")
+      const sign = edge === 0 ? 1 : -1;
+      const bays = baysOf(edge);
+      const heights = heightsOf(edge);
+      let start = 0;
+      for (let bay = 0; bay < perEdge; bay += 1) {
+        const at = streetBuilding(k, edge, bay);
+        const middle = mouth + start + bays[bay] / 2;
+        start += bays[bay];
+        buildings.height[at] = heights[bay];
+        buildings.street[at] = k;
+        buildings.edge[at] = edge;
+        buildings.bay[at] = bay;
+        buildings.x[at] = spotX(ang, middle, (sign * (halfWidth + frontage)) / 2);
+        buildings.z[at] = spotZ(ang, middle, (sign * (halfWidth + frontage)) / 2);
+        // The one ladder sits in the middle of the one face that gives onto
+        // walkable ground, which for these is the street. (spec 02-26)
+        buildings.ladderX[at] = spotX(ang, middle, sign * halfWidth);
+        buildings.ladderZ[at] = spotZ(ang, middle, sign * halfWidth);
+        buildings.ladderAng[at] = Math.atan2(sign * Math.cos(ang), -sign * Math.sin(ang));
+      }
+    }
+  }
+
+  // ---- the nine of the perimeter, three per sector, never astride a street
+  for (let p = 0; p < STREETS; p += 1) {
+    const wall = faceAng(p); // the face they all stand on, between two streets
+    for (let rank = 0; rank < perSector; rank += 1) {
+      const at = perimeterBuilding(p, rank);
+      const ang = islandAng(p, rank);
+      const reach = squareReach(ang);
+      buildings.height[at] = balance.perimeterHeight; // all nine at four (spec 02-11)
+      buildings.street[at] = -1;
+      buildings.edge[at] = 0;
+      buildings.bay[at] = rank;
+      buildings.x[at] = Math.cos(ang) * (reach + balance.street.frontageDepth / 2);
+      buildings.z[at] = Math.sin(ang) * (reach + balance.street.frontageDepth / 2);
+      // Theirs gives onto the square, which is their one walkable face. (spec 02-26)
+      buildings.ladderX[at] = Math.cos(ang) * reach;
+      buildings.ladderZ[at] = Math.sin(ang) * reach;
+      buildings.ladderAng[at] = wall;
+    }
+  }
+
+  // ---- the grid, cell by cell
+  /** How far a spot sits from the middle, on the three axes of the hexagon. */
+  function hexAt(x: number, z: number): number {
+    let most = 0;
+    for (let s = 0; s < STREETS; s += 1) {
+      const a = (s * Math.PI) / STREETS;
+      const d = Math.abs(x * Math.cos(a) + z * Math.sin(a));
+      if (d > most) most = d;
+    }
+    return most;
+  }
+
+  function walk(at: number, floor: number, owner: number, x: number, z: number): void {
+    walkable[at] = 1;
+    height[at] = floor;
+    if (owner >= 0 && inHalo(x, z)) buildings.haloed[owner] = 1;
+  }
+
+  for (let i = 0; i < side; i += 1) {
+    for (let j = 0; j < side; j += 1) {
+      const x = i + 0.5 - half;
+      const z = j + 0.5 - half;
+      const at = i * side + j;
+      let settled = false;
+
+      for (let k = 0; k < STREETS && !settled; k += 1) {
+        const ux = dirX(k);
+        const uz = dirZ(k);
+        const along = x * ux + z * uz;
+        if (along <= mouth || along >= far) continue;
+        const across = -x * uz + z * ux;
+        const off = Math.abs(across);
+        if (off < halfWidth) {
+          // The whole floor of a street is street floor: no verge, no kerb. (spec 02-15)
+          walk(at, 0, -1, x, z);
+          settled = true;
+        } else if (off < frontage) {
+          const edge = across > 0 ? 0 : 1;
+          const owner = streetBuilding(k, edge, bayOf(edge, along - mouth));
+          walk(at, buildings.height[owner], owner, x, z);
+          settled = true;
+        }
+      }
+      if (settled) continue;
+
+      if (hexAt(x, z) < balance.apothem) {
+        // What is left of the hexagon is the floor of the square, less the town
+        // hall and the shed of the base, whose roofs are never climbed and on
+        // which nothing is ever put down. (spec 02-6, 02-9)
+        if (Math.abs(x) < townHall && Math.abs(z) < townHall) continue;
+        const shedAlong = x * dirX(0) + z * dirZ(0);
+        const shedAcross = -x * dirZ(0) + z * dirX(0);
+        if (
+          shedAlong > townHall &&
+          shedAlong < townHall + balance.baseWidth &&
+          Math.abs(shedAcross) < balance.baseLength / 2
+        ) {
+          continue;
+        }
+        walk(at, 0, -1, x, z);
+        continue;
+      }
+
+      // Past the square, and left over by the streets and their frontages: the
+      // perimeter closes the hub inside its disk, three buildings per sector and
+      // never one astride a street. (spec 02-10)
+      if (Math.hypot(x, z) > perimeterReach) continue;
+      let ang = Math.atan2(z, x);
+      if (ang < 0) ang += 2 * Math.PI;
+      const sector = Math.min(STREETS - 1, Math.floor(ang / sectorAng));
+      const share = (ang - sector * sectorAng - takenAng) / freeAng;
+      let rank = Math.floor(share * perSector);
+      if (rank < 0) rank = 0;
+      if (rank >= perSector) rank = perSector - 1;
+      walk(at, balance.perimeterHeight, perimeterBuilding(sector, rank), x, z);
+    }
+  }
+
+  // ---- the three rails and the three gateways
+  const stops = 2;
+  const rails: RailPool = {
+    stops,
+    x: new Float32Array(STREETS * stops),
+    z: new Float32Array(STREETS * stops),
+    at: new Float32Array(STREETS * stops),
+    length: balance.street.rail,
+  };
+  const gateways: GatewayPool = {
+    x: new Float32Array(STREETS),
+    z: new Float32Array(STREETS),
+    ang: new Float32Array(STREETS),
+  };
+  for (let k = 0; k < STREETS; k += 1) {
+    const ang = (k * 2 * Math.PI) / STREETS;
+    const first = k * stops;
+    rails.x[first] = spotX(ang, far, 0); // the entrance, out of sight (spec 03-32)
+    rails.z[first] = spotZ(ang, far, 0);
+    rails.at[first] = 0;
+    rails.x[first + 1] = spotX(ang, townHall, 0); // the face of the town hall (spec 03-6)
+    rails.z[first + 1] = spotZ(ang, townHall, 0);
+    rails.at[first + 1] = balance.street.rail;
+    gateways.x[k] = spotX(ang, mouth, 0); // at the mouth, never at the far end (spec 02-27)
+    gateways.z[k] = spotZ(ang, mouth, 0);
+    gateways.ang[k] = ang;
+  }
+
+  return { side, height, walkable, buildings, rails, gateways };
+}
+
 // ----------------------------------------------------------- the three branches
 
 /** A wave is a cycle in two times: an assault, then a preparation. (spec 01-11) */
@@ -437,6 +847,13 @@ export interface Assault {
   /** Seconds spent at three left or fewer, which sends the last ones at four
    * blocks a second once it reaches fifteen. (spec 03-38, 03-39) */
   fewFor: number;
+  /**
+   * The terrain, engendered at load from the rules of chapter 2. It rides here
+   * because `Game` has three branches and three only: it is not the injected
+   * balance, and it is not one of the ten fields that cross a wave boundary.
+   * (spec 10-12, 10-15, 08-70)
+   */
+  readonly city: City;
   readonly zombies: ZombiePool;
   readonly projectiles: ProjectilePool;
   readonly events: EventBuffer;
@@ -483,6 +900,7 @@ export function createGame(balance: Balance, seed = 0): Game {
       prepLeft: 0,
       toEnter: 0,
       fewFor: 0,
+      city: createCity(balance.city),
       zombies: createZombiePool(balance.pools.zombies),
       projectiles: createProjectilePool(balance.pools.projectiles),
       events: createEventBuffer(balance.pools.events),

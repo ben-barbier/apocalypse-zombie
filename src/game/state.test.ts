@@ -6,14 +6,19 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from './balance';
 import {
+  cellAt,
   clearEvents,
   createGame,
   createInput,
   EVENT,
+  heightAt,
   PHASE,
   pushEvent,
+  railX,
+  railZ,
   SNAPSHOT_VERSION,
   STREETS,
+  walkableAt,
   ZOMBIE,
 } from './state';
 
@@ -188,5 +193,366 @@ describe('the entries', () => {
       jump: false,
       airlock: false,
     });
+  });
+});
+
+// ------------------------------------------------------------------- the plan
+
+/**
+ * The plan read back against chapter 2. Nothing here reads the city out of a
+ * stored grid: it is engendered from the constants at load, and these are the
+ * counts the chapter publishes. (spec 02 "Pourquoi le plan est une règle et non
+ * une image", spec 04-8)
+ */
+
+const APOTHEM = 16; // spec 02-6
+const MOUTH = APOTHEM; // a street begins where the square ends, spec 02-7
+const FAR = MOUTH + 80; // eighty blocks of street, spec 02-12
+const HALF_WIDTH = 3; // six blocks wide, spec 02-12
+const TOWN_HALL = 4; // eight blocks square, spec 02-7
+const BASE_MIDDLE = 6; // four blocks of shed out from a face at four, spec 02-8
+const HALO = 16; // spec 02-31
+const ALIGNED_BAYS = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 8]; // spec 02-19
+const ALIGNED_HEIGHTS = [4, 6, 8, 4, 6, 8, 4, 6, 8, 4, 6, 8, 8]; // spec 02-23
+const SHIFTED_BAYS = [3, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 11]; // spec 02-19
+const SHIFTED_HEIGHTS = [4, 6, 8, 8, 4, 6, 8, 4, 6, 8, 4, 6, 8]; // spec 02-23
+const JUMP_RISE = 2; // what a jump clears, spec 04-10
+const TOWN_HALL_CELLS = 8 * 8; // spec 02-7
+const BASE_CELLS = 6 * 4; // spec 02-8
+
+const city = createGame(BALANCE).assault.city;
+const half = city.side / 2;
+
+const spotOf = (i: number, j: number): [number, number] => [i + 0.5 - half, j + 0.5 - half];
+const headingOf = (k: number): number => (k * 2 * Math.PI) / STREETS;
+const alongOf = (k: number, x: number, z: number): number =>
+  x * Math.cos(headingOf(k)) + z * Math.sin(headingOf(k));
+const acrossOf = (k: number, x: number, z: number): number =>
+  -x * Math.sin(headingOf(k)) + z * Math.cos(headingOf(k));
+
+/** Which street a spot of floor belongs to, or -1 when it is the square. */
+function streetOf(x: number, z: number): number {
+  for (let k = 0; k < STREETS; k += 1) {
+    const along = alongOf(k, x, z);
+    if (along > MOUTH && along < FAR && Math.abs(acrossOf(k, x, z)) < HALF_WIDTH) return k;
+  }
+  return -1;
+}
+
+/** Every walkable cell, sorted by what it is. */
+function census(): { floor: number; street: number; square: number; roofs: number } {
+  const tally = { floor: 0, street: 0, square: 0, roofs: 0 };
+  for (let i = 0; i < city.side; i += 1) {
+    for (let j = 0; j < city.side; j += 1) {
+      const at = i * city.side + j;
+      if (city.walkable[at] !== 1) continue;
+      if (city.height[at] > 0) {
+        tally.roofs += 1;
+        continue;
+      }
+      tally.floor += 1;
+      const [x, z] = spotOf(i, j);
+      if (streetOf(x, z) >= 0) tally.street += 1;
+      else tally.square += 1;
+    }
+  }
+  return tally;
+}
+
+/** The heights of one edge, from the mouth towards the far end. */
+function edgeHeights(street: number, edge: number): number[] {
+  const heights: number[] = [];
+  const buildings = city.buildings;
+  for (let n = 0; n < buildings.count; n += 1) {
+    if (buildings.street[n] === street && buildings.edge[n] === edge) {
+      heights[buildings.bay[n]] = buildings.height[n];
+    }
+  }
+  return heights;
+}
+
+/** The ribbons of roof an edge holds: a drop a jump cannot take is a cut. (spec 02-25) */
+function ribbonsOf(heights: readonly number[]): number[] {
+  const ribbons: number[] = [1];
+  for (let b = 1; b < heights.length; b += 1) {
+    if (Math.abs(heights[b] - heights[b - 1]) <= JUMP_RISE) ribbons[ribbons.length - 1] += 1;
+    else ribbons.push(1);
+  }
+  return ribbons;
+}
+
+describe('the plan of the city', () => {
+  it('is one grid of 46 656 cells, one per block', () => {
+    // spec 02-1 and the chapter table: 216 × 216.
+    expect(city.side).toBe(216);
+    expect(city.height).toHaveLength(46656);
+    expect(city.walkable).toHaveLength(46656);
+  });
+
+  it('raises eighty-seven buildings, seventy-eight of street and nine of perimeter', () => {
+    // spec 02-17: thirteen bays per edge, two edges, three streets, plus nine.
+    const buildings = city.buildings;
+    expect(buildings.count).toBe(87);
+    let street = 0;
+    let perimeter = 0;
+    for (let n = 0; n < buildings.count; n += 1) {
+      if (buildings.street[n] >= 0) street += 1;
+      else perimeter += 1;
+    }
+    expect(street).toBe(78);
+    expect(perimeter).toBe(9); // spec 02-10
+  });
+
+  it('shares their heights thirty-three, twenty-four and thirty', () => {
+    // The chapter table: buildings of 4 / 6 / 8 blocks.
+    const buildings = city.buildings;
+    const tally = new Map<number, number>();
+    for (let n = 0; n < buildings.count; n += 1) {
+      const h = buildings.height[n];
+      expect([4, 6, 8]).toContain(h); // spec 02-20
+      tally.set(h, (tally.get(h) ?? 0) + 1);
+    }
+    expect(tally.get(4)).toBe(33);
+    expect(tally.get(6)).toBe(24);
+    expect(tally.get(8)).toBe(30);
+  });
+
+  it('keeps the nine of the perimeter at four blocks, all of them', () => {
+    // spec 02-11: their roofs make one balcony around the town hall.
+    const buildings = city.buildings;
+    for (let n = 0; n < buildings.count; n += 1) {
+      if (buildings.street[n] < 0) expect(buildings.height[n]).toBe(4);
+    }
+  });
+
+  it('gives the three streets the same drawing, turned by 120°', () => {
+    // spec 02-16: the overtime invents no terrain.
+    for (let k = 1; k < STREETS; k += 1) {
+      expect(edgeHeights(k, 0)).toEqual(edgeHeights(0, 0));
+      expect(edgeHeights(k, 1)).toEqual(edgeHeights(0, 1));
+    }
+  });
+
+  it('carries the two height sequences of the chapter table', () => {
+    // spec 02-23: the shifted edge opens on the stretch of four, the aligned one
+    // closes on it, and the far end is an eight on both. (spec 02-24)
+    expect(edgeHeights(0, 0)).toEqual(ALIGNED_HEIGHTS);
+    expect(edgeHeights(0, 1)).toEqual(SHIFTED_HEIGHTS);
+  });
+
+  it('shifts one edge against the other by half a bay', () => {
+    // spec 02-18: three blocks, and the shift costs not one block — both edges
+    // run the eighty blocks of the street.
+    const sum = (bays: readonly number[]): number => bays.reduce((a, b) => a + b, 0);
+    expect(sum(ALIGNED_BAYS)).toBe(80);
+    expect(sum(SHIFTED_BAYS)).toBe(80);
+    expect(SHIFTED_BAYS[0]).toBe(ALIGNED_BAYS[0] / 2);
+  });
+
+  it('cuts each edge three times, and no ribbon runs past four buildings', () => {
+    // spec 02-25: no edge is walked from the foot to the far end without coming
+    // back down into the street.
+    for (let k = 0; k < STREETS; k += 1) {
+      for (let edge = 0; edge < 2; edge += 1) {
+        const ribbons = ribbonsOf(edgeHeights(k, edge));
+        expect(ribbons.length - 1).toBe(3);
+        expect(Math.max(...ribbons)).toBe(4);
+      }
+    }
+  });
+
+  it('lays 1 440 cells of street floor and 800 of square floor', () => {
+    // The chapter table: 1 440 cells of street — three times eighty by six.
+    // The square is the hexagon of apothem sixteen, less the eight by eight of
+    // the town hall and the six by four of the base. (spec 02-6 to 02-9)
+    const tally = census();
+    expect(tally.street).toBe(1440);
+    expect(tally.square).toBe(800);
+  });
+
+  it('counts 6 800 cells of floor and of roof', () => {
+    // The chapter table, "Cellules praticables (sol et toits)". It tallies the
+    // floor of the square, the floor of the three streets, and every cell that
+    // carries a roof — the town hall and the shed of the base included, whose
+    // eighty-eight cells carry one although nobody ever climbs them. (spec 02-9)
+    let cells = 0;
+    for (let at = 0; at < city.walkable.length; at += 1) cells += city.walkable[at];
+    expect(cells + TOWN_HALL_CELLS + BASE_CELLS).toBe(6800);
+    // It splits in five: 800 of square floor, 1 440 of street floor, 3 840 of
+    // street roof, what the perimeter closes, and the 88 above. The first three
+    // are read back one by one in the two tests that follow.
+    const tally = census();
+    expect(tally.square + tally.street + tally.roofs).toBe(cells);
+  });
+
+  it('roofs 3 840 cells along the streets, eight blocks deep on both edges', () => {
+    // spec 02-14, 02-17: eighty blocks of frontage, eight deep, twice a street.
+    let deep = 0;
+    for (let i = 0; i < city.side; i += 1) {
+      for (let j = 0; j < city.side; j += 1) {
+        const at = i * city.side + j;
+        if (city.walkable[at] !== 1 || city.height[at] === 0) continue;
+        const [x, z] = spotOf(i, j);
+        for (let k = 0; k < STREETS; k += 1) {
+          const along = alongOf(k, x, z);
+          const across = Math.abs(acrossOf(k, x, z));
+          if (along > MOUTH && along < FAR && across > HALF_WIDTH && across < HALF_WIDTH + 8) {
+            deep += 1;
+          }
+        }
+      }
+    }
+    expect(deep).toBe(3840);
+  });
+
+  it('never lets one stand on the town hall or on the shed of the base', () => {
+    // spec 02-9: neither carries a ladder, their roofs are not climbed, and
+    // nothing is put down on them.
+    for (let i = 0; i < city.side; i += 1) {
+      for (let j = 0; j < city.side; j += 1) {
+        const [x, z] = spotOf(i, j);
+        if (Math.abs(x) < TOWN_HALL && Math.abs(z) < TOWN_HALL) {
+          expect(walkableAt(city, x, z)).toBe(false);
+        }
+        const along = alongOf(0, x, z);
+        if (along > TOWN_HALL && along < TOWN_HALL + 4 && Math.abs(acrossOf(0, x, z)) < 3) {
+          expect(walkableAt(city, x, z)).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('gives every building one ladder, and only one, onto walkable ground', () => {
+    // spec 02-26: in the middle of the one face that gives onto walkable ground
+    // — the street facade, or the square facade for the nine of the perimeter.
+    const buildings = city.buildings;
+    const faces = new Set<number>();
+    for (let n = 0; n < buildings.count; n += 1) {
+      const x = buildings.ladderX[n];
+      const z = buildings.ladderZ[n];
+      const up = buildings.ladderAng[n];
+      faces.add(cellAt(city, x, z));
+      // A block back from the face one stands on walkable floor. (spec 02-26)
+      expect(walkableAt(city, x - Math.cos(up), z - Math.sin(up))).toBe(true);
+      expect(heightAt(city, x - Math.cos(up), z - Math.sin(up))).toBe(0);
+      // A block on, one is under the roof the ladder climbs to. (spec 04-14)
+      expect(heightAt(city, x + Math.cos(up), z + Math.sin(up))).toBe(buildings.height[n]);
+    }
+    expect(faces.size).toBe(87);
+  });
+
+  it('traces three rails of ninety-two blocks, entrance to face of the town hall', () => {
+    // spec 02-13, 03-6: the eighty of the street, plus the twelve that hold its
+    // mouth off the face of the town hall.
+    const rails = city.rails;
+    expect(rails.length).toBe(92);
+    for (let k = 0; k < STREETS; k += 1) {
+      const entrance = Math.hypot(railX(rails, k, 0), railZ(rails, k, 0));
+      const face = Math.hypot(railX(rails, k, 92), railZ(rails, k, 92));
+      expect(entrance).toBeCloseTo(96, 4); // the far end of a street, spec 02 table
+      expect(face).toBeCloseTo(TOWN_HALL, 4); // spec 02-7
+      expect(entrance - face).toBeCloseTo(92, 4);
+      // The advance never decreases and the rail never doubles back. (spec 03-8)
+      const middle = Math.hypot(railX(rails, k, 46), railZ(rails, k, 46));
+      expect(middle).toBeCloseTo(50, 4);
+    }
+  });
+
+  it('stands a gateway at the mouth of each street, never at the far end', () => {
+    // spec 02-27: at the mouth, on the square side — it must announce itself
+    // from the square.
+    for (let k = 0; k < STREETS; k += 1) {
+      const away = Math.hypot(city.gateways.x[k], city.gateways.z[k]);
+      expect(away).toBeCloseTo(MOUTH, 4);
+      expect(city.gateways.ang[k]).toBeCloseTo(headingOf(k), 4);
+    }
+  });
+
+  it('lets the halo six blocks into street one, and not a block into the others', () => {
+    // spec 02-31, 02-32: sixteen blocks flat from the base, which does not cover
+    // the whole square and enters one street only.
+    const deep = [0, 0, 0];
+    for (let i = 0; i < city.side; i += 1) {
+      for (let j = 0; j < city.side; j += 1) {
+        const at = i * city.side + j;
+        if (city.walkable[at] !== 1 || city.height[at] > 0) continue;
+        const [x, z] = spotOf(i, j);
+        const k = streetOf(x, z);
+        if (k < 0) continue;
+        if (Math.hypot(x - BASE_MIDDLE, z) >= HALO) continue;
+        deep[k] = Math.max(deep[k], Math.ceil(alongOf(k, x, z) - MOUTH));
+      }
+    }
+    expect(deep).toEqual([6, 0, 0]);
+  });
+
+  it('makes nine roofs of eighty-seven eligible to a conveyor', () => {
+    // spec 02-33: the six of the perimeter the halo reaches, and the three of the
+    // foot of street one. Everywhere else a cannon is resupplied on foot for the
+    // whole game.
+    const buildings = city.buildings;
+    const held: string[] = [];
+    let eligible = 0;
+    let perimeter = 0;
+    for (let n = 0; n < buildings.count; n += 1) {
+      if (buildings.haloed[n] !== 1) continue;
+      eligible += 1;
+      if (buildings.street[n] < 0) perimeter += 1;
+      else {
+        held.push(`street ${buildings.street[n]} edge ${buildings.edge[n]} bay ${buildings.bay[n]}`);
+      }
+    }
+    expect(eligible).toBe(9);
+    expect(perimeter).toBe(6);
+    // The three of the foot of street one: one on the aligned edge, two on the
+    // shifted one, which is what six blocks of halo take. (spec 02-19, 02-32)
+    expect(held).toEqual([
+      'street 0 edge 0 bay 0',
+      'street 0 edge 1 bay 0',
+      'street 0 edge 1 bay 1',
+    ]);
+  });
+
+  it('holds those six of the perimeter on the two faces that flank street one', () => {
+    // spec 02-33: the halo is measured from the base, which watches street one,
+    // so the face between streets two and three is out of its reach entirely.
+    const buildings = city.buildings;
+    const faces = new Set<number>();
+    for (let n = 0; n < buildings.count; n += 1) {
+      if (buildings.street[n] >= 0 || buildings.haloed[n] !== 1) continue;
+      // Three buildings per face, so the face is the rank divided by three.
+      faces.add(Math.floor((n - 78) / 3));
+    }
+    expect(faces.size).toBe(2);
+  });
+
+  it('keeps the square the one passage from one street to another', () => {
+    // spec 02-3: there is no shortcut. Take the square away and the three
+    // streets no longer touch.
+    const seen = new Uint8Array(city.side * city.side);
+    const queue: number[] = [];
+    const enter = (i: number, j: number): void => {
+      if (i < 0 || j < 0 || i >= city.side || j >= city.side) return;
+      const at = i * city.side + j;
+      if (seen[at] === 1 || city.walkable[at] !== 1 || city.height[at] > 0) return;
+      const [x, z] = spotOf(i, j);
+      if (streetOf(x, z) < 0) return; // the square is what we took away
+      seen[at] = 1;
+      queue.push(at);
+    };
+    // Start at the far end of street one and walk as far as the floor allows.
+    enter(Math.floor(90 + half), Math.floor(half));
+    for (let n = 0; n < queue.length; n += 1) {
+      const at = queue[n];
+      const i = Math.floor(at / city.side);
+      const j = at % city.side;
+      enter(i + 1, j);
+      enter(i - 1, j);
+      enter(i, j + 1);
+      enter(i, j - 1);
+    }
+    let reached = 0;
+    for (let n = 0; n < seen.length; n += 1) reached += seen[n];
+    expect(reached).toBe(480); // one street of eighty by six, and no other
   });
 });
