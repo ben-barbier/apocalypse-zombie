@@ -43,8 +43,10 @@ import {
   PRIORITY,
   STRUCK,
   type Struck,
+  blink,
   buildEffects,
   holdShards,
+  isBlinking,
   placeShards,
   scatter,
   strike,
@@ -152,6 +154,18 @@ const FELLED_SHARDS = 10;
 const FELLED_SPEED = 3;
 const FELLED_SPAN = BALANCE.assault.shardsLast * 1000;
 
+/**
+ * The two states of a body that has been walked into, in ms, and they are
+ * chapter 4's: a second staggered, then a second untouchable — and three
+ * seconds of that second state alone when he gets back up, which is the one
+ * exception the chapter grants itself. The rates they blink at are chapter 7's
+ * and live with the drawing; the lengths are read here, where the balance is
+ * named. (spec 04-39, 04-42, 07-41)
+ */
+const STAGGER_BLINK = BALANCE.player.stagger * 1000;
+const UNTOUCHABLE_BLINK = BALANCE.player.invulnerable * 1000;
+const RISEN_BLINK = BALANCE.player.riseInvulnerable * 1000;
+
 function fell(events: Readonly<EventBuffer>, at: number, now: number): void {
   const kind = events.value[at];
   const scale = KINDS[kind].scale;
@@ -214,6 +228,14 @@ const loop = createLoop(game, input, {
       // The one thing a fatal blow puts into the world, and it puts it in the air.
       // (spec 03-19, 03-21, 07-30)
       else if (kind === EVENT.FATAL_BLOW) fell(events, i, now);
+      // The one body the child drives answers a blow with a rhythm rather than
+      // with a flash: white at 2 Hz while he is staggered, then the same sped up
+      // to 6 Hz while he is untouchable. He goes down with neither — being on
+      // the floor is its own state — and gets up with three seconds of the fast
+      // one alone. (spec 04-39, 04-42, 07-41)
+      else if (kind === EVENT.CONTACT) blink(effects, STAGGER_BLINK, UNTOUCHABLE_BLINK, now);
+      else if (kind === EVENT.COLLAPSE) blink(effects, 0, 0, now);
+      else if (kind === EVENT.RISE) blink(effects, 0, RISEN_BLINK, now);
     }
   },
   draw: (held, alpha, now) => {
@@ -222,7 +244,7 @@ const loop = createLoop(game, input, {
       holdShards(effects, tierOf(quality).shards); // and, one tier on, the shards
     }
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
-    placeCharacters(characters, held.assault.player, alpha, now);
+    placeCharacters(characters, held.assault.player, alpha, now, isBlinking(effects, now));
     // The shards run on the frame, not on the step: they are erased in ms.
     // (spec 07-28, 10-22)
     placeShards(effects, now);

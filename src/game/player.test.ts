@@ -9,7 +9,21 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from './balance';
 import { gravityOf, isClimbing, placePlayer, stepPlayer, takeOffOf } from './player';
-import { type City, type Game, cellAt, createGame, createInput, heightAt, walkableAt } from './state';
+import {
+  EVENT,
+  type City,
+  type Game,
+  ZOMBIE,
+  type ZombieType,
+  cellAt,
+  clearEvents,
+  createGame,
+  createInput,
+  heightAt,
+  walkableAt,
+} from './state';
+import { step } from './step';
+import { spawnZombie } from './zombies';
 
 /** One step of the one loop, in seconds. (spec 10-21) */
 const SECONDS = 1 / 60;
@@ -352,5 +366,235 @@ describe('the real plan, where a roof is never a case of its own', () => {
     expect(isClimbing(player)).toBe(true);
     for (let i = 0; i < 120 && isClimbing(player); i += 1) stepPlayer(game, input, SECONDS);
     expect(player.y).toBe(0);
+  });
+});
+
+describe('his five hp, which turn his mistakes into hp of the town hall', () => {
+  /**
+   * One body of a kind on the rail of street one, with nothing walking in behind
+   * it: the wave has already sent every pack it had, so the one body a test
+   * plants is the only one in the city. (spec 03-27)
+   */
+  function plant(game: Game, type: ZombieType): number {
+    game.assault.sent.fill(255);
+    return spawnZombie(game, type, 0, 30);
+  }
+
+  /** One fact of the buffer: the step it happened at, its kind, and what it carried. */
+  interface Fact {
+    step: number;
+    kind: number;
+    x: number;
+    z: number;
+    value: number;
+  }
+
+  /**
+   * Drives whole steps, holding him against the body at `at` — or nowhere near
+   * anything, at -1 — and hands back every fact the buffer carried. The whole
+   * step is driven and in its one order, because what a touch costs is settled in
+   * the phase of the zombies and what it buys is counted down in his, which comes
+   * before it. (spec 10-25)
+   *
+   * He is let go the moment he is on the floor: nothing holds a body down there,
+   * and that is what lets a test read the spot he gets up in. (spec 04-42)
+   */
+  function press(game: Game, at: number, steps: number): Fact[] {
+    const pool = game.assault.zombies;
+    const player = game.assault.player;
+    const events = game.assault.events;
+    const idle = createInput(); // his hands are empty: nothing here is about a press
+    const facts: Fact[] = [];
+    for (let i = 0; i < steps; i += 1) {
+      if (at >= 0 && player.collapseLeft <= 0) {
+        player.x = pool.x[at];
+        player.z = pool.z[at];
+      }
+      clearEvents(events);
+      step(game, idle);
+      for (let e = 0; e < events.count; e += 1) {
+        facts.push({
+          step: i,
+          kind: events.type[e],
+          x: events.x[e],
+          z: events.z[e],
+          value: events.value[e],
+        });
+      }
+    }
+    return facts;
+  }
+
+  const only = (facts: Fact[], kind: number): Fact[] => facts.filter((f) => f.kind === kind);
+
+  /** Stands him back at the middle of the city, where nothing walks into him. */
+  function away(game: Game): void {
+    game.assault.player.x = 0.5;
+    game.assault.player.z = 0.5;
+  }
+
+  it('loses one hp per touch and never more than one every two seconds', () => {
+    // spec 04-37, 04-39: five hp, one per contact, staggered a second and then
+    // untouchable a second — so a body pressed against a pack goes down on its
+    // fifth touch and not before, which is the ten seconds of chapter 4.
+    const game = flatGame();
+    const at = plant(game, ZOMBIE.COLOSSUS);
+    const facts = press(game, at, 60 * 12);
+
+    const touches = only(facts, EVENT.CONTACT);
+    expect(touches.length).toBe(BALANCE.player.hp); // five, and then he is down
+    for (const touch of touches) expect(touch.value).toBe(BALANCE.player.contactCost);
+    for (let i = 1; i < touches.length; i += 1) {
+      const apart = (touches[i].step - touches[i - 1].step) * SECONDS;
+      // Never faster than the ceiling, and never a step slower than it either.
+      expect(apart).toBeGreaterThanOrEqual(BALANCE.player.stagger + BALANCE.player.invulnerable);
+      expect(apart).toBeLessThan(BALANCE.player.stagger + BALANCE.player.invulnerable + SECONDS * 2);
+    }
+    // Five hp at one every two seconds: ten seconds of a body pressed against a
+    // pack, of which eight stand between the first touch and the fall. (spec 04-39)
+    const across = (touches[4].step - touches[0].step) * SECONDS;
+    expect(across).toBeGreaterThanOrEqual(8);
+    expect(across).toBeLessThan(8 + 8 * SECONDS);
+
+    const down = only(facts, EVENT.COLLAPSE);
+    expect(down.length).toBe(1);
+    expect(down[0].step).toBe(touches[4].step); // the fifth touch is the one that puts him down
+  });
+
+  it('goes down where he stands, and gets up in that same spot three seconds later', () => {
+    // spec 04-42: he falls where he is, lies three seconds, and gets up there at
+    // full hp with three seconds of being untouchable. Nowhere else, ever — the
+    // base would make going down the fastest way across the city.
+    const game = flatGame();
+    const at = plant(game, ZOMBIE.BRUISER);
+    const facts = press(game, at, 60 * 12);
+    const player = game.assault.player;
+
+    const down = only(facts, EVENT.COLLAPSE)[0];
+    const up = only(facts, EVENT.RISE)[0];
+    expect(up.x).toBe(down.x); // the same spot, and it is not compared to a base
+    expect(up.z).toBe(down.z);
+    const lying = (up.step - down.step) * SECONDS;
+    expect(lying).toBeGreaterThanOrEqual(BALANCE.player.collapseTime);
+    expect(lying).toBeLessThan(BALANCE.player.collapseTime + 2 * SECONDS);
+    expect(up.value).toBe(BALANCE.player.hp);
+
+    // He is untouchable for three seconds from there, which is the one exception
+    // to the second the rest of the chapter runs on. (spec 04-42)
+    const after = only(facts, EVENT.CONTACT).filter((f) => f.step > up.step);
+    for (const touch of after) {
+      expect((touch.step - up.step) * SECONDS).toBeGreaterThanOrEqual(
+        BALANCE.player.riseInvulnerable,
+      );
+    }
+    expect(player.collapseLeft).toBe(0);
+  });
+
+  it('takes no blow of any kind while he is on the floor', () => {
+    // spec 04-42: at nought there is nothing left to take, and he gets up whole.
+    const game = flatGame();
+    const at = plant(game, ZOMBIE.COLOSSUS);
+    const facts = press(game, at, 60 * 12);
+    const down = only(facts, EVENT.COLLAPSE)[0];
+    const up = only(facts, EVENT.RISE)[0];
+    // The touch that put him down is the one on the step he went down at; from
+    // there to the step he gets up on, nothing reaches him at all.
+    const during = only(facts, EVENT.CONTACT).filter(
+      (f) => f.step > down.step && f.step <= up.step,
+    );
+    expect(during.length).toBe(0);
+  });
+
+  it('loses his armful when he goes down, and that is the one loss of firebombs there is', () => {
+    // spec 04-43: the armful goes at the collapse, and nowhere else does a
+    // firebomb leave him — none falls, none is picked up off the ground. (04-48)
+    const game = flatGame();
+    game.snapshot.armful = BALANCE.player.armful;
+    const at = plant(game, ZOMBIE.BRUISER);
+    const facts = press(game, at, 60 * 12);
+
+    const down = only(facts, EVENT.COLLAPSE)[0];
+    expect(down.value).toBe(BALANCE.player.armful); // what it carried away
+    expect(game.snapshot.armful).toBe(0);
+    // And he does not get it back by getting up: only the base ever fills it.
+    expect(only(facts, EVENT.ARMFUL_TAKEN).length).toBe(0);
+  });
+
+  it('never falls for good, and never gets up anywhere else', () => {
+    // spec 04-5, 04-42 and the interdits of chapter 4: there is no state of being
+    // gone, no screen, no walking back in. Three collapses in a row and he is
+    // still there, in the same spot, at full hp each time.
+    const game = flatGame();
+    const at = plant(game, ZOMBIE.COLOSSUS);
+    const facts = press(game, at, 60 * 40);
+
+    const downs = only(facts, EVENT.COLLAPSE);
+    const ups = only(facts, EVENT.RISE);
+    expect(downs.length).toBeGreaterThanOrEqual(3);
+    expect(ups.length).toBe(downs.length);
+    for (let i = 0; i < downs.length; i += 1) {
+      expect(ups[i].x).toBe(downs[i].x);
+      expect(ups[i].z).toBe(downs[i].z);
+      expect(ups[i].value).toBe(BALANCE.player.hp);
+    }
+    expect(game.snapshot.playerHp).toBeGreaterThan(0);
+  });
+
+  it('gives one hp back every six seconds, and every touch starts that count over', () => {
+    // spec 04-41: the regeneration is the one mending of the game, +1 every six
+    // seconds, and each contact puts the count back to the beginning.
+    const game = flatGame();
+    const at = plant(game, ZOMBIE.SHAMBLER);
+    press(game, at, 1); // one touch, and one hp gone
+    expect(game.snapshot.playerHp).toBe(BALANCE.player.hp - 1);
+
+    // Five seconds of the count gone, and then a second touch: the hp that was
+    // one second away is six seconds away again.
+    away(game);
+    const waited = press(game, -1, 60 * 5);
+    expect(only(waited, EVENT.CONTACT).length).toBe(0);
+    expect(game.snapshot.playerHp).toBe(BALANCE.player.hp - 1);
+
+    press(game, at, 1); // walked into again, and the count starts over
+    expect(game.snapshot.playerHp).toBe(BALANCE.player.hp - 2);
+    away(game);
+    press(game, -1, 60 * BALANCE.player.regenPeriod - 1);
+    expect(game.snapshot.playerHp).toBe(BALANCE.player.hp - 2); // not a step early
+    press(game, -1, 3);
+    expect(game.snapshot.playerHp).toBe(BALANCE.player.hp - 1); // and there at six
+  });
+
+  it('never gives one back at close quarters, because six is longer than two', () => {
+    // spec 04-41 and the "Pourquoi" of chapter 4: six seconds are longer than the
+    // two of the loss ceiling, so one never regains anything in a pack — one has
+    // to break off, and the roof is the infirmary.
+    const game = flatGame();
+    const at = plant(game, ZOMBIE.COLOSSUS);
+    const facts = press(game, at, 60 * 8);
+    const touches = only(facts, EVENT.CONTACT);
+    // Four touches in eight seconds and four hp gone: nothing came back between
+    // any two of them.
+    expect(touches.length).toBe(4);
+    expect(game.snapshot.playerHp).toBe(BALANCE.player.hp - 4);
+  });
+
+  it('is refilled whole by a preparation, without a rule of its own', () => {
+    // spec 04-41 and the hp table of chapter 4: thirty seconds are five hp, so a
+    // preparation makes the plein and no rule of renewal between two waves has to
+    // exist at all.
+    const game = flatGame();
+    const at = plant(game, ZOMBIE.COLOSSUS);
+    press(game, at, 60 * 7); // four touches, and down to his last hp
+    expect(game.snapshot.playerHp).toBe(1);
+    away(game);
+    press(game, -1, 60 * BALANCE.pace.latePrep);
+    expect(game.snapshot.playerHp).toBe(BALANCE.player.hp);
+  });
+
+  it('gives nothing back above five, and the ceiling never moves', () => {
+    // spec 04-44: nothing is bought for him and the ceiling of five never rises.
+    const game = flatGame();
+    press(game, -1, 60 * 20);
+    expect(game.snapshot.playerHp).toBe(BALANCE.player.hp);
   });
 });

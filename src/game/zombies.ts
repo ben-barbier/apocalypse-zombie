@@ -31,7 +31,7 @@
  * and what a touch costs the player, which is one contact. (spec 03-3)
  */
 import type { Balance, ZombieBalance } from './balance';
-import { isClimbing } from './player';
+import { collapsePlayer, isClimbing } from './player';
 import { nextFloat } from './random';
 import {
   EVENT,
@@ -345,23 +345,39 @@ function grazeCannons(game: Game, at: number, was: number): void {
  * takes what he carries. It is not a fight, it is a traffic accident.
  * (spec 03-14, 04-40)
  *
- * Chapter 4 holds what follows: staggered a second — no blow of his own
- * possible — and then untouchable a second. The two run one after the other, so
- * two seconds pass between two losses and a body pressed against a pack takes
- * ten seconds to fall; nothing touches him at all while he takes a ladder.
- * (spec 04-39, 04-13)
+ * **One hp, whatever kind walked into him**, and a touch is the one thing in the
+ * whole game that costs him one: not a fall, not the flame of a cannon, not
+ * anything else. A colossus worth three would turn every pack into a sum, when
+ * what the child needs is to watch a row of pips come down at one rate.
+ * (spec 04-37, 04-38)
  *
- * A zombie walks the floor of its street, so a body standing a storey above it
- * is not touched: that is what keeps a roof a whole refuge. (spec 04-9)
+ * Chapter 4 holds what follows: staggered a second — no blow of his own
+ * possible — and then untouchable a second. The two counts are run down in the
+ * phase of the step that is his, which comes before this one; here they are only
+ * armed. So two seconds stand between two losses and a body pressed against a
+ * pack has ten seconds before it goes down. (spec 04-39, 10-25)
+ *
+ * Three states are out of reach and each one for its own reason: untouchable
+ * after the last touch, on a ladder, where the climb is the whole of the
+ * immunity, and down on the floor, where he has no hp left to give and will get
+ * up whole in any case. (spec 04-13, 04-39, 04-42)
+ *
+ * **The height is taken floor to floor, and it does not grow with the kind.** A
+ * zombie walks the floor of its street, which stands at nought, and its reach is
+ * one storey — the height of the one body that can be touched, which is his.
+ * Taken with the scale of the kind instead, a colossus at 2,2 would reach 4,4
+ * blocks and take an hp off a body standing on the lowest roof of the city,
+ * which is four: 04-26 says in as many words that up there nothing touches us,
+ * and a refuge that the biggest of them reached into would not be one.
+ * (spec 02-20, 04-9, 04-26)
  */
 function touchPlayer(game: Game, at: number): void {
   const player = game.assault.player;
-  if (player.invulnerableLeft > 0 || isClimbing(player)) return;
+  if (player.invulnerableLeft > 0 || player.collapseLeft > 0 || isClimbing(player)) return;
+  if (Math.abs(player.y) >= BODY_TALL) return;
 
   const pool = game.assault.zombies;
-  const scale = kindAt(game, at).scale;
-  if (Math.abs(player.y) >= BODY_TALL * scale) return;
-  const across = (BODY_SIDE * (1 + scale)) / 2;
+  const across = (BODY_SIDE * (1 + kindAt(game, at).scale)) / 2;
   const offX = player.x - pool.x[at];
   const offZ = player.z - pool.z[at];
   if (offX * offX + offZ * offZ >= across * across) return;
@@ -370,7 +386,13 @@ function touchPlayer(game: Game, at: number): void {
   game.snapshot.playerHp = Math.max(0, game.snapshot.playerHp - balance.contactCost);
   player.staggerLeft = balance.stagger;
   player.invulnerableLeft = balance.stagger + balance.invulnerable;
+  player.regenLeft = balance.regenPeriod; // every touch starts the count over (spec 04-41)
   pushEvent(game.assault.events, EVENT.CONTACT, at, pool.x[at], 0, pool.z[at], balance.contactCost);
+
+  // At nought he goes down where he stands — and gets up there, whole, three
+  // seconds later. He is never gone: what a contact takes from him is time.
+  // (spec 04-5, 04-42)
+  if (game.snapshot.playerHp <= 0) collapsePlayer(game);
 }
 
 /**
@@ -381,15 +403,6 @@ function touchPlayer(game: Game, at: number): void {
  */
 export function stepZombies(game: Game, seconds: number): void {
   const pool = game.assault.zombies;
-  const player = game.assault.player;
-
-  // The two seconds a contact buys are counted down here, where the contact that
-  // buys them is settled: one hp goes every two seconds and no faster.
-  // (spec 04-39)
-  if (player.staggerLeft > 0) player.staggerLeft = Math.max(0, player.staggerLeft - seconds);
-  if (player.invulnerableLeft > 0) {
-    player.invulnerableLeft = Math.max(0, player.invulnerableLeft - seconds);
-  }
 
   for (let at = 0; at < pool.count; at += 1) {
     // Where it was, so the drawing has two steps to sit between. (spec 10-24)
