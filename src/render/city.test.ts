@@ -15,7 +15,18 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { City } from '../game/state';
 import { ATLAS_SIZE, TILE, TILES, type TileId, tileUv } from './atlas';
-import { GATEWAY_COLOURS, STOREY, TOP, buildCity, eachFace, type CityPlan } from './city';
+import {
+  GATEWAY_COLOURS,
+  NOTCHES,
+  STOREY,
+  TOP,
+  buildCity,
+  buildCrown,
+  eachCrownFace,
+  eachFace,
+  showCrown,
+  type CityPlan,
+} from './city';
 import { createScene, hazeNear } from './scene';
 
 /** The plan of chapter 2, written out here from the spec. (spec 02 "La place", "Une rue") */
@@ -124,6 +135,7 @@ function cityOf(bays: number): City {
     baseAng: 0,
     baseAlong: 2, // half the four blocks the shed runs out from the town hall
     baseAcross: 3, // half the six it is wide (spec 02-8)
+    townHallHalf: PLAN.townHallSide / 2, // spec 02-7
     buildings,
     rails: {
       stops: 2,
@@ -394,5 +406,122 @@ describe('what the city refuses', () => {
     const view = buildCity(CITY, PLAN, standIn());
     const names = view.draws.map((mesh) => mesh.name);
     expect(names).toEqual([...TILES.map((tile) => tile.id), 'gateways']);
+  });
+});
+
+describe('what a reinforcement builds on the town hall', () => {
+  const crownFaces = (notch: number): Face[] => {
+    const found: Face[] = [];
+    eachCrownFace(PLAN, notch, (tile, x, y, z, way) => found.push({ tile, x, y, z, way }));
+    return found;
+  };
+
+  it('says the notch by the stuff it is made of, and by no figure at all', () => {
+    // spec 06-37: bois et pierre claire, then boards of wood, then a wall of
+    // stone, then thick stone and merlons. Nothing is drawn but blocks.
+    expect(crownFaces(0)).toEqual([]); // nobody has reinforced it: wood and pale stone
+
+    const wood = new Set(crownFaces(1).map((face) => face.tile));
+    expect(wood).toEqual(new Set(['base'])); // the wood of the shed (spec 07, tiles)
+
+    const stone = new Set(crownFaces(2).map((face) => face.tile));
+    expect(stone).toEqual(new Set(['townHall', 'townHallRoof'])); // the pale stone
+
+    const thick = new Set(crownFaces(NOTCHES).map((face) => face.tile));
+    expect(thick).toEqual(stone);
+  });
+
+  it('stands higher and thicker at each notch, which is the whole reading', () => {
+    // spec 06-37: low boards, then a wall, then that wall two blocks thick with
+    // merlons over it.
+    const cellsOf = (notch: number): Set<string> =>
+      new Set(crownFaces(notch).map((face) => `${face.x},${face.z}`));
+    const topOf = (notch: number): number =>
+      crownFaces(notch).reduce((most, face) => Math.max(most, face.y), 0);
+
+    expect(cellsOf(1).size).toBe(28); // the outer course of an eight by eight
+    expect(cellsOf(2).size).toBe(28);
+    expect(cellsOf(NOTCHES).size).toBe(48); // two courses thick (spec 06-37)
+
+    expect(topOf(1)).toBe(PLAN.townHallHeight + 1);
+    expect(topOf(2)).toBe(PLAN.townHallHeight + 2);
+    expect(topOf(NOTCHES)).toBe(PLAN.townHallHeight + 3); // the merlons
+  });
+
+  it('lays not one block on ground the child walks, at any notch', () => {
+    // spec 04-8, 02-9: this file draws what the grid says, and a block on
+    // walkable paving would be a wall he walks straight through. The roof of the
+    // town hall is climbed by nobody and carries nothing, so the crown takes it.
+    const half = PLAN.townHallSide / 2;
+    for (let notch = 1; notch <= NOTCHES; notch += 1) {
+      for (const face of crownFaces(notch)) {
+        expect(face.y).toBeGreaterThanOrEqual(PLAN.townHallHeight);
+        expect(Math.abs(face.x)).toBeLessThan(half);
+        expect(Math.abs(face.z)).toBeLessThan(half);
+      }
+    }
+  });
+
+  it('rebuilds the whole of it in one call, and leaves nothing of the one before', () => {
+    // spec 06-36: the reinforcement rebuilds everything at once, and it is the
+    // one thing that brings back what has come off. spec 10-37: and the scene is
+    // built again from the state after a lost context.
+    const crown = buildCrown(PLAN, standIn());
+    const seated = (): number => crown.draws.reduce((total, mesh) => total + mesh.count, 0);
+    expect(seated()).toBe(0); // it opens on a town hall nobody has reinforced
+
+    for (let notch = 1; notch <= NOTCHES; notch += 1) {
+      showCrown(crown, notch);
+      expect(seated()).toBe(crownFaces(notch).length);
+    }
+    // The buy-back moves none of it: there is no fourth notch. (spec 06-28)
+    showCrown(crown, NOTCHES);
+    expect(seated()).toBe(crownFaces(NOTCHES).length);
+
+    showCrown(crown, 0);
+    expect(seated()).toBe(0);
+  });
+
+  it('costs three calls a frame, and never one for a block', () => {
+    // spec 10 "Le budget de rendu": at most 80 calls a frame for everything, and
+    // the count follows the tiles rather than the blocks.
+    const crown = buildCrown(PLAN, standIn());
+    showCrown(crown, NOTCHES);
+    expect(crown.draws.length).toBe(3);
+    expect(crown.draws.map((mesh) => mesh.name)).toEqual([
+      'crown:townHall',
+      'crown:townHallRoof',
+      'crown:base',
+    ]);
+
+    const city = buildCity(CITY, PLAN, standIn());
+    expect(city.draws.length + crown.draws.length).toBeLessThanOrEqual(80);
+  });
+
+  it('borrows two of the thirteen tiles, and asks for no fourteenth', () => {
+    // spec 07-44, spec 06 "Les interdits": there is no fourteenth tile of the
+    // sheet, and the whole reading is wood against stone, thin against thick.
+    const worn = new Set<TileId>();
+    for (let notch = 0; notch <= NOTCHES; notch += 1) {
+      for (const face of crownFaces(notch)) worn.add(face.tile);
+    }
+    for (const tile of worn) expect(TILES.map((spec) => spec.id)).toContain(tile);
+  });
+
+  it('hangs under one node, and casts nothing', () => {
+    // spec 07-3, 07-17: nothing casts and nothing is translucent.
+    const crown = buildCrown(PLAN, standIn());
+    showCrown(crown, NOTCHES);
+    let cast = 0;
+    let clear = 0;
+    crown.node.traverse((child) => {
+      if (child.castShadow) cast += 1;
+      const mesh = child as THREE.Mesh;
+      const paint = mesh.material as THREE.MeshLambertMaterial | undefined;
+      if (paint === undefined) return;
+      if (paint.transparent || paint.opacity < 1) clear += 1;
+    });
+    expect(cast).toBe(0);
+    expect(clear).toBe(0);
   });
 });

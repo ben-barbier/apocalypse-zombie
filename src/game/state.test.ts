@@ -6,6 +6,8 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from './balance';
 import {
+  atBase,
+  atFreeFace,
   cellAt,
   clearEvents,
   createGame,
@@ -564,5 +566,57 @@ describe('the plan of the city', () => {
     let reached = 0;
     for (let n = 0; n < seen.length; n += 1) reached += seen[n];
     expect(reached).toBe(480); // one street of eighty by six, and no other
+  });
+});
+
+describe('the four faces of the town hall', () => {
+  /** Half his own side, which is the one reading of a contact. (spec 03-14, 04-45) */
+  const CONTACT = 0.5;
+
+  it('answers at the three free faces, and never at the one the shed holds', () => {
+    // spec 06-31: the three free faces reinforce; the face the shed of the base
+    // is adossed to never does — there, one takes firebombs.
+    // Street one heads along +x, so the shed holds the +x face. (spec 02-8, 02-29)
+    expect(atFreeFace(city, -TOWN_HALL - 0.2, 0, CONTACT)).toBe(true);
+    expect(atFreeFace(city, 0, TOWN_HALL + 0.2, CONTACT)).toBe(true);
+    expect(atFreeFace(city, 0, -TOWN_HALL - 0.2, CONTACT)).toBe(true);
+    expect(atFreeFace(city, TOWN_HALL + 0.2, 0, CONTACT)).toBe(false);
+  });
+
+  it('refuses the whole of the face the shed holds, corners and ends alike', () => {
+    // spec 06-31: it is a face that never reinforces, not merely the six blocks
+    // the shed happens to cover — so nothing at all on that heading answers,
+    // however far across it stands and however close it presses.
+    for (let across = -12; across <= 12; across += 0.25) {
+      for (let along = TOWN_HALL - 0.4; along <= TOWN_HALL + 0.4; along += 0.1) {
+        if (Math.abs(across) > along) continue; // that is another face
+        expect(atFreeFace(city, along, across, CONTACT)).toBe(false);
+      }
+    }
+  });
+
+  it('never answers where the shed does, so the two gestures never meet', () => {
+    // spec 06-31, 04-45: one press, one sense at one spot. Walked over the whole
+    // middle of the city, a quarter of a block at a time.
+    for (let x = -12; x <= 12; x += 0.25) {
+      for (let z = -12; z <= 12; z += 0.25) {
+        if (atBase(city, x, z, CONTACT)) expect(atFreeFace(city, x, z, CONTACT)).toBe(false);
+      }
+    }
+  });
+
+  it('lets go the moment he steps off, and never reaches across the square', () => {
+    // spec 06-31: it is a contact, and a contact is half a block.
+    expect(atFreeFace(city, -TOWN_HALL - 0.6, 0, CONTACT)).toBe(false);
+    expect(atFreeFace(city, -10, 0, CONTACT)).toBe(false);
+    expect(atFreeFace(city, 0, 0, CONTACT)).toBe(false); // inside it, where nobody stands
+  });
+
+  it('leaves walkable paving at the contact of each of the three', () => {
+    // spec 02-4, 06-31: the three faces are reachable on foot, or the valve
+    // would be shut. The cell beside a face is square paving. (spec 02-6)
+    expect(walkableAt(city, -TOWN_HALL - 0.2, 0)).toBe(true);
+    expect(walkableAt(city, 0, TOWN_HALL + 0.2)).toBe(true);
+    expect(walkableAt(city, 0, -TOWN_HALL - 0.2)).toBe(true);
   });
 });

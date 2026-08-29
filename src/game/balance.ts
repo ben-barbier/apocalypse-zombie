@@ -280,7 +280,7 @@ export interface PriceBalance {
   readonly tierTwo: number;
   readonly tierThree: number;
   readonly firebomb: number;
-  /** The three reinforcement steps, then the price it is bought back at. */
+  /** The three notches of reinforcement, then the price it is bought back at. */
   readonly reinforcements: readonly number[];
   readonly reinforcementAgain: number;
 }
@@ -298,7 +298,7 @@ export interface EconomyBalance {
   /** The town hall, in shambler hits, and the caps a reinforcement buys. */
   readonly townHallHp: number;
   readonly townHallCaps: readonly number[];
-  /** Segments of the bar, whatever the reinforcement step. (spec 08-13) */
+  /** Segments of the bar, whatever the notch of reinforcement. (spec 08-13) */
   readonly townHallSegments: number;
 }
 
