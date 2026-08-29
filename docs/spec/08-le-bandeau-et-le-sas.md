@@ -112,7 +112,7 @@ Ce chapitre décide ce que le jeu affiche par-dessus le monde et ce qu'il refuse
 
 69. L'Instantané décrit une **frontière de vague**, et **jamais un assaut**.
 70. Il porte **dix champs et pas un de plus** : la version de format, la vague, le drapeau *victoire acquise*, les points de vie de la mairie et leur plafond, les pièces, les canons, les points de vie du joueur, la brassée, les rues actives et l'état du générateur.
-71. La **position du joueur n'y est pas** : à la reprise, il se tient à la base, là où commence une préparation.
+71. La **position du joueur n'y est pas** : à la reprise il se tient **exactement là où s'ouvre une partie neuve** — sur la place devant la base, dégagé du hangar et tourné vers la rue 1 ([chapitre 1](01-la-partie.md)) —, parce que la caméra doit ouvrir dégagée à la reprise comme au premier écran ; le hangar est alors à 1,2 seconde de course, et c'est tout ce que l'écart coûte.
 72. Il s'écrit à chaque **entrée en préparation**, et à chaque **achat fait pendant cette préparation** — canon posé, canon amélioré, bombes prises, Renfort : ce sont les seuls événements qui le changent hors combat.
 73. **Aucune écriture pendant l'assaut**, et **aucune dans un gestionnaire d'interruption** : aux moments où le navigateur ne promet plus rien, le disque est déjà à jour.
 74. Un **achat fait en plein assaut** puis suivi d'une purge mémoire est **perdu** — et l'argent revient dans la poche.

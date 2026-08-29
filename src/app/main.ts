@@ -99,8 +99,8 @@ const game = createGame(BALANCE);
 const input = createInput();
 const quality = createQuality();
 
-// He stands at the base, in front of the town hall, which is where a game opens
-// and where a resumed one picks up. (spec 01-22, 08-71)
+// He stands on the square in front of the base, clear of the shed, which is
+// where a game opens and where a resumed one picks up. (spec 01-22, 08-71)
 placePlayer(game);
 
 // A game opens on the assault of wave one, with its four shamblers already
