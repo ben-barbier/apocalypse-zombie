@@ -32,7 +32,7 @@ export function step(game: Game, input: Readonly<InputState>): void {
   stepPlayer(game, input, seconds);
   stepSword(game, input, seconds);
   stepZombies(game, seconds);
-  stepCannons(game, input);
+  stepCannons(game, input, seconds);
   stepProjectiles(game, seconds);
   stepEconomy(game);
   stepWaves(game, seconds);

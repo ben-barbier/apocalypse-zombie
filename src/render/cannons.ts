@@ -31,16 +31,28 @@
  * one primitive of **effect**, and a question one is asking is not an effect.
  * (spec 05-17 to 05-20, 07-22, 07-25, 08-4)
  *
- * What is not here: the conveyor that runs to the base, which arrives with the
- * resupply, and the flame, which arrives with its own. The ball is not here
- * either, and it never will be — it is a shard like every other effect, and it
- * rides in the one mesh of `effects.ts` rather than in a call of its own.
- * (spec 04-52, 05-30, 07-32)
+ * **The cone is the one continuous effect of the game**, so it is the one thing
+ * here that is not made of shards: an instanced cone attached to the cannon, one
+ * instance per cannon that burns, and **the scale carries the length**. Short
+ * dry, long fed — and never a second colour, since the fire of this game is
+ * white-blue throughout. It is alight only where a zombie stands, so a cone on
+ * the screen is a zombie on the screen. (spec 05-33, 05-36, 07-38, 07-39)
+ *
+ * **The belt of a third tier rides in the same mesh as the boxes of a cannon**,
+ * a single stretched cube from the base to the cannon it serves: it appears
+ * whole at the purchase, nothing traces it and nothing steers it, and it pulls
+ * back to the base over one second when the cannon it served is gone. It never
+ * goes on its own account — nothing in this game can take it down.
+ * (spec 04-53, 04-55, 05-5, 05-50)
+ *
+ * The ball is not here, and it never will be — it is a shard like every other
+ * effect, and it rides in the one mesh of `effects.ts` rather than in a call of
+ * its own. (spec 07-32)
  */
 import * as THREE from 'three';
 import type { CannonBalance } from '../game/balance';
 import type { CannonPool } from '../game/state';
-import { BLACK, BLINK_SLOW, WHITE } from './effects';
+import { BLACK, BLINK_SLOW, FIRE, WHITE } from './effects';
 
 /**
  * The one colour chapter 7 gives a cannon, off the palette of what is played:
@@ -135,6 +147,13 @@ function boxOf(
   return { id, w, h, d, x, y, z: 0, tiers, copper, plate: false, cell: 0 };
 }
 
+/**
+ * The mouth of the second arm, which is what the second tier adds — and where
+ * the cone leaves from, which is why it is named rather than left in the table.
+ * (spec 05-3, 07-38)
+ */
+export const MOUTH = boxOf('mouth', 0.34, 0.2, 0.2, 0.32, 0.34, ARMED, true);
+
 export const CANNON: readonly CannonBox[] = [
   // The footing, which wear never takes: a cannon at one hp still stands on it.
   boxOf('foot', 1, 0.24, 1, 0, 0.12, ALL, false),
@@ -143,8 +162,7 @@ export const CANNON: readonly CannonBox[] = [
   // The short tube of a first tier, and the long one the other two carry. (spec 05-5)
   boxOf('tubeShort', 0.62, 0.22, 0.22, 0.42, 0.62, [1], false),
   boxOf('tubeLong', 1.05, 0.26, 0.26, 0.62, 0.68, ARMED, true),
-  // The mouth of the second arm, which is what the second tier adds. (spec 05-3)
-  boxOf('mouth', 0.34, 0.2, 0.2, 0.32, 0.34, ARMED, true),
+  MOUTH,
   plateAt('plateLowFrontLeft', 0.34, 0.36, -0.34),
   plateAt('plateLowFrontRight', 0.34, 0.36, 0.34),
   plateAt('plateLowBackLeft', -0.34, 0.36, -0.34),
@@ -185,6 +203,25 @@ const SUNK = 1.3;
  */
 const PULSE_DEEP = 0.16;
 
+/**
+ * How long a dry cone runs, as a fraction of the six blocks a fed one shows.
+ *
+ * The spec settles that the state is read off the **length** — short dry, long
+ * fed — and no measurement of it, so this is derived rather than picked: a dry
+ * cone lands half a sword hit a second against the two of a fed one, a quarter,
+ * and the length says that ratio. It is never nought, because a flame **never
+ * goes out**: dry it weakens, and that is the whole of the difference.
+ * (spec 05-34, 05-36)
+ */
+const DRY_OF = 0.25;
+
+/** How wide and how thick the belt of a third tier runs, in blocks. (spec 05-5) */
+const BELT_WIDE = 0.5;
+const BELT_THICK = 0.16;
+
+/** How high over the floor the belt leaves the base, so it does not fight it. */
+const BELT_LIFT = 0.3;
+
 /** What the cannons hand to the scene: one node, and the calls they cost a frame. */
 export interface CannonView {
   /** Everything they draw, under one node the scene takes in one go. */
@@ -196,6 +233,12 @@ export interface CannonView {
   /** The mark under his feet, and the circle it draws. (spec 05-17, 05-19) */
   readonly mark: THREE.Mesh;
   readonly circle: THREE.Mesh;
+  /**
+   * One cone per cannon that burns, and the second of the two instanced systems
+   * of effect chapter 7 counts — the shards are the other. (spec 07-38,
+   * 07 "Les éclats")
+   */
+  readonly flames: THREE.InstancedMesh;
 
   /**
    * The cannons still going down, held by the spot they went down at rather than
@@ -209,6 +252,33 @@ export interface CannonView {
   readonly riseBorn: Float64Array;
   readonly riseSpan: Float32Array;
   riseCount: number;
+
+  /**
+   * The magazines filling, held by the spot of their cannon like the rises
+   * above, and armed off the one fact the rules write when an armful goes in.
+   * `pourFrom` is what the magazine held before it, so the cells that arrive
+   * come up over the 0,3 second of the gesture rather than blinking into being.
+   * (spec 04-49, 10-19)
+   */
+  readonly pourX: Float32Array;
+  readonly pourZ: Float32Array;
+  readonly pourFrom: Uint8Array;
+  readonly pourBorn: Float64Array;
+  readonly pourSpan: Float32Array;
+  pourCount: number;
+
+  /**
+   * The belts pulling back to the base, one second each, because the cannon they
+   * served is gone. They outlive their cannon, so they are held here by the spot
+   * it stood at rather than by a slot of a pool that no longer holds it.
+   * (spec 04-55, 05-50)
+   */
+  readonly pullX: Float32Array;
+  readonly pullY: Float32Array;
+  readonly pullZ: Float32Array;
+  readonly pullBorn: Float64Array;
+  readonly pullSpan: Float32Array;
+  pullCount: number;
 }
 
 // The one set of scratch objects of this file, made once at load: a frame writes
@@ -219,6 +289,8 @@ const SIZE = new THREE.Vector3();
 const SEAT = new THREE.Matrix4();
 const PAINT = new THREE.Color();
 const UPRIGHT = new THREE.Vector3(0, 1, 0);
+const ALONG = new THREE.Vector3();
+const AXIS = new THREE.Vector3(1, 0, 0);
 
 /**
  * Builds the mesh and the two marks, once, at load — and again after a lost
@@ -226,15 +298,43 @@ const UPRIGHT = new THREE.Vector3(0, 1, 0);
  * game lives only on the GPU. `holds` is the pool of cannons, which is a
  * technical bound and never a rule: nothing here counts them either.
  * (spec 05-52, 10-13, 10-37)
+ *
+ * `arc` is the opening of the cone, in degrees, and it is handed in rather than
+ * written here: it belongs to the balance, and a figure written twice ends up
+ * differing. It rides in the geometry, so an instance carries one scale and
+ * that scale is the whole of what says fed or dry. (spec 05-30, 07-38, 10-15)
  */
-export function buildCannons(holds: number): CannonView {
+export function buildCannons(holds: number, arc: number): CannonView {
   const bodies = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshLambertMaterial(),
-    holds * MOST_BOXES,
+    // Every box of every cannon, one belt per cannon of the third tier, and one
+    // more per belt still pulling back to the base after its cannon has gone.
+    // (spec 04-55, 05-5)
+    holds * (MOST_BOXES + 2),
   );
   bodies.name = 'cannons';
   bodies.count = 0;
+
+  // One cone, of a length of one and of the opening chapter 5 settles, so an
+  // instance carries a spot, a heading and **one scale** — and that scale is the
+  // whole of what says fed or dry. Its point sits at the origin and it opens
+  // along `+x`, which is the heading every box of this file is laid along.
+  // (spec 05-30, 07-38)
+  const cone = new THREE.ConeGeometry(Math.tan((arc / 2) * (Math.PI / 180)), 1, 12);
+  cone.rotateZ(Math.PI / 2);
+  cone.translate(0.5, 0, 0);
+  const flames = new THREE.InstancedMesh(
+    cone,
+    // It takes neither the light nor the haze: a cone at the far end of a street
+    // must be seen to burn, and the fire is one colour and one only.
+    // (spec 07-8, 07-11, 07-39)
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(FIRE) }),
+    holds,
+  );
+  flames.name = 'flames';
+  flames.count = 0;
+  (flames.material as THREE.MeshBasicMaterial).fog = false;
 
   // A square laid flat and turned a quarter turn about the upright: that is the
   // whole of a diamond, and an instance carries only how wide it is. (spec 05-17)
@@ -262,19 +362,33 @@ export function buildCannons(holds: number): CannonView {
 
   const node = new THREE.Group();
   node.add(bodies);
+  node.add(flames);
   node.add(mark);
   node.add(circle);
   return {
     node,
-    draws: [bodies, mark, circle],
+    draws: [bodies, flames, mark, circle],
     bodies,
     mark,
     circle,
+    flames,
     riseX: new Float32Array(holds),
     riseZ: new Float32Array(holds),
     riseBorn: new Float64Array(holds),
     riseSpan: new Float32Array(holds),
     riseCount: 0,
+    pourX: new Float32Array(holds),
+    pourZ: new Float32Array(holds),
+    pourFrom: new Uint8Array(holds),
+    pourBorn: new Float64Array(holds),
+    pourSpan: new Float32Array(holds),
+    pourCount: 0,
+    pullX: new Float32Array(holds),
+    pullY: new Float32Array(holds),
+    pullZ: new Float32Array(holds),
+    pullBorn: new Float64Array(holds),
+    pullSpan: new Float32Array(holds),
+    pullCount: 0,
   };
 }
 
@@ -329,6 +443,101 @@ function risenAt(view: CannonView, x: number, z: number, now: number): number {
     return done < 0 ? 0 : done;
   }
   return 1;
+}
+
+/**
+ * Arms the filling of one magazine, at the spot the buffer names for it, and
+ * `from` is what it held before. Past the pool the filling is let go rather than
+ * anything growing: the cells are simply there, which is what they were about to
+ * be. (spec 04-49, 10-14)
+ */
+export function pourCells(
+  view: CannonView,
+  x: number,
+  z: number,
+  from: number,
+  span: number,
+  now: number,
+): void {
+  const at = view.pourCount;
+  if (at >= view.pourSpan.length) return;
+  view.pourX[at] = x;
+  view.pourZ[at] = z;
+  view.pourFrom[at] = from;
+  view.pourBorn[at] = now;
+  view.pourSpan[at] = span;
+  view.pourCount = at + 1;
+}
+
+/** Moves one filling, whole, from one slot to another. */
+function carryPour(view: CannonView, from: number, to: number): void {
+  view.pourX[to] = view.pourX[from];
+  view.pourZ[to] = view.pourZ[from];
+  view.pourFrom[to] = view.pourFrom[from];
+  view.pourBorn[to] = view.pourBorn[from];
+  view.pourSpan[to] = view.pourSpan[from];
+}
+
+/** Lets go of the fillings that have run out, so the pool stays `[0, count)`. */
+function agePours(view: CannonView, now: number): void {
+  let live = 0;
+  for (let i = 0; i < view.pourCount; i += 1) {
+    if (now - view.pourBorn[i] >= view.pourSpan[i]) continue;
+    if (live !== i) carryPour(view, i, live);
+    live += 1;
+  }
+  view.pourCount = live;
+}
+
+/**
+ * How many cells of the magazine at that spot show this frame: what it holds
+ * now, or fewer while an armful is still going in. The cells arrive one whole
+ * cell at a time over the 0,3 second, which is the one place that span is ever
+ * spent. (spec 04-49, 05-5)
+ */
+function filledAt(view: CannonView, x: number, z: number, held: number, now: number): number {
+  for (let i = 0; i < view.pourCount; i += 1) {
+    const offX = view.pourX[i] - x;
+    const offZ = view.pourZ[i] - z;
+    if (offX * offX + offZ * offZ > 0.01) continue;
+    const done = (now - view.pourBorn[i]) / view.pourSpan[i];
+    const was = view.pourFrom[i];
+    const shown = was + Math.floor((held - was) * (done < 0 ? 0 : done));
+    return shown > held ? held : shown;
+  }
+  return held;
+}
+
+/**
+ * Arms the pulling back of one belt, from the spot the cannon it served stood
+ * at. It is the one thing that ever takes a belt away: nothing in this game can
+ * destroy one, and it goes because its cannon has. (spec 04-55, 05-50)
+ */
+export function retractConveyor(
+  view: CannonView,
+  x: number,
+  y: number,
+  z: number,
+  span: number,
+  now: number,
+): void {
+  const at = view.pullCount;
+  if (at >= view.pullSpan.length) return;
+  view.pullX[at] = x;
+  view.pullY[at] = y;
+  view.pullZ[at] = z;
+  view.pullBorn[at] = now;
+  view.pullSpan[at] = span;
+  view.pullCount = at + 1;
+}
+
+/** Moves one pulling belt, whole, from one slot to another. */
+function carryPull(view: CannonView, from: number, to: number): void {
+  view.pullX[to] = view.pullX[from];
+  view.pullY[to] = view.pullY[from];
+  view.pullZ[to] = view.pullZ[from];
+  view.pullBorn[to] = view.pullBorn[from];
+  view.pullSpan[to] = view.pullSpan[from];
 }
 
 /**
@@ -407,10 +616,102 @@ function seatCannon(
     // An empty cell of the magazine is a hollow, which is how three cells show
     // that they empty. What fills them arrives with the resupply. (spec 05-5)
     if (box.cell > 0 && box.cell > held) continue;
-    seatBox(view, put, box, x, y, z, cos, sin, scale, box.copper && tier > 1 ? COPPER : METAL);
+    // A cell that holds a firebomb is painted in the one colour the fire of this
+    // game has, so the three cells say what they hold and never how much of
+    // anything: they are cells, not a gauge. (spec 05-5, 07-39)
+    const paint = box.cell > 0 ? FIRE : box.copper && tier > 1 ? COPPER : METAL;
+    seatBox(view, put, box, x, y, z, cos, sin, scale, paint);
     put += 1;
   }
   return put;
+}
+
+/**
+ * Seats one belt, a single cube stretched between two spots, and says whether it
+ * took a slot. There is no path here and no waypoint: a belt is the straight
+ * line from the base to the cannon it serves, and nothing traces it, steers it
+ * or takes it down. It is grey metal rather than the copper of the cannon —
+ * cold against a city warm throughout, which is what makes the third silhouette
+ * read from the far side of the square. (spec 04-53, 04-55, 05-5, 07-9)
+ */
+function seatBelt(
+  view: CannonView,
+  at: number,
+  fromX: number,
+  fromY: number,
+  fromZ: number,
+  toX: number,
+  toY: number,
+  toZ: number,
+): boolean {
+  ALONG.set(toX - fromX, toY - fromY, toZ - fromZ);
+  const run = ALONG.length();
+  if (run < 0.001) return false; // pulled all the way back, and there is nothing left to draw
+  ALONG.divideScalar(run);
+  TURN.setFromUnitVectors(AXIS, ALONG);
+  SPOT.set((fromX + toX) / 2, (fromY + toY) / 2, (fromZ + toZ) / 2);
+  SIZE.set(run, BELT_THICK, BELT_WIDE);
+  view.bodies.setMatrixAt(at, SEAT.compose(SPOT, TURN, SIZE));
+  view.bodies.setColorAt(at, PAINT.set(METAL));
+  return true;
+}
+
+/**
+ * Seats the belts still pulling back to the base, after the cannons they served.
+ * The far end slides home over the one second of 04-55, and what is left is
+ * nothing at all. (spec 04-55, 05-50)
+ */
+function seatPulls(
+  view: CannonView,
+  at: number,
+  baseX: number,
+  baseZ: number,
+  now: number,
+): number {
+  let put = at;
+  let live = 0;
+
+  for (let i = 0; i < view.pullCount; i += 1) {
+    const span = view.pullSpan[i];
+    if (!(span > 0) || now - view.pullBorn[i] >= span) continue;
+    if (live !== i) carryPull(view, i, live);
+
+    const left = 1 - (now - view.pullBorn[live]) / span;
+    const toX = baseX + (view.pullX[live] - baseX) * left;
+    const toY = BELT_LIFT + view.pullY[live] * left;
+    const toZ = baseZ + (view.pullZ[live] - baseZ) * left;
+    if (seatBelt(view, put, baseX, BELT_LIFT, baseZ, toX, toY, toZ)) put += 1;
+    live += 1;
+  }
+
+  view.pullCount = live;
+  return put;
+}
+
+/**
+ * Seats one cone, at the mouth of the second arm and on the heading of what it
+ * burns. **One instance, one scale, and that scale is the whole of the state**:
+ * six blocks fed, a quarter of that dry, and never a second colour. The opening
+ * rides in the geometry, so a cone of any length is the same 60°.
+ * (spec 05-30, 05-36, 07-38, 07-39)
+ */
+function seatFlame(
+  view: CannonView,
+  at: number,
+  x: number,
+  y: number,
+  z: number,
+  ang: number,
+  scale: number,
+  length: number,
+): void {
+  const turn = -ang;
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  TURN.setFromAxisAngle(UPRIGHT, turn);
+  SPOT.set(x + MOUTH.x * cos * scale, y + MOUTH.y * scale, z - MOUTH.x * sin * scale);
+  SIZE.set(length, length, length);
+  view.flames.setMatrixAt(at, SEAT.compose(SPOT, TURN, SIZE));
 }
 
 /**
@@ -469,31 +770,62 @@ export function placeCannons(
   rule: CannonBalance,
   alpha: number,
   now: number,
+  baseX: number,
+  baseZ: number,
 ): void {
   ageRises(view, now);
+  agePours(view, now);
 
   let put = 0;
+  let lit = 0;
   for (let c = 0; c < cannons.count; c += 1) {
     const tier = cannons.tier[c];
     const scale = TIER_SCALES[tier - 1] ?? 1;
     const x = cannons.x[c];
     const z = cannons.z[c];
     const risen = risenAt(view, x, z, now);
+    const floor = cannons.y[c] - (1 - risen) * SUNK * scale;
     put = seatCannon(
       view,
       put,
       x,
-      cannons.y[c] - (1 - risen) * SUNK * scale,
+      floor,
       z,
       between(cannons.angPrev[c], cannons.ang[c], alpha),
       tier,
       platesOf(cannons.hp[c], rule.hp),
-      cannons.magazine[c],
+      filledAt(view, x, z, cannons.magazine[c], now),
     );
+
+    // The belt of a third tier, whole from the instant of the purchase and
+    // straight from the base: it is the third silhouette. (spec 04-53, 05-5)
+    if (tier >= rule.tiers && seatBelt(view, put, baseX, BELT_LIFT, baseZ, x, floor + BELT_LIFT, z)) {
+      put += 1;
+    }
+
+    // One cone per cannon that burns, and **none at all over an empty street**:
+    // the rules say which are alight, and nothing here guesses. (spec 05-33, 07-38)
+    if (cannons.flameLit[c] === 1) {
+      seatFlame(
+        view,
+        lit,
+        x,
+        floor,
+        z,
+        between(cannons.flameAngPrev[c], cannons.flameAng[c], alpha),
+        scale,
+        rule.flame.range * (cannons.burnLeft[c] > 0 ? 1 : DRY_OF),
+      );
+      lit += 1;
+    }
   }
 
+  put = seatPulls(view, put, baseX, baseZ, now);
+
   view.bodies.count = put;
+  view.flames.count = lit;
   view.bodies.instanceMatrix.needsUpdate = true;
+  view.flames.instanceMatrix.needsUpdate = true;
   const painted = view.bodies.instanceColor;
   if (painted !== null) painted.needsUpdate = true;
 }

@@ -13,6 +13,13 @@
  * animation anywhere — a body is placed by arithmetic, every frame.
  * (spec 07-20, 07-21)
  *
+ * Over his head, and **never in the hud**, ride the firebombs he carries: one
+ * cube a bomb, three at the very most, in the one colour the fire of this game
+ * has. There is no counter of them anywhere — the armful is read on him, and a
+ * magazine on its cannon. A carried bomb never falls, so nothing here can ever
+ * put one on the ground: they are simply drawn or not. (spec 04-47, 04-48,
+ * 08-4)
+ *
  * Under each of them lies the **blot**: a dark square laid flat, which does not
  * orient, does not stretch, and depends neither on the sun nor on how high the
  * body stands. It is not a shade the light casts — the game has none of those —
@@ -24,7 +31,7 @@
  */
 import * as THREE from 'three';
 import type { Player } from '../game/state';
-import { WHITE } from './effects';
+import { FIRE, WHITE } from './effects';
 
 /** The fourteen, and there will never be a fifteenth. (spec 07-18) */
 export const BOXES = 14;
@@ -117,6 +124,17 @@ export const SWORD: BodyBox = {
 const BLOT_SIDE = 0.8;
 
 /**
+ * How large one firebomb is drawn over his head, how far two of them sit apart,
+ * and how high the row floats — in blocks, for a body at a scale of one, whose
+ * head tops out at two. Chapter 4 settles that the armful is read over his head,
+ * one cube a bomb, and no measurement of it, so all three are the drawing's own.
+ * (spec 04-47)
+ */
+const BOMB_SIDE = 0.24;
+const BOMB_GAP = 0.3;
+const BOMB_LIFT = 2.3;
+
+/**
  * The head, which is the one box a fatal blow throws — it is the last of the
  * fourteen above. Where its middle sits is also how high a body's own middle
  * stands: a body at a scale of one is exactly one storey, so half of it is one
@@ -184,13 +202,14 @@ const TUMBLE = new THREE.Vector3(0.6, 0.5, 0.62).normalize();
  * the GPU. `holds` is how many bodies they are sized for, which is the player
  * plus the pool of zombies. (spec 10-13, 10-37)
  */
-export function buildCharacters(holds: number): CharacterView {
+export function buildCharacters(holds: number, carries = 0): CharacterView {
   const bodies = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshLambertMaterial(),
-    // The sword of the player, which is the only one, and one thrown head per
-    // body the game can hold: no blow ever fells more than there are bodies.
-    holds * BOXES + 1 + holds,
+    // The sword of the player, which is the only one, one thrown head per body
+    // the game can hold — no blow ever fells more than there are bodies — and
+    // the firebombs of one armful, which only he ever carries. (spec 04-47)
+    holds * BOXES + 1 + holds + carries,
   );
   bodies.name = 'bodies';
   bodies.count = 0;
@@ -299,6 +318,45 @@ function seatHeads(view: CharacterView, at: number, now: number): number {
   return put;
 }
 
+/**
+ * Seats the firebombs he carries, in a row over his head, turning with him. One
+ * cube a bomb and nothing else: no figure, no bar, and nothing in the hud.
+ * (spec 04-47, 08-4)
+ *
+ * They keep their own colour while he blinks white: what a contact says is that
+ * **he** was walked into, and a bomb in his arms is untouched by it — it never
+ * falls, whatever happens to him, and the one thing that ever takes his armful
+ * away is a collapse, which takes it in the rules. (spec 04-43, 04-48)
+ */
+function seatArmful(
+  view: CharacterView,
+  at: number,
+  x: number,
+  y: number,
+  z: number,
+  ang: number,
+  carried: number,
+): number {
+  if (carried <= 0) return at;
+
+  const turn = Math.PI / 2 - ang;
+  const cos = Math.cos(turn);
+  const sin = Math.sin(turn);
+  TURN.setFromAxisAngle(UPRIGHT, turn);
+
+  let put = at;
+  const first = -((carried - 1) * BOMB_GAP) / 2;
+  for (let i = 0; i < carried; i += 1) {
+    const off = first + i * BOMB_GAP;
+    SPOT.set(x + off * cos, y + BOMB_LIFT, z - off * sin);
+    SIZE.set(BOMB_SIDE, BOMB_SIDE, BOMB_SIDE);
+    view.bodies.setMatrixAt(put, SEAT.compose(SPOT, TURN, SIZE));
+    view.bodies.setColorAt(put, PAINT.set(FIRE));
+    put += 1;
+  }
+  return put;
+}
+
 /** Where a frame sits between the two last steps. (spec 10-24) */
 function between(from: number, to: number, alpha: number): number {
   return from + (to - from) * alpha;
@@ -392,15 +450,20 @@ export function placeCharacters(
   alpha: number,
   now: number,
   white = false,
+  carried = 0,
 ): void {
-  const put = seatBody(
+  const x = between(player.xPrev, player.x, alpha);
+  const y = between(player.yPrev, player.y, alpha);
+  const z = between(player.zPrev, player.z, alpha);
+  const ang = betweenTurns(player.angPrev, player.ang, alpha);
+  let put = seatBody(
     view,
     0,
     0,
-    between(player.xPrev, player.x, alpha),
-    between(player.yPrev, player.y, alpha),
-    between(player.zPrev, player.z, alpha),
-    betweenTurns(player.angPrev, player.ang, alpha),
+    x,
+    y,
+    z,
+    ang,
     1,
     white ? WHITE : TUNIC,
     white ? WHITE : SKIN,
@@ -409,6 +472,9 @@ export function placeCharacters(
     // (spec 04-13)
     player.climbLeft <= 0,
   );
+
+  // What he carries, over his head and nowhere else. (spec 04-47)
+  put = seatArmful(view, put, x, y, z, ang, carried);
 
   // The heads a fatal blow threw, going up and turning over. They run on the
   // frame and not on the step: they are erased in fractions of a second, like the

@@ -121,6 +121,9 @@ function cityOf(bays: number): City {
     baseX: 0,
     baseZ: 0,
     halo: 16,
+    baseAng: 0,
+    baseAlong: 2, // half the four blocks the shed runs out from the town hall
+    baseAcross: 3, // half the six it is wide (spec 02-8)
     buildings,
     rails: {
       stops: 2,
