@@ -17,6 +17,8 @@
  */
 import { stepPlayer } from './player';
 import type { Game, InputState } from './state';
+import { stepTownHall } from './townhall';
+import { stepZombies } from './zombies';
 
 /** The one step, in the one order. (spec 10-25) */
 export function step(game: Game, input: Readonly<InputState>): void {
@@ -24,12 +26,12 @@ export function step(game: Game, input: Readonly<InputState>): void {
   stepInput(game, input);
   stepPlayer(game, input, seconds);
   stepSword(game);
-  stepZombies(game);
+  stepZombies(game, seconds);
   stepCannons(game);
   stepProjectiles(game);
   stepEconomy(game);
   stepWaves(game);
-  stepTownHall(game);
+  stepTownHall(game, seconds);
 }
 
 /**
@@ -44,9 +46,6 @@ function stepInput(_game: Game, _input: Readonly<InputState>): void {}
 /** Sweeps the sector in front of him, and knocks what it touches sideways. (spec 04-22) */
 function stepSword(_game: Game): void {}
 
-/** Walks them along their rails, where progress never decreases. (spec 03-8) */
-function stepZombies(_game: Game): void {}
-
 /** Aims the ball and the flame, each on its own. (spec 05-40) */
 function stepCannons(_game: Game): void {}
 
@@ -58,6 +57,3 @@ function stepEconomy(_game: Game): void {}
 
 /** Walks the packs in, six seconds apart, and closes the assault. (spec 03-22) */
 function stepWaves(_game: Game): void {}
-
-/** Takes the blows of the breaches, and ends the game when it falls. (spec 01-28) */
-function stepTownHall(_game: Game): void {}
