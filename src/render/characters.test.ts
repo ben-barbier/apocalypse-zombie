@@ -22,8 +22,9 @@ import {
   buildCharacters,
   flingHead,
   placeCharacters,
+  swingSword,
 } from './characters';
-import { FIRE, STRUCK, WHITE, buildEffects, lightUp } from './effects';
+import { ARC_SPAN, FIRE, STRUCK, WHITE, buildEffects, lightUp } from './effects';
 
 /** A body standing still, so a test only has to move what it is about. */
 function playerAt(x: number, y: number, z: number, ang = 0): Player {
@@ -543,5 +544,273 @@ describe('the zombies', () => {
     placeCharacters(view, UNLIT, playerAt(0, 0, 0), walkIn(9), SCALES, 1, 0);
     expect(view.bodies.count).toBe(BOXES + 1 + 2 * BOXES);
     expect(view.blots.count).toBe(3);
+  });
+});
+
+describe('the gait', () => {
+  /**
+   * A quarter of the stride, in blocks walked: the point where the legs are at
+   * their widest and the body at its lowest, so the whole of chapter 7's table
+   * reads back in one place. The stride runs at 2,3 radians a block, so a quarter
+   * of it is π / 2 over 2,3. (spec 07 "La démarche")
+   */
+  const STRIDE = 2.3;
+  const WIDEST = Math.PI / 2 / STRIDE;
+
+  /** Facing due south, so the body's own heading is nought and a joint reads bare. */
+  const SOUTH = Math.PI / 2;
+
+  const AT = new THREE.Euler();
+  const named = (id: string): number => BODY.findIndex((box) => box.id === id);
+
+  /** How far one box of him has swung on its joint, in radians. */
+  function swungBy(view: CharacterView, at: number): THREE.Euler {
+    seatOf(view.bodies, at).decompose(SPOT, TURN, SIZE);
+    return AT.setFromQuaternion(TURN);
+  }
+
+  /**
+   * A body drawn having walked exactly that many blocks in a straight line, which
+   * is the one figure a gait is made of. Two frames: the first is where he stood,
+   * the second where he has got to. (spec 07-63)
+   */
+  function walked(blocks: number, now = 0): CharacterView {
+    const view = buildCharacters(1);
+    place(view, playerAt(0, 0, 0, SOUTH), 1, now);
+    place(view, playerAt(0, 0, blocks, SOUTH), 1, now);
+    return view;
+  }
+
+  /** Everything the two meshes hold this frame, copied out to be compared. */
+  function held(view: CharacterView): number[] {
+    return [...view.bodies.instanceMatrix.array, ...view.blots.instanceMatrix.array];
+  }
+
+  it('swings the legs and the arms in opposition, at the amplitudes of chapter 7', () => {
+    // spec 07 "La démarche": 0,52 radian on a leg, 0,44 on an arm, in opposition
+    // one side against the other. spec 07-63: it is the walking that moves them,
+    // and nothing else — no file of animation, and no SkinnedMesh. (spec 07-20)
+    const view = walked(WIDEST);
+    expect(swungBy(view, named('legLeft')).x).toBeCloseTo(0.52, 6);
+    expect(swungBy(view, named('legRight')).x).toBeCloseTo(-0.52, 6);
+    expect(swungBy(view, named('armLeft')).x).toBeCloseTo(-0.44, 6);
+    expect(swungBy(view, named('armRight')).x).toBeCloseTo(0.44, 6);
+    // A foot goes with its leg and a hand with its arm: they are one limb.
+    expect(swungBy(view, named('footLeft')).x).toBeCloseTo(0.52, 6);
+    expect(swungBy(view, named('handRight')).x).toBeCloseTo(0.44, 6);
+    // And the belt, the torso and the two shoulders ride the body whole.
+    for (const still of ['belt', 'torso', 'shoulderLeft', 'shoulderRight']) {
+      expect(swungBy(view, named(still)).x).toBeCloseTo(0, 6);
+    }
+  });
+
+  it('lolls the head at its own slower period, and never nods it', () => {
+    // spec 07 "La démarche": 0,17 radian, at 0,63 of the period of the stride,
+    // about the axis through the body — so the head lolls rather than nods.
+    const view = walked(WIDEST);
+    const wanted = Math.sin(WIDEST * STRIDE * 0.63) * 0.17;
+    expect(wanted).not.toBeCloseTo(0, 3);
+    for (const box of ['head', 'jaw']) {
+      const swung = swungBy(view, named(box));
+      expect(swung.z).toBeCloseTo(wanted, 6);
+      expect(swung.x).toBeCloseTo(0, 6);
+    }
+  });
+
+  it('dips the body as the legs part, by the 0,05 block of chapter 7', () => {
+    // spec 07 "La démarche": the body rises and falls over the stride, by five
+    // hundredths of a block, and it is back at its standing height when the legs
+    // meet — so a body that has walked nowhere stands exactly on the floor.
+    const torso = named('torso');
+    seatOf(walked(0).bodies, torso).decompose(SPOT, TURN, SIZE);
+    expect(SPOT.y).toBeCloseTo(BODY[torso].y, 6);
+
+    seatOf(walked(WIDEST).bodies, torso).decompose(SPOT, TURN, SIZE);
+    expect(SPOT.y).toBeCloseTo(BODY[torso].y - 0.05, 6);
+  });
+
+  it('holds a walking body at two different poses within one stride', () => {
+    // spec 07-63: this is the whole of the thing — a body that walks is not the
+    // same body twice, and the two boxes that say so are its legs.
+    const foot = named('footLeft');
+    const lifted = new Set<string>();
+    const poses = new Set<string>();
+    for (let eighth = 0; eighth < 8; eighth += 1) {
+      const view = walked((eighth * Math.PI) / (4 * STRIDE));
+      seatOf(view.bodies, foot).decompose(SPOT, TURN, SIZE);
+      lifted.add(SPOT.y.toFixed(4));
+      poses.add(
+        [
+          swungBy(view, named('legLeft')).x.toFixed(4),
+          swungBy(view, named('armRight')).x.toFixed(4),
+          swungBy(view, named('head')).z.toFixed(4),
+        ].join(' '),
+      );
+    }
+    // A foot off the floor, at four heights over the stride and never the same
+    // one twice running — and, the head lolling at its own period, eight poses.
+    expect(lifted.size).toBeGreaterThanOrEqual(4);
+    expect(poses.size).toBe(8);
+  });
+
+  it('holds a body at rest at one pose, however long it stands there', () => {
+    // spec 07-63: the stride is made of blocks walked and not of seconds, so a
+    // body that has stopped has stopped — nothing of it breathes, sways or idles.
+    const view = buildCharacters(2);
+    const still = playerAt(4, 0, -2, SOUTH);
+    placeCharacters(view, UNLIT, still, poolOf(0), SCALES, 1, 0);
+    placeCharacters(view, UNLIT, still, poolOf(0), SCALES, 1, 0);
+    const first = held(view);
+    for (const now of [16, 500, 9000, 120_000]) {
+      placeCharacters(view, UNLIT, still, poolOf(0), SCALES, 1, now);
+      expect(held(view)).toEqual(first);
+    }
+  });
+
+  it('walks a zombie on the blocks its rail has counted, and him on his own', () => {
+    // spec 03-2, 07-19: the silhouette never tells a kind from another, so the
+    // one body the child drives and a shambler that has come the same way stand
+    // in exactly the same fourteen boxes. spec 03-8: its rail already counts them.
+    const view = buildCharacters(2);
+    const pool = poolOf(0);
+    pool.x[0] = 0;
+    pool.xPrev[0] = 0;
+    pool.z[0] = WIDEST;
+    pool.zPrev[0] = WIDEST;
+    pool.ang[0] = SOUTH;
+    pool.angPrev[0] = SOUTH;
+    pool.progress[0] = WIDEST;
+
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0, SOUTH), pool, SCALES, 1, 0);
+    placeCharacters(view, UNLIT, playerAt(0, 0, WIDEST, SOUTH), pool, SCALES, 1, 0);
+
+    for (let box = 0; box < BOXES; box += 1) {
+      const his = seatOf(view.bodies, box).clone();
+      const its = seatOf(view.bodies, BOXES + 1 + box);
+      for (let cell = 0; cell < 16; cell += 1) {
+        expect(its.elements[cell]).toBeCloseTo(his.elements[cell], 5);
+      }
+    }
+  });
+
+  it('leaves a zombie whose rail has stopped standing perfectly still', () => {
+    // spec 03-8, 04-35: an advance that does not move is a body that does not
+    // walk — a blow of the sword halts one, and it stops mid-stride.
+    const view = buildCharacters(2);
+    const pool = poolOf(0);
+    pool.progress[0] = 1.7;
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), pool, SCALES, 1, 0);
+    const first = held(view);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), pool, SCALES, 1, 4000);
+    expect(held(view)).toEqual(first);
+    // And it is not the pose of a body that has come nowhere. (spec 07-63)
+    pool.progress[0] = 0;
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), pool, SCALES, 1, 0);
+    expect(held(view)).not.toEqual(first);
+  });
+
+  it('costs no call at all, walking or standing', () => {
+    // spec 07-20, 07-21: the gait is arithmetic written into matrices the boxes
+    // were writing anyway — there is no SkinnedMesh, so it takes no call, and the
+    // count of what is drawn does not move because a body walks.
+    const view = buildCharacters(61);
+    const many = poolOf(...new Array(60).fill(0));
+    for (let i = 0; i < 60; i += 1) many.progress[i] = i * 0.31;
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0, SOUTH), many, SCALES, 1, 0);
+    const drawn = view.bodies.count;
+    const laid = view.blots.count;
+    expect(view.draws.length).toBe(2);
+    expect(drawn).toBe(BOXES + 1 + 60 * BOXES);
+
+    place(view, playerAt(0, 0, 0, SOUTH), 1, 0);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 9, SOUTH), many, SCALES, 1, 0);
+    expect(view.draws.length).toBe(2);
+    expect(view.bodies.count).toBe(drawn);
+    expect(view.blots.count).toBe(laid);
+  });
+});
+
+describe('the blow of his sword', () => {
+  const SOUTH = Math.PI / 2;
+  const AT = new THREE.Euler();
+  const named = (id: string): number => BODY.findIndex((box) => box.id === id);
+
+  /** How far the arm that holds the sword has swung, in radians. */
+  function armSwing(view: CharacterView): number {
+    seatOf(view.bodies, named('armRight')).decompose(SPOT, TURN, SIZE);
+    return AT.setFromQuaternion(TURN).x;
+  }
+
+  it('takes the arm through the 120° of the sweep, and comes back to nought', () => {
+    // spec 04-22: a blow sweeps a sector of 120° in front of him, and the arm
+    // opens the same. spec 04-25, 07-31: it runs the 150 ms a blow goes on
+    // touching in, which is the span the white arc holds for. spec 07-65: half a
+    // sine, so it leaves the gait and comes back to it with no break at all.
+    const view = buildCharacters(1);
+    place(view, playerAt(0, 0, 0, SOUTH), 1, 1000);
+    expect(armSwing(view)).toBeCloseTo(0, 6);
+
+    swingSword(view, 1000);
+    place(view, playerAt(0, 0, 0, SOUTH), 1, 1000);
+    expect(armSwing(view)).toBeCloseTo(0, 6); // it opens from where the arm was
+    place(view, playerAt(0, 0, 0, SOUTH), 1, 1075);
+    expect(armSwing(view)).toBeCloseTo((120 * Math.PI) / 180, 6); // and opens whole
+    place(view, playerAt(0, 0, 0, SOUTH), 1, 1150);
+    expect(armSwing(view)).toBeCloseTo(0, 6); // and is done, on the dot
+    place(view, playerAt(0, 0, 0, SOUTH), 1, 1399);
+    expect(armSwing(view)).toBeCloseTo(0, 6);
+  });
+
+  it('carries the sword and the hand with the arm, and nothing else with them', () => {
+    // spec 04-2: the sword is a fifteenth box, and it is the arm that holds it
+    // which moves — a blow that moved the whole body would be a second
+    // silhouette. (spec 07-19)
+    const view = buildCharacters(1);
+    place(view, playerAt(0, 0, 0, SOUTH), 1, 1000);
+    swingSword(view, 1000);
+    place(view, playerAt(0, 0, 0, SOUTH), 1, 1075);
+
+    const swung = armSwing(view);
+    for (const carried of ['handRight', 'armRight']) {
+      seatOf(view.bodies, named(carried)).decompose(SPOT, TURN, SIZE);
+      expect(AT.setFromQuaternion(TURN).x).toBeCloseTo(swung, 6);
+    }
+    seatOf(view.bodies, BOXES).decompose(SPOT, TURN, SIZE); // the sword, box fifteen
+    expect(AT.setFromQuaternion(TURN).x).toBeCloseTo(swung, 6);
+    // The other arm, the legs and the head know nothing of it.
+    for (const untouched of ['armLeft', 'legLeft', 'legRight', 'head']) {
+      seatOf(view.bodies, named(untouched)).decompose(SPOT, TURN, SIZE);
+      expect(AT.setFromQuaternion(TURN).x).toBeCloseTo(0, 6);
+    }
+  });
+
+  it('is over well before the next blow can go out, so nothing is ever held back', () => {
+    // spec 04-24: 2,5 blows a second, one every 0,4 s, and the button held down
+    // strikes on and on — no combo, no blocking animation, no window to respect.
+    // The gesture runs 150 ms, so it fits inside that interval two and a half
+    // times over: it can neither be cut short nor run into the next one.
+    expect(ARC_SPAN).toBe(150);
+    expect(ARC_SPAN / 1000).toBeLessThan(0.4);
+
+    const view = buildCharacters(1);
+    for (let blow = 0; blow < 6; blow += 1) {
+      const at = 1000 + blow * 400;
+      swingSword(view, at);
+      place(view, playerAt(0, 0, 0, SOUTH), 1, at + 75);
+      expect(armSwing(view)).toBeCloseTo((120 * Math.PI) / 180, 6);
+      place(view, playerAt(0, 0, 0, SOUTH), 1, at + 399);
+      expect(armSwing(view)).toBeCloseTo(0, 6);
+    }
+  });
+
+  it('costs no call, and no box either', () => {
+    // spec 07-20, 07-21: a blow of his sword is one more angle on one arm.
+    const view = buildCharacters(1);
+    place(view, playerAt(0, 0, 0, SOUTH), 1, 1000);
+    const drawn = view.bodies.count;
+    swingSword(view, 1000);
+    place(view, playerAt(0, 0, 0, SOUTH), 1, 1075);
+    expect(view.bodies.count).toBe(drawn);
+    expect(view.draws.length).toBe(2);
   });
 });

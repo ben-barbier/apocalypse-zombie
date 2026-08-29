@@ -37,10 +37,30 @@
  */
 import * as THREE from 'three';
 import type { Player, ZombiePool } from '../game/state';
-import { type Effects, FIRE, STRUCK, WHITE, isLit } from './effects';
+import { ARC_SPAN, type Effects, FIRE, STRUCK, WHITE, isLit } from './effects';
 
 /** The fourteen, and there will never be a fifteenth. (spec 07-18) */
 export const BOXES = 14;
+
+/**
+ * The joints the fourteen hang on, and there are no others: a hip and a shoulder
+ * each side, and the nape. Every other box — the belt, the torso, the two
+ * shoulders — rides the body whole. (spec 07-63, 07 "La démarche")
+ *
+ * They are the whole of what makes a body move: there is no `SkinnedMesh`
+ * anywhere and no file of animation, and a joint is three lines of arithmetic
+ * written into the very matrix the box was going to take. (spec 07-20)
+ */
+const JOINT = {
+  NONE: 0,
+  LEG_LEFT: 1,
+  LEG_RIGHT: 2,
+  ARM_LEFT: 3,
+  ARM_RIGHT: 4,
+  NECK: 5,
+} as const;
+
+const JOINTS = 6;
 
 /**
  * The player, in the only two cold colours a character wears, so he is never
@@ -90,24 +110,49 @@ interface BodyBox {
   readonly y: number;
   readonly z: number;
   readonly bare: boolean;
+  /** Which of the five joints carries it, or `NONE`. (spec 07-63) */
+  readonly joint: number;
 }
 
+const NONE = JOINT.NONE;
+
 export const BODY: readonly BodyBox[] = [
-  { id: 'footLeft', w: 0.32, h: 0.1, d: 0.46, x: -0.17, y: 0.05, z: 0.06, bare: false },
-  { id: 'footRight', w: 0.32, h: 0.1, d: 0.46, x: 0.17, y: 0.05, z: 0.06, bare: false },
-  { id: 'legLeft', w: 0.3, h: 0.68, d: 0.3, x: -0.17, y: 0.44, z: 0, bare: false },
-  { id: 'legRight', w: 0.3, h: 0.68, d: 0.3, x: 0.17, y: 0.44, z: 0, bare: false },
-  { id: 'belt', w: 0.68, h: 0.14, d: 0.34, x: 0, y: 0.85, z: 0, bare: false },
-  { id: 'torso', w: 0.66, h: 0.56, d: 0.32, x: 0, y: 1.2, z: 0, bare: false },
-  { id: 'shoulderLeft', w: 0.18, h: 0.18, d: 0.34, x: -0.42, y: 1.39, z: 0, bare: false },
-  { id: 'shoulderRight', w: 0.18, h: 0.18, d: 0.34, x: 0.42, y: 1.39, z: 0, bare: false },
-  { id: 'armLeft', w: 0.18, h: 0.44, d: 0.22, x: -0.42, y: 1.08, z: 0, bare: true },
-  { id: 'armRight', w: 0.18, h: 0.44, d: 0.22, x: 0.42, y: 1.08, z: 0, bare: true },
-  { id: 'handLeft', w: 0.2, h: 0.18, d: 0.24, x: -0.42, y: 0.77, z: 0, bare: true },
-  { id: 'handRight', w: 0.2, h: 0.18, d: 0.24, x: 0.42, y: 0.77, z: 0, bare: true },
-  { id: 'jaw', w: 0.4, h: 0.14, d: 0.36, x: 0, y: 1.55, z: 0.03, bare: true },
-  { id: 'head', w: 0.44, h: 0.38, d: 0.44, x: 0, y: 1.81, z: 0, bare: true },
+  { id: 'footLeft', w: 0.32, h: 0.1, d: 0.46, x: -0.17, y: 0.05, z: 0.06, bare: false, joint: JOINT.LEG_LEFT },
+  { id: 'footRight', w: 0.32, h: 0.1, d: 0.46, x: 0.17, y: 0.05, z: 0.06, bare: false, joint: JOINT.LEG_RIGHT },
+  { id: 'legLeft', w: 0.3, h: 0.68, d: 0.3, x: -0.17, y: 0.44, z: 0, bare: false, joint: JOINT.LEG_LEFT },
+  { id: 'legRight', w: 0.3, h: 0.68, d: 0.3, x: 0.17, y: 0.44, z: 0, bare: false, joint: JOINT.LEG_RIGHT },
+  { id: 'belt', w: 0.68, h: 0.14, d: 0.34, x: 0, y: 0.85, z: 0, bare: false, joint: NONE },
+  { id: 'torso', w: 0.66, h: 0.56, d: 0.32, x: 0, y: 1.2, z: 0, bare: false, joint: NONE },
+  { id: 'shoulderLeft', w: 0.18, h: 0.18, d: 0.34, x: -0.42, y: 1.39, z: 0, bare: false, joint: NONE },
+  { id: 'shoulderRight', w: 0.18, h: 0.18, d: 0.34, x: 0.42, y: 1.39, z: 0, bare: false, joint: NONE },
+  { id: 'armLeft', w: 0.18, h: 0.44, d: 0.22, x: -0.42, y: 1.08, z: 0, bare: true, joint: JOINT.ARM_LEFT },
+  { id: 'armRight', w: 0.18, h: 0.44, d: 0.22, x: 0.42, y: 1.08, z: 0, bare: true, joint: JOINT.ARM_RIGHT },
+  { id: 'handLeft', w: 0.2, h: 0.18, d: 0.24, x: -0.42, y: 0.77, z: 0, bare: true, joint: JOINT.ARM_LEFT },
+  { id: 'handRight', w: 0.2, h: 0.18, d: 0.24, x: 0.42, y: 0.77, z: 0, bare: true, joint: JOINT.ARM_RIGHT },
+  { id: 'jaw', w: 0.4, h: 0.14, d: 0.36, x: 0, y: 1.55, z: 0.03, bare: true, joint: JOINT.NECK },
+  { id: 'head', w: 0.44, h: 0.38, d: 0.44, x: 0, y: 1.81, z: 0, bare: true, joint: JOINT.NECK },
 ];
+
+/**
+ * Where each joint sits, in blocks over the floor, for a body at a scale of one.
+ * They are read off the table above rather than chosen: the **hip** is the top of
+ * the leg, which is the underside of the belt; the **shoulder** is the top of the
+ * arm, which is the underside of the shoulder box; the **nape** is the top of the
+ * torso, which is the underside of the jaw. A joint at any other height would
+ * take a box off the body it belongs to. (spec 07 "La démarche")
+ */
+const HIP = 0.78;
+const SHOULDER = 1.3;
+const NAPE = 1.48;
+const JOINT_AT = [0, HIP, HIP, SHOULDER, SHOULDER, NAPE];
+
+/**
+ * Legs and arms turn about the axis across the body, so they walk; the nape turns
+ * about the axis through it, so the head lolls rather than nods. (spec 07-63)
+ */
+const ACROSS = new THREE.Vector3(1, 0, 0);
+const THROUGH = new THREE.Vector3(0, 0, 1);
+const JOINT_AXIS = [ACROSS, ACROSS, ACROSS, ACROSS, ACROSS, THROUGH];
 
 /**
  * The sword he holds in his hand, which is a fifteenth box and belongs to the
@@ -124,7 +169,44 @@ export const SWORD: BodyBox = {
   y: 1.22,
   z: 0.18,
   bare: false,
+  // It rides the arm that holds it, and it is the whole reason a blow of his
+  // sword can be seen at all. (spec 07-65)
+  joint: JOINT.ARM_RIGHT,
 };
+
+/**
+ * The gait, in the figures chapter 7 writes out. It is one calculation for the
+ * whole cast — the one body the child drives and the four kinds alike — because
+ * the silhouette never tells a kind from another: what differs is how fast a body
+ * walks the stride, and nothing else. (spec 03-2, 07-19, 07-63)
+ *
+ * The stride runs on **blocks walked and never on seconds**, which is what makes
+ * that one calculation enough: a colossus at 0,8 block a second and a sprinter at
+ * 4 take the same steps, told apart by how often. It also settles what a body
+ * standing still does — nothing. (spec 07 "La démarche")
+ */
+const STRIDE = 2.3;
+const LEG_SWING = 0.52;
+const ARM_SWING = 0.44;
+const HEAD_SWING = 0.17;
+const HEAD_OF_STRIDE = 0.63;
+const BOB = 0.05;
+
+/**
+ * The blow of his sword, which is a swing of its own added to the arm that holds
+ * it. It runs **150 ms**, the span the white arc holds for and the very window a
+ * blow goes on touching in, and it opens the whole of the sector a blow sweeps —
+ * 120°. Half a sine over that span, so it leaves the gait and comes back to it
+ * with no break at either end, and so that a body walking and a body standing
+ * still both strike the same blow. (spec 04-22, 04-24, 04-25, 07-31, 07-65)
+ *
+ * It fits inside the 0,4 second between two blows better than two and a half
+ * times over: a button held down never cuts one gesture short and never runs two
+ * into one,
+ * which is what chapter 4 means by no blocking animation. (spec 04-24, 04-28)
+ */
+const SWING_SPAN = ARC_SPAN;
+const SWING_ARC = (120 * Math.PI) / 180;
 
 /** How wide the blot lies, in blocks, under a body at a scale of one. */
 const BLOT_SIDE = 0.8;
@@ -190,6 +272,29 @@ export interface CharacterView {
   readonly headSpan: Float32Array;
   /** Heads in the air are `[0, count)`. */
   headCount: number;
+
+  /**
+   * How far the one body the child drives has walked, in blocks, which is the
+   * whole of what his gait is made of. A zombie needs nothing of the sort — its
+   * rail already counts the blocks it has come, and that count never goes back
+   * (spec 03-8) — but he walks where he likes, so the drawing measures the ground
+   * he covers between one frame and the next. It is a figure of the picture and
+   * of nothing else: no rule of the game reads it, and the bench never sees it.
+   * (spec 07-63, 07-64, 10-2)
+   */
+  walked: number;
+  /** Where the last frame drew him, which is what that ground is measured off. */
+  wasX: number;
+  wasZ: number;
+  /** Whether a frame has drawn him at all: the first one measures nothing. */
+  seated: boolean;
+  /**
+   * When his last blow went out, in ms of the frame clock. The gesture is read
+   * off that one instant, exactly as the white arc is: nothing here compares two
+   * states, and a blow the buffer never announced is a blow that is never drawn.
+   * (spec 07-65, 10-19)
+   */
+  swungAt: number;
 }
 
 // The one set of scratch objects of this file, made once at load: a frame writes
@@ -203,6 +308,17 @@ const PAINT = new THREE.Color();
 const UPRIGHT = new THREE.Vector3(0, 1, 0);
 /** Tilted off the upright, so a thrown head goes over and over rather than about. */
 const TUMBLE = new THREE.Vector3(0.6, 0.5, 0.62).normalize();
+
+// The pose of the body being seated: one angle a joint, and the turn each of them
+// works out to once the body's own heading is folded in — five joints, plus the
+// slot of a box that hangs on none. Made once at load like everything above: a
+// frame poses sixty-one bodies through this one set and allocates nothing.
+// (spec 10-14)
+const ANGLES = new Float64Array(JOINTS);
+const SWUNG: THREE.Quaternion[] = [];
+const SWUNG_COS = new Float64Array(JOINTS);
+const SWUNG_SIN = new Float64Array(JOINTS);
+for (let j = 0; j < JOINTS; j += 1) SWUNG.push(new THREE.Quaternion());
 
 /**
  * Builds the two meshes, once, at load — and again after a lost context, because
@@ -253,7 +369,71 @@ export function buildCharacters(holds: number, carries = 0): CharacterView {
     headBorn: new Float64Array(holds),
     headSpan: new Float32Array(holds),
     headCount: 0,
+    walked: 0,
+    wasX: 0,
+    wasZ: 0,
+    seated: false,
+    // Long enough ago that the first frame draws no gesture at all.
+    swungAt: Number.NEGATIVE_INFINITY,
   };
+}
+
+/**
+ * Marks the instant a blow of his sword went out, off the one fact the buffer
+ * carries for it — touched or not, exactly like the white arc it is drawn with.
+ * The gesture that follows is 150 ms of arm and nothing else: it takes no call,
+ * holds nothing back, and the rules never hear of it. (spec 04-24, 07-31, 07-65)
+ */
+export function swingSword(view: CharacterView, now: number): void {
+  view.swungAt = now;
+}
+
+/**
+ * How far through his gesture a blow is, in radians on the arm that holds the
+ * sword: half a sine over the 150 ms, nought before it and nought after.
+ * (spec 07-65)
+ */
+function swingOf(view: CharacterView, now: number): number {
+  const since = now - view.swungAt;
+  if (!(since >= 0) || since >= SWING_SPAN) return 0;
+  return Math.sin((Math.PI * since) / SWING_SPAN) * SWING_ARC;
+}
+
+/**
+ * Poses one body: the five joints off the blocks it has walked, plus whatever a
+ * blow of the sword adds to the arm that holds it, and hands back how far the
+ * body itself sits off its standing height.
+ *
+ * Legs and arms swing in opposition, one side against the other, the head lolls
+ * at its own slower period, and the body **dips as the legs part** and is back at
+ * its standing height when they meet — so a body that has walked nowhere stands
+ * exactly on the floor with every box where the table put it. (spec 07-63)
+ */
+function poseOf(walked: number, swing: number): number {
+  const phase = walked * STRIDE;
+  const swung = Math.sin(phase);
+  ANGLES[JOINT.LEG_LEFT] = swung * LEG_SWING;
+  ANGLES[JOINT.LEG_RIGHT] = -swung * LEG_SWING;
+  ANGLES[JOINT.ARM_LEFT] = -swung * ARM_SWING;
+  ANGLES[JOINT.ARM_RIGHT] = swung * ARM_SWING + swing;
+  ANGLES[JOINT.NECK] = Math.sin(phase * HEAD_OF_STRIDE) * HEAD_SWING;
+  return -BOB * (1 - Math.abs(Math.cos(phase)));
+}
+
+/**
+ * Works the pose out into one turn a joint, the body's own heading folded in, so
+ * a box has nothing left to do but read the one that carries it. The joint with
+ * no angle comes out as the heading alone, which is what an unarticulated box
+ * takes. (spec 07-63)
+ */
+function turnJoints(heading: number): void {
+  TURN.setFromAxisAngle(UPRIGHT, heading);
+  for (let j = 0; j < JOINTS; j += 1) {
+    const angle = ANGLES[j];
+    SWUNG_COS[j] = Math.cos(angle);
+    SWUNG_SIN[j] = Math.sin(angle);
+    SWUNG[j].setFromAxisAngle(JOINT_AXIS[j], angle).premultiply(TURN);
+  }
 }
 
 /**
@@ -379,7 +559,12 @@ function betweenTurns(from: number, to: number, alpha: number): number {
   return from + gap * alpha;
 }
 
-/** Seats one box of one body, turned and scaled with it. */
+/**
+ * Seats one box of one body, swung on its joint, then turned and scaled with the
+ * body. The joint is the whole of the animation: the box is carried about its
+ * pivot and turned by the same angle, which is exactly what a bone would have
+ * done and costs a matrix the box was writing anyway. (spec 07-20, 07-63)
+ */
 function seatBox(
   mesh: THREE.InstancedMesh,
   at: number,
@@ -392,13 +577,28 @@ function seatBox(
   scale: number,
   colour: string,
 ): void {
-  SPOT.set(
-    x + (box.x * cos + box.z * sin) * scale,
-    y + box.y * scale,
-    z + (-box.x * sin + box.z * cos) * scale,
-  );
+  const joint = box.joint;
+  const pivot = JOINT_AT[joint];
+  const along = SWUNG_COS[joint];
+  const across = SWUNG_SIN[joint];
+  let bx = box.x;
+  let by = box.y;
+  let bz = box.z;
+  if (joint !== JOINT.NONE) {
+    const over = by - pivot;
+    if (joint === JOINT.NECK) {
+      // About the axis through the body: the head lolls sideways.
+      bx = box.x * along - over * across;
+      by = pivot + box.x * across + over * along;
+    } else {
+      // About the axis across the body: a limb walks.
+      by = pivot + over * along - bz * across;
+      bz = over * across + bz * along;
+    }
+  }
+  SPOT.set(x + (bx * cos + bz * sin) * scale, y + by * scale, z + (-bx * sin + bz * cos) * scale);
   SIZE.set(box.w * scale, box.h * scale, box.d * scale);
-  mesh.setMatrixAt(at, SEAT.compose(SPOT, TURN, SIZE));
+  mesh.setMatrixAt(at, SEAT.compose(SPOT, SWUNG[joint], SIZE));
   mesh.setColorAt(at, PAINT.set(colour));
 }
 
@@ -406,6 +606,11 @@ function seatBox(
  * Seats one whole body and its blot, and says how many boxes it took. The body
  * faces the way it heads: a turn about the upright takes its front, which is the
  * far side of the boxes, onto that heading.
+ *
+ * `walked` is how many blocks it has come, which is the whole of its gait, and
+ * `swing` whatever a blow of the sword adds to the arm that holds one. The blot
+ * takes neither: it lies where the feet are and it does not rise with the body,
+ * because it is not a shade of it. (spec 07-23, 07-63)
  */
 function seatBody(
   view: CharacterView,
@@ -420,20 +625,23 @@ function seatBody(
   skin: string,
   steel: string,
   armed: boolean,
+  walked: number,
+  swing: number,
 ): number {
   const turn = Math.PI / 2 - ang;
   const cos = Math.cos(turn);
   const sin = Math.sin(turn);
-  TURN.setFromAxisAngle(UPRIGHT, turn);
+  const rise = poseOf(walked, swing) * scale;
+  turnJoints(turn);
 
   let put = at;
   for (let b = 0; b < BODY.length; b += 1) {
     const box = BODY[b];
-    seatBox(view.bodies, put, box, x, y, z, cos, sin, scale, box.bare ? skin : cloth);
+    seatBox(view.bodies, put, box, x, y + rise, z, cos, sin, scale, box.bare ? skin : cloth);
     put += 1;
   }
   if (armed) {
-    seatBox(view.bodies, put, SWORD, x, y, z, cos, sin, scale, steel);
+    seatBox(view.bodies, put, SWORD, x, y + rise, z, cos, sin, scale, steel);
     put += 1;
   }
 
@@ -495,6 +703,14 @@ function seatZombies(
       // The sword is his and his alone, and it is not one of the fourteen.
       // (spec 04-2)
       false,
+      // How far it has come along its rail, in blocks, which is the one figure
+      // its gait is made of: the rules already count it and it never goes back,
+      // so a body knocked still or held at the town hall simply stops walking.
+      // It is the same calculation the one body the child drives goes through —
+      // the silhouette never tells a kind from another, and what differs is how
+      // fast the blocks go by. (spec 03-8, 03-2, 07-19, 07-63)
+      zombies.progress[i],
+      0,
     );
   }
   return put;
@@ -515,6 +731,13 @@ function seatZombies(
  * him goes white at once, sword included, so what reads is the whole silhouette
  * flashing and not a garment changing colour. Whether it is on this frame is
  * `isBlinking`'s to say, and how long it runs is chapter 4's. (spec 07-41)
+ *
+ * The **gait** is worked out here and nowhere else: it is a figure of the picture
+ * from end to end, the rules never hear of it, and the bench of chapter 11 runs a
+ * whole game without a single one of these angles. What it is made of is the
+ * ground a body has covered — his measured off the two frames, theirs read off
+ * the rail — so a body that has stopped stops walking, and no clock of any kind
+ * comes into it. (spec 07-63, 07-64, 10-2)
  */
 export function placeCharacters(
   view: CharacterView,
@@ -531,6 +754,21 @@ export function placeCharacters(
   const y = between(player.yPrev, player.y, alpha);
   const z = between(player.zPrev, player.z, alpha);
   const ang = betweenTurns(player.angPrev, player.ang, alpha);
+
+  // The ground he has covered since the last frame drew him, which is what his
+  // gait is made of. He walks where he likes and no rail counts it for him, so
+  // the picture counts it: flat on the floor and never up it, so that a ladder
+  // does not set his legs going, and from the second frame on, so that the first never takes the
+  // whole of the city for one stride. (spec 04-13, 07-63)
+  if (view.seated) {
+    const eastward = x - view.wasX;
+    const northward = z - view.wasZ;
+    view.walked += Math.sqrt(eastward * eastward + northward * northward);
+  }
+  view.wasX = x;
+  view.wasZ = z;
+  view.seated = true;
+
   let put = seatBody(
     view,
     0,
@@ -546,6 +784,10 @@ export function placeCharacters(
     // The sword is stowed for the whole of a ladder, and out again at the top.
     // (spec 04-13)
     player.climbLeft <= 0,
+    view.walked,
+    // And the blow he is in the middle of, on the arm that carries the sword.
+    // (spec 07-65)
+    swingOf(view, now),
   );
 
   // What he carries, over his head and nowhere else. (spec 04-47)
