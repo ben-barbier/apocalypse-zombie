@@ -397,6 +397,51 @@ export function isLit(effects: Effects, what: Struck, index: number, now: number
 }
 
 /**
+ * The arc of a sweep: white shards laid along the sector in front of him, at the
+ * range of the blow, erased in 150 ms. It is drawn at every blow, whether it
+ * touched anything or not. (spec 04-22, 07-31)
+ *
+ * It adds no primitive of its own — it is `scatter` called one shard at a time
+ * along the arc, which is the whole of "an arc of shards" and the reason the
+ * pool never sees anything new. They are laid still rather than thrown: what
+ * reads as a stroke is the shape they hold for those 150 ms.
+ *
+ * How many, and how high he holds the sword, are the drawing's own: no rule of
+ * the game reads either.
+ */
+export const ARC = 9;
+export const ARC_SPAN = 150;
+const ARC_AT = 1.2;
+
+export function sweepArc(
+  effects: Effects,
+  x: number,
+  y: number,
+  z: number,
+  ang: number,
+  arc: number,
+  range: number,
+  now: number,
+): void {
+  const half = arc / 2;
+  for (let i = 0; i < ARC; i += 1) {
+    const turn = ang - half + (arc * i) / (ARC - 1);
+    scatter(
+      effects,
+      PRIORITY.PLAIN,
+      1,
+      x + Math.cos(turn) * range,
+      y + ARC_AT,
+      z + Math.sin(turn) * range,
+      WHITE,
+      0,
+      ARC_SPAN,
+      now,
+    );
+  }
+}
+
+/**
  * A blow taken, and the one effect this file carries for every chapter that will
  * ever land one: a puff of white shards, and the thing struck white for 80 ms.
  * Zombie, block of the town hall or cannon, it is the same two lines — there is

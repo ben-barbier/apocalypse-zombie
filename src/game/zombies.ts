@@ -39,6 +39,7 @@ import {
   type RailPool,
   ZOMBIE,
   type ZombieType,
+  type ZombiePool,
   pushEvent,
   railAng,
   railX,
@@ -52,9 +53,11 @@ import {
  * all, so these two are read off the city rather than chosen: everything in this
  * game is built of blocks, and a body of scale one is one block across and
  * stands one storey — two blocks. They say whether a body touches another one,
- * and they are the only two lengths of this file the spec does not write.
+ * and they are the only two lengths of this file the spec does not write. The
+ * width goes out to the sword as well, because a sweep is measured to the edge of
+ * a box rather than to its middle. (spec 04-22)
  */
-const BODY_SIDE = 1;
+export const BODY_SIDE = 1;
 const BODY_TALL = 2;
 
 /** The one line of the balance a kind is. (spec 03-1, 03-2) */
@@ -113,6 +116,7 @@ export function spawnZombie(
   pool.knockedFor[at] = 0;
   pool.stuckFor[at] = 0;
   pool.blowLeft[at] = 0;
+  pool.struckBy[at] = 0; // no blow has ever touched it, and blows count from one
   pool.count = at + 1;
 
   place(game, at);
@@ -140,6 +144,62 @@ export function massZombie(game: Game, at: number, onto: number, blocks: number)
   pool.xPrev[at] = pool.x[at];
   pool.zPrev[at] = pool.z[at];
   pool.angPrev[at] = pool.ang[at];
+}
+
+/** Carries one whole zombie, every column of it, from one slot of the pool to another. */
+function carryZombie(pool: ZombiePool, from: number, to: number): void {
+  pool.x[to] = pool.x[from];
+  pool.z[to] = pool.z[from];
+  pool.ang[to] = pool.ang[from];
+  pool.xPrev[to] = pool.xPrev[from];
+  pool.zPrev[to] = pool.zPrev[from];
+  pool.angPrev[to] = pool.angPrev[from];
+  pool.type[to] = pool.type[from];
+  pool.hp[to] = pool.hp[from];
+  pool.street[to] = pool.street[from];
+  pool.progress[to] = pool.progress[from];
+  pool.offset[to] = pool.offset[from];
+  pool.escort[to] = pool.escort[from];
+  pool.knockedFor[to] = pool.knockedFor[from];
+  pool.stuckFor[to] = pool.stuckFor[from];
+  pool.blowLeft[to] = pool.blowLeft[from];
+  pool.struckBy[to] = pool.struckBy[from];
+}
+
+/**
+ * The fatal blow, whatever landed it — a sword or a cannon, the pool does not
+ * care which. The head goes off spinning and the rest of the body comes apart in
+ * about ten shards of the colour of its kind, gone in 0,6 second; a coin springs
+ * from it and flies to the player, and that coin belongs to chapter 6.
+ * (spec 03-19, 03-20, 07-30)
+ *
+ * **Nothing at all is left on the ground** — no corpse, no mark, no blood — and
+ * that is not an omission but the whole of the rule: it is written here as the
+ * body simply leaving the pool, so there is no object anywhere for a floor to
+ * hold. (spec 03-21)
+ *
+ * The picture holds 60 ms on it and those milliseconds are never caught up; the
+ * loop arms that from this one fact of the buffer and from nothing else, so
+ * nothing here reads a clock. (spec 10-26)
+ *
+ * The last of the pool is carried into the slot that comes free, so the living
+ * stay `[0, count)`. Whatever holds an index into the pool follows that move —
+ * the aim of the sword is the only such thing, and it is settled here rather than
+ * left to be rediscovered. (spec 10-13, 04-31)
+ */
+export function fellZombie(game: Game, at: number): void {
+  const pool = game.assault.zombies;
+  // The kind rides in the `value`, because the shards of a fatal blow fly in the
+  // colour of the kind and the drawing never compares two states. (spec 07-30, 10-19)
+  pushEvent(game.assault.events, EVENT.FATAL_BLOW, at, pool.x[at], 0, pool.z[at], pool.type[at]);
+
+  const last = pool.count - 1;
+  if (at !== last) carryZombie(pool, last, at);
+  pool.count = last;
+
+  const sword = game.assault.sword;
+  if (sword.aimAt === at) sword.aimAt = -1;
+  else if (sword.aimAt === last) sword.aimAt = at;
 }
 
 /**

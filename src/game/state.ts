@@ -91,6 +91,15 @@ export const EVENT = {
    * a reinforcement ever brings it back. The `value` is how many segments still
    * stand. (spec 06-35, 06-36) */
   TOWN_HALL_SEGMENT_LOST: 22,
+  /**
+   * The sweep goes out, touched or not — the one fact that stands for a blow of
+   * his sword. The three that come before it speak of what a blow finds; this one
+   * speaks of the blow itself, which is what the white arc is drawn on and what
+   * freezes the recentring of the camera for 1,2 s. The `value` carries the
+   * heading it went out on, because a blow leaves where it was launched and the
+   * arc is drawn there and nowhere else. (spec 04-17, 04-22, 04-32, 07-31)
+   */
+  SWEEP: 23,
 } as const;
 
 export type EventType = (typeof EVENT)[keyof typeof EVENT];
@@ -224,6 +233,12 @@ export interface ZombiePool {
   readonly stuckFor: Float32Array;
   /** Seconds before its next blow against a construction. (spec 03-4) */
   readonly blowLeft: Float32Array;
+  /**
+   * Which blow of the sword last touched it, counted from one. The grace of
+   * 150 ms lets one blow go on touching what walks into it, and this is what
+   * keeps that one blow from landing twice on the same body. (spec 04-25, 04-33)
+   */
+  readonly struckBy: Uint32Array;
 }
 
 function createZombiePool(size: number): ZombiePool {
@@ -244,7 +259,40 @@ function createZombiePool(size: number): ZombiePool {
     knockedFor: new Float32Array(size),
     stuckFor: new Float32Array(size),
     blowLeft: new Float32Array(size),
+    struckBy: new Uint32Array(size),
   };
+}
+
+// ------------------------------------------------------------------- the sword
+
+/**
+ * The blow that has gone out, and the one zombie the aim holds.
+ *
+ * A blow is not an instant: it sweeps what stood in the sector when it left
+ * **and** what walks into it in the 150 ms that follow, and the sector it sweeps
+ * is the one it was thrown with — a blow leaves where it was launched, and the
+ * body that threw it may walk on. Hence the spot and the heading kept here rather
+ * than read off the player. (spec 04-25, 04-32)
+ *
+ * Nothing here is a victim: the aim orients the body and designates no one, since
+ * the blow sweeps the whole sector. (spec 04-29)
+ */
+export interface Sword {
+  /** The zombie the aim holds, or -1 when nothing stands within a blow. (spec 04-31) */
+  aimAt: number;
+  /** Seconds of grace left on the blow that has gone out. (spec 04-25) */
+  graceLeft: number;
+  /** Where it left from, and which way it went. (spec 04-32) */
+  x: number;
+  y: number;
+  z: number;
+  ang: number;
+  /** Which blow this is, counted from one. (spec 04-24) */
+  blow: number;
+}
+
+function createSword(): Sword {
+  return { aimAt: -1, graceLeft: 0, x: 0, y: 0, z: 0, ang: 0, blow: 0 };
 }
 
 // ------------------------------------------------------------- the projectiles
@@ -900,6 +948,8 @@ export interface Assault {
   readonly projectiles: ProjectilePool;
   readonly events: EventBuffer;
   readonly player: Player;
+  /** The blow in the air, and the one the aim holds. (spec 04-25, 04-31) */
+  readonly sword: Sword;
 }
 
 /** The one object, allocated at load and mutated in place ever after. (spec 10-10) */
@@ -949,6 +999,7 @@ export function createGame(balance: Balance, seed = 0): Game {
       projectiles: createProjectilePool(balance.pools.projectiles),
       events: createEventBuffer(balance.pools.events),
       player: createPlayer(),
+      sword: createSword(),
     },
   };
 }

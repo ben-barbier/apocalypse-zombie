@@ -11,6 +11,8 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import {
+  ARC,
+  ARC_SPAN,
   type Effects,
   LIT_FOR,
   PRIORITY,
@@ -26,6 +28,7 @@ import {
   placeShards,
   scatter,
   strike,
+  sweepArc,
 } from './effects';
 
 /** The pool, allocated at load. (spec 07-27, 10 "Les pools") */
@@ -340,5 +343,55 @@ describe('a frame', () => {
     expect(effects.shards).toBe(mesh);
     expect(mesh.instanceMatrix).toBe(seats);
     expect(effects.count).toBeLessThanOrEqual(POOL);
+  });
+});
+
+describe('the arc of a sweep', () => {
+  it('lays white shards along the sector, at the range of the blow', () => {
+    // spec 07-31: the sweep is a white arc of opaque shards, erased in 150 ms.
+    // spec 04-22: a sector of 120° on 3 blocks.
+    const effects = buildEffects(POOL);
+    const arc = (120 * Math.PI) / 180;
+    sweepArc(effects, 10, 0, -4, 0, arc, 3, 1000);
+    expect(effects.count).toBe(ARC);
+
+    for (let i = 0; i < effects.count; i += 1) {
+      // Every one of them at the range of the blow, from where it left.
+      expect(Math.hypot(effects.x[i] - 10, effects.z[i] + 4)).toBeCloseTo(3, 6);
+      // Inside the sector, and never behind it.
+      const turn = Math.atan2(effects.z[i] + 4, effects.x[i] - 10);
+      expect(Math.abs(turn)).toBeLessThanOrEqual(arc / 2 + 1e-6);
+      expect(effects.span[i]).toBe(ARC_SPAN);
+      // Laid still: what reads as a stroke is the shape they hold. (spec 07-31)
+      expect(effects.dx[i]).toBeCloseTo(0, 12);
+      expect(effects.dy[i]).toBeCloseTo(0, 12);
+      expect(effects.dz[i]).toBeCloseTo(0, 12);
+    }
+    // White, one of the two colours of the action. (spec 07-12)
+    PAINT.set(WHITE);
+    expect(effects.red[0]).toBeCloseTo(PAINT.r, 6);
+    expect(effects.green[0]).toBeCloseTo(PAINT.g, 6);
+    expect(effects.blue[0]).toBeCloseTo(PAINT.b, 6);
+  });
+
+  it('opens the arc about the heading it was thrown on', () => {
+    // spec 04-32: the blow leaves where it was launched.
+    const effects = buildEffects(POOL);
+    const arc = (120 * Math.PI) / 180;
+    sweepArc(effects, 0, 0, 0, Math.PI / 2, arc, 3, 0);
+    for (let i = 0; i < effects.count; i += 1) {
+      const turn = Math.atan2(effects.z[i], effects.x[i]);
+      expect(Math.abs(turn - Math.PI / 2)).toBeLessThanOrEqual(arc / 2 + 1e-6);
+    }
+  });
+
+  it('is gone in 150 ms, and gives its slots back', () => {
+    // spec 07-31: erased in 150 ms.
+    const effects = buildEffects(POOL);
+    sweepArc(effects, 0, 0, 0, 0, (120 * Math.PI) / 180, 3, 0);
+    placeShards(effects, 149);
+    expect(effects.count).toBe(ARC);
+    placeShards(effects, 151);
+    expect(effects.count).toBe(0);
   });
 });
