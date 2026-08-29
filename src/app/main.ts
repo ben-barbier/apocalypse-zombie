@@ -54,6 +54,7 @@ import {
   buildCharacters,
   flingHead,
   placeCharacters,
+  swingSword,
 } from '../render/characters';
 import { buildCity, buildCrown, showCrown } from '../render/city';
 import { createContext, resize } from '../render/context';
@@ -334,6 +335,10 @@ const loop = createLoop(game, input, {
       // cannon included. (spec 04-17, 07-31)
       if (kind === EVENT.SWEEP) {
         freezeRecentring(camera);
+        // And the arm goes with it: the same 150 ms, on the one body the child
+        // drives, so that what he presses is something he watches happen rather
+        // than something he reads off the zombies that fall. (spec 07-65)
+        swingSword(characters, now);
         sweepArc(
           effects,
           events.x[i],

@@ -90,6 +90,12 @@ Ce chapitre décide comment le jeu se voit : l'heure orange et sa lumière uniqu
 61. L'**ordre des tuiles dans la grille n'a aucune conséquence** tant que le script le tient : c'est lui qui donne à chaque tuile sa case.
 62. **Aucun fichier d'image n'est importé** : ni texture, ni modèle, ni planche libre du web — le langage visuel s'emprunte, les fichiers jamais ([chapitre 1](01-la-partie.md)).
 
+**La démarche**
+
+63. Les corps s'animent sur la **distance parcourue**, jamais sur le temps : jambes et bras se balancent en opposition autour de la **hanche** et de l'**épaule**, la tête suit autour du **cou** à sa propre période, et le corps **s'abaisse quand les jambes s'écartent**. C'est **un seul calcul pour tout le monde** — le joueur et les quatre types —, l'allure décidant seule à quelle vitesse la foulée défile ; un corps qui n'avance plus **ne balance plus**, et un corps qui n'a pas avancé se tient exactement où la règle 18 pose ses quatorze boîtes.
+64. La démarche est **entièrement du dessin** : aucune règle ne la lit, elle ne touche pas à l'état de jeu, et le banc du [chapitre 11](11-le-banc.md) joue une partie entière sans elle.
+65. Le **coup d'épée se voit** : un balancement de plus, ajouté au **seul bras qui porte l'épée**, qui part de la démarche et y revient. Il **ne retient rien** — ni la cadence, ni le déplacement, ni le coup suivant ([chapitre 4](04-le-joueur.md)) — et il ne coûte **aucune boîte de plus**.
+
 ## Les chiffres
 
 ### La lumière
@@ -237,6 +243,47 @@ Aucun rouge n'y figure, et il n'en existe pas ailleurs.
 | Le joueur est étourdi | clignotement blanc à **2 Hz** | 1 s |
 | Le joueur est invulnérable | le même, à **6 Hz** | 1 s |
 
+### La démarche
+
+| Grandeur | Valeur |
+|---|---:|
+| Cadence de la foulée | **2,3 rad par bloc parcouru** |
+| Foulée entière | **2,73 blocs** — 2π ÷ 2,3 |
+| Amplitude d'une jambe | **0,52 rad** |
+| Amplitude d'un bras | **0,44 rad** |
+| Balancement de la tête | **0,17 rad** |
+| Période de ce balancement | **0,63 fois** celle de la foulée |
+| Abaissement du corps | **0,05 bloc** |
+| Pivot de la hanche | **0,78 bloc** |
+| Pivot de l'épaule | **1,30 bloc** |
+| Pivot du cou | **1,48 bloc** |
+
+La cadence est en **radians par bloc parcouru**, jamais par seconde : c'est ce qui rend un seul calcul suffisant pour tout le monde. Les trois pivots sont en blocs au-dessus du sol pour un corps à l'**échelle 1**, et ils se lisent sur les quatorze boîtes plutôt qu'ils ne se choisissent — la hanche est le haut de la jambe, donc le dessous de la ceinture ; l'épaule est le haut du bras, donc le dessous de la boîte d'épaule ; le cou est le haut du torse, donc le dessous de la mâchoire. Un pied suit sa jambe, une main suit son bras, la mâchoire suit la tête ; la ceinture, le torse et les deux épaules ne bougent pas. Jambes et bras tournent autour de l'axe **en travers** du corps, le cou autour de l'axe qui le **traverse** — la tête penche, elle ne hoche pas. Le corps **descend** de 0,05 bloc quand les jambes s'écartent et retrouve sa hauteur quand elles se rejoignent, de sorte qu'un corps immobile se tienne **exactement sur le sol**.
+
+Ce que l'allure de chacun en fait, la foulée étant la même pour tous ([chapitre 3](03-les-zombies.md), [4](04-le-joueur.md)) :
+
+| Corps | Allure | Foulées par seconde |
+|---|---:|---:|
+| Colosse | 0,8 bloc/s | 0,29 |
+| Costaud | 1 bloc/s | 0,37 |
+| Traînard | 1,5 bloc/s | 0,55 |
+| Sprinteur | 4 blocs/s | 1,46 |
+| Joueur | 6 blocs/s | 2,20 |
+
+La démarche n'ajoute **aucune boîte et aucun appel d'affichage** : ce sont les mêmes 840 matrices par image, à quelques sinus par corps près.
+
+### Le geste de la fauchée
+
+| Grandeur | Valeur | D'où elle sort |
+|---|---:|---|
+| Durée | **150 ms** | la fenêtre de grâce de [04-25](04-le-joueur.md), qui est aussi la durée de l'arc blanc (07-31) |
+| Amplitude | **120°**, soit 2,094 rad | l'ouverture de la fauchée, [04-22](04-le-joueur.md) |
+| Membre | le **seul bras** qui porte l'épée | — |
+| Forme | **demi-sinusoïde** sur la durée | il part de la démarche et y revient sans rupture |
+| Part de l'intervalle entre deux coups | **37,5 %** — 150 sur 400 ms | la cadence de [04-24](04-le-joueur.md) |
+
+Le geste **s'ajoute** à la démarche au lieu de la remplacer : un corps qui court et un corps à l'arrêt frappent le même coup, et le bras rend la foulée exactement où il l'a prise.
+
 ### Ce que les quatorze boîtes coûtent
 
 | | Matrices écrites par image | Temps processeur | Part d'une image à 60 Hz |
@@ -302,6 +349,14 @@ L'enrichissement des personnages n'en prend **aucun** ; la tache en prend **un**
 
 **Pourquoi quatorze boîtes, et pourquoi la ville reste nue.** Les deux décisions sont la même, prise devant trois densités de la même rue. On croyait que passer les personnages de six à dix boîtes coûterait quatre appels d'affichage : **il n'en coûte aucun**, ni à dix, ni à quatorze — toutes les boîtes de tous les corps tiennent dans un seul `InstancedMesh` à couleur par exemplaire. Le coût réel est du temps processeur, **0,129 ms par image pour 840 matrices**, soit 0,8 % d'une image à 60 Hz. Les objets de décor, eux, coûtent **un appel d'affichage par type** — dix-sept pour seize types, trente-trois pour trente-deux. Les personnages sont donc gratuits et le décor se paie : tout l'enrichissement est allé aux corps, et la ville n'a pas bougé d'un cran. Le vrai coût du décor n'était d'ailleurs pas le processeur graphique, c'était la **production** : chaque objet est un maillage à composer et une tuile à dessiner à la main, sans studio derrière. **La rue restera un couloir de blocs, et c'est assumé** — en échange, plus aucun objet décoratif ne peut se confondre avec une pièce, une bombe ou un Sprinteur, parce qu'il n'y en a aucun. Le charme viendra des corps, pas des rues.
 
+**Pourquoi la démarche se compte en blocs et non en secondes.** Une foulée en radians par seconde aurait demandé un réglage par type — une démarche lourde pour le Colosse, pressée pour le Sprinteur — et c'est exactement ce que 03-2 et 07-19 interdisent : la silhouette ne distingue jamais un type d'un autre. En radians **par bloc parcouru**, la question ne se pose plus : tout le monde fait la même foulée de 2,73 blocs, et un Colosse à 0,8 bloc par seconde la fait sept fois et demie moins souvent qu'un joueur à 6. L'allure fait tout le travail, et il n'y a rien à régler. Le même choix règle deux autres questions d'un coup. Un corps **qui s'arrête cesse de balancer**, sans qu'aucune règle d'arrêt ait à exister — sa distance ne bouge plus, donc sa foulée non plus. Et la démarche **n'a pas d'horloge**, donc elle ne dérive pas avec le nombre d'images par seconde : à 30 comme à 120, le pas tombe au même endroit de la rue.
+
+**Pourquoi la démarche ne touche pas à l'état de jeu.** Elle est du dessin de bout en bout : aucune règle ne la lit, l'Instantané ne la porte pas, et le banc du [chapitre 11](11-le-banc.md) joue une partie entière sans un seul de ces angles. Elle n'a d'ailleurs eu besoin d'aucun chiffre neuf dans `Game` : un zombie tire sa foulée de son **avancement sur son rail**, qui existe déjà et ne décroît jamais ([chapitre 3](03-les-zombies.md)) ; le joueur, qui n'a pas de rail, tire la sienne du sol que le dessin lui voit couvrir d'une image à l'autre. Deux lectures, un seul calcul.
+
+**Pourquoi le geste de la fauchée dure 150 ms et ouvre 120°.** La spec ne chiffrait pas le geste, elle chiffrait le coup — et les trois nombres qu'il fallait étaient déjà écrits. La **cadence** ([04-24](04-le-joueur.md)) donne 0,4 seconde entre deux coups, bouton maintenu : le geste doit tenir *entièrement* dedans, sans quoi un appui continu le couperait en deux et l'enfant verrait un bras qui bégaie au lieu d'un bras qui frappe — et comme la même règle interdit toute animation bloquante, allonger l'intervalle pour loger le geste était exclu. La **fenêtre de grâce** ([04-25](04-le-joueur.md)) donne 150 ms : c'est le temps pendant lequel le coup touche encore ce qui entre dans la fauchée, donc le temps pendant lequel le coup **existe**. L'**arc blanc** (07-31) est effacé en 150 ms : la même durée, déjà retenue pour dire à l'œil « ça vient de se passer ». Le geste dure donc **150 ms** — la seule durée que le jeu accorde déjà à un coup —, il tient 2,67 fois dans l'intervalle de la cadence, et le bras est retombé bien avant que le coup suivant puisse partir. L'**amplitude** se lit de la même façon : la fauchée ouvre 120° ([04-22](04-le-joueur.md)), et le bras parcourt exactement cette ouverture ; le jeu ne crée pas une constante quand il en a une. Les 120° du coup se mesurent au sol et disent **où il porte**, ceux du bras dans le plan de côté et disent **ce que l'œil en voit** : c'est le même nombre, lu deux fois. Reste la **forme** : une demi-sinusoïde vaut zéro à ses deux bouts, donc le geste s'ajoute à la démarche et lui rend le bras sans le moindre saut, et il n'a besoin ni d'un état de départ, ni d'un état d'arrivée, ni d'une transition.
+
+**Pourquoi le geste était le vrai correctif, et pas l'arc.** L'arc blanc était bien émis, et il était quasi invisible : neuf éclats blancs de ¼ de bloc, à 1,2 bloc du sol, sur une place beige clair. Le blanc ne se négociait pas — c'est la couleur de « ça vient de se passer » (07-13) —, et disperser l'arc pour l'agiter ne se pouvait pas davantage : une bouffée blanche qui s'ouvre est déjà le mot du **coup encaissé** (07-36), et un arc qui la copierait dirait deux choses à la fois. Ce qui fait l'arc est la **forme** qu'il tient 150 ms. Le canal qui restait est donc celui que 07-14 nomme : **le mouvement**. Un arc blanc isolé au milieu d'une place est une tache ; le même arc au bout d'une lame d'acier clair qui vient de parcourir 120° en 75 millisecondes est la **fin d'un geste que l'œil suivait déjà**. C'est la raison pour laquelle ce chapitre chiffre le geste et ne retouche pas l'arc.
+
 **Pourquoi la tache, seul enrichissement non-personnage retenu.** Sans ombre portée, un corps à quatorze boîtes **flotte**. La tache est retenue parce qu'elle appartient au personnage, pas au décor : elle coûte **un** appel d'affichage pour tous, elle ne s'oriente pas, elle ne dépend ni du soleil ni de la hauteur. Ce n'est pas une ombre — c'est ce qui la remplace, et rien d'autre qu'un personnage n'en porte, faute de quoi elle redeviendrait un système d'ombres à budgéter.
 
 **Pourquoi treize tuiles, et pas les douze de la première planche.** Trois sont sorties — le métal du canon, la peau du Traînard et l'or du Colosse — le jour où tous les corps et le canon sont passés dans un seul `InstancedMesh` : ils portent une couleur d'exemplaire, pas une image. Une est entrée, et elle n'était pas négociable : la **corniche**. Il en faut une tous les 2 blocs pour compter la hauteur d'un bâtiment depuis la rue ; si la tuile de mur la portait, il y en aurait une par bloc. Deux tuiles alternées coûtent une case et règlent la question — `wall` est l'allège, `cornice` porte la fenêtre et la moulure qui la coiffe, et l'étage devient lisible.
@@ -326,4 +381,4 @@ L'enrichissement des personnages n'en prend **aucun** ; la tache en prend **un**
 
 ## D'où ça vient
 
-[#12](https://github.com/ben-barbier/apocalypse-zombie/issues/12) pour l'heure orange retenue contre le plein jour voilé et le ciel bas — la palette chaude, l'ambiante violette, la brume structurelle, le contraste de température, le dégradé vertical et le grain sans cerne, la lisibilité à ×3, et l'exigence d'aucun asset copié. [#14](https://github.com/ben-barbier/apocalypse-zombie/issues/14) pour ce qui la rectifie : le **soleil à 60°** et la **disparition de toute ombre portée**, avec les 30 appels d'affichage qui en sortent. [#23](https://github.com/ben-barbier/apocalypse-zombie/issues/23) pour la règle « l'orange appartient au décor », les trois canaux de lecture, le blanc et le noir de l'action, l'**éclat** comme primitive unique et son pool de 600 avec sa priorité, le boulet-éclat, la traînée, la mire, la pièce cernée, l'arc de la fauchée, le refus de toute transparence, le jet de feu blanc-bleu en cône instancié, les effets qui ne prennent pas la brume, et le rouge disqualifié dans le monde. [#29](https://github.com/ben-barbier/apocalypse-zombie/issues/29) pour la ville restée à la densité 1 et les personnages passés à **quatorze boîtes**, le coût mesuré des boîtes et des objets de décor, la **tache**, le Sprinteur au vert vif saturé, et le refus de l'occlusion peinte. [#38](https://github.com/ben-barbier/apocalypse-zombie/issues/38) pour l'inventaire clos des treize tuiles, la grille 4 × 4 à marge cyclique de 8, la planche de 128 × 128, les deux filtrages, la rampe de valeur des toits, le toit-terrasse, la fenêtre sombre et chaude, le plan déclaré par la tuile, les trois cases magenta, le script versionné comme source de vérité et l'enquête sur les planches libres du web. [#15](https://github.com/ben-barbier/apocalypse-zombie/issues/15) pour les trois tuiles de toit et la corniche tous les 2 blocs, exigées parce qu'elles portent une information de jeu, et pour la barre de la mairie passée au marron qui achève le rouge. [#27](https://github.com/ben-barbier/apocalypse-zombie/issues/27) pour le mur en tuile unique et la rue sans trottoir. [#7](https://github.com/ben-barbier/apocalypse-zombie/issues/7) pour la désintégration en cubes et la pièce qui jaillit. [#4](https://github.com/ben-barbier/apocalypse-zombie/issues/4) pour l'interdiction des lumières ponctuelles et le budget qui l'impose. [#13](https://github.com/ben-barbier/apocalypse-zombie/issues/13) pour la planche unique en `public/atlas.png` et les deux systèmes instanciés d'effet.
+[#12](https://github.com/ben-barbier/apocalypse-zombie/issues/12) pour l'heure orange retenue contre le plein jour voilé et le ciel bas — la palette chaude, l'ambiante violette, la brume structurelle, le contraste de température, le dégradé vertical et le grain sans cerne, la lisibilité à ×3, et l'exigence d'aucun asset copié. [#14](https://github.com/ben-barbier/apocalypse-zombie/issues/14) pour ce qui la rectifie : le **soleil à 60°** et la **disparition de toute ombre portée**, avec les 30 appels d'affichage qui en sortent. [#23](https://github.com/ben-barbier/apocalypse-zombie/issues/23) pour la règle « l'orange appartient au décor », les trois canaux de lecture, le blanc et le noir de l'action, l'**éclat** comme primitive unique et son pool de 600 avec sa priorité, le boulet-éclat, la traînée, la mire, la pièce cernée, l'arc de la fauchée, le refus de toute transparence, le jet de feu blanc-bleu en cône instancié, les effets qui ne prennent pas la brume, et le rouge disqualifié dans le monde. [#29](https://github.com/ben-barbier/apocalypse-zombie/issues/29) pour la ville restée à la densité 1 et les personnages passés à **quatorze boîtes**, le coût mesuré des boîtes et des objets de décor, la **tache**, le Sprinteur au vert vif saturé, le refus de l'occlusion peinte, et la **démarche** qu'il a chiffrée — la cadence par bloc parcouru, les deux amplitudes, le balancement de tête et l'abaissement du corps. [#38](https://github.com/ben-barbier/apocalypse-zombie/issues/38) pour l'inventaire clos des treize tuiles, la grille 4 × 4 à marge cyclique de 8, la planche de 128 × 128, les deux filtrages, la rampe de valeur des toits, le toit-terrasse, la fenêtre sombre et chaude, le plan déclaré par la tuile, les trois cases magenta, le script versionné comme source de vérité et l'enquête sur les planches libres du web. [#15](https://github.com/ben-barbier/apocalypse-zombie/issues/15) pour les trois tuiles de toit et la corniche tous les 2 blocs, exigées parce qu'elles portent une information de jeu, et pour la barre de la mairie passée au marron qui achève le rouge. [#27](https://github.com/ben-barbier/apocalypse-zombie/issues/27) pour le mur en tuile unique et la rue sans trottoir. [#7](https://github.com/ben-barbier/apocalypse-zombie/issues/7) pour la désintégration en cubes et la pièce qui jaillit. [#4](https://github.com/ben-barbier/apocalypse-zombie/issues/4) pour l'interdiction des lumières ponctuelles et le budget qui l'impose. [#13](https://github.com/ben-barbier/apocalypse-zombie/issues/13) pour la planche unique en `public/atlas.png` et les deux systèmes instanciés d'effet.
