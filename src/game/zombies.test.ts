@@ -18,7 +18,7 @@ import {
   railX,
   railZ,
 } from './state';
-import { atTownHall, balanceOf, spawnZombie, speedOf, stepZombies } from './zombies';
+import { atTownHall, balanceOf, massZombie, spawnZombie, speedOf, stepZombies } from './zombies';
 
 /** One step of the one loop, in seconds. (spec 10-21) */
 const SECONDS = 1 / 60;
@@ -368,5 +368,39 @@ describe('the player, walked into', () => {
     expect(here.x[one]).toBe(there.x[other]);
     expect(here.z[one]).toBe(there.z[other]);
     expect(here.ang[one]).toBe(there.ang[other]);
+  });
+});
+
+describe('the escort of the colossus', () => {
+  it('masses the six of them inside three blocks of him', () => {
+    // spec 03-34: six bruisers, massed at less than three blocks of him. It is
+    // the offset that gives way and never the advance. (spec 03-8)
+    const game = createGame(BALANCE, 4242);
+    const colossus = put(game, ZOMBIE.COLOSSUS, 0, 0, 2);
+    const pool = game.assault.zombies;
+    for (let i = 0; i < BALANCE.assault.escortCount; i += 1) {
+      const at = put(game, ZOMBIE.BRUISER, 0, 0, i % 2 === 0 ? -12 : 12);
+      massZombie(game, at, colossus, BALANCE.assault.escortRadius);
+      expect(Math.abs(pool.offset[at] - pool.offset[colossus])).toBeLessThanOrEqual(3);
+      expect(pool.progress[at]).toBe(pool.progress[colossus]);
+    }
+  });
+
+  it('walks them at his pace, and the third net takes them without him', () => {
+    // spec 03-34: held to his pace, eight tenths of a block a second — which is
+    // what keeps them massed the whole way down. spec 03-40: the third net
+    // leaves out the colossus, and him alone.
+    const game = createGame(BALANCE, 5);
+    const colossus = put(game, ZOMBIE.COLOSSUS, 0, 0, 0);
+    const bruiser = put(game, ZOMBIE.BRUISER, 0, 0, 0);
+    game.assault.zombies.escort[bruiser] = 1;
+    expect(speedOf(game, bruiser)).toBe(0.8);
+    expect(speedOf(game, colossus)).toBe(0.8);
+    walk(game, 60);
+    expect(game.assault.zombies.progress[bruiser]).toBeCloseTo(0.8, 4);
+
+    game.assault.fewFor = BALANCE.assault.rushAfter;
+    expect(speedOf(game, bruiser)).toBe(4); // spec 03-39
+    expect(speedOf(game, colossus)).toBe(0.8); // spec 03-40
   });
 });

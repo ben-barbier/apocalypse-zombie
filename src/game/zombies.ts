@@ -109,6 +109,7 @@ export function spawnZombie(
   pool.progress[at] = progress;
   pool.offset[at] = (nextFloat(game.snapshot.random) * 2 - 1) * game.balance.assault.lateralSpread;
   pool.hp[at] = balanceOf(game.balance, type).hp; // in sword hits (spec 03-3)
+  pool.escort[at] = 0;
   pool.knockedFor[at] = 0;
   pool.stuckFor[at] = 0;
   pool.blowLeft[at] = 0;
@@ -123,11 +124,35 @@ export function spawnZombie(
 }
 
 /**
+ * Masses one on another, within the blocks the escort of the colossus holds. It
+ * is the offset that gives way, never the advance: the six bruisers walk in at
+ * the advance he walks in at, and they are held to his pace, so what is measured
+ * here once holds for the whole of the descent. (spec 03-34, 03-8)
+ */
+export function massZombie(game: Game, at: number, onto: number, blocks: number): void {
+  const pool = game.assault.zombies;
+  const near = pool.offset[onto];
+  let off = pool.offset[at];
+  if (off < near - blocks) off = near - blocks;
+  if (off > near + blocks) off = near + blocks;
+  pool.offset[at] = off;
+  place(game, at);
+  pool.xPrev[at] = pool.x[at];
+  pool.zPrev[at] = pool.z[at];
+  pool.angPrev[at] = pool.ang[at];
+}
+
+/**
  * How fast one walks, in blocks a second: the pace of its kind, until the third
  * net of the end of an assault sends the last of them down at four blocks a
  * second — the pace of a sprinter, which is the ceiling of the game and not a
  * constant of its own. The colossus is left out of that net, and its pace never
  * changes. (spec 03-39, 03-40)
+ *
+ * The six bruisers of an escort are held to the pace of the colossus they walk
+ * with, which is what keeps them massed around him the whole way down; the third
+ * net picks them up like anything else, since only the colossus is left out of
+ * it. (spec 03-34, 03-40)
  */
 export function speedOf(game: Game, at: number): number {
   const assault = game.balance.assault;
@@ -135,6 +160,7 @@ export function speedOf(game: Game, at: number): number {
   if (game.assault.fewFor >= assault.rushAfter && type !== ZOMBIE.COLOSSUS) {
     return assault.rushSpeed;
   }
+  if (game.assault.zombies.escort[at] === 1) return game.balance.colossus.speed;
   return kindAt(game, at).speed;
 }
 

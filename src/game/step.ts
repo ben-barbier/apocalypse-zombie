@@ -18,6 +18,7 @@
 import { stepPlayer } from './player';
 import type { Game, InputState } from './state';
 import { stepTownHall } from './townhall';
+import { stepWaves } from './waves';
 import { stepZombies } from './zombies';
 
 /** The one step, in the one order. (spec 10-25) */
@@ -30,7 +31,7 @@ export function step(game: Game, input: Readonly<InputState>): void {
   stepCannons(game);
   stepProjectiles(game);
   stepEconomy(game);
-  stepWaves(game);
+  stepWaves(game, seconds);
   stepTownHall(game, seconds);
 }
 
@@ -54,6 +55,3 @@ function stepProjectiles(_game: Game): void {}
 
 /** Draws the coins to the player and pays what he buys. (spec 06-7) */
 function stepEconomy(_game: Game): void {}
-
-/** Walks the packs in, six seconds apart, and closes the assault. (spec 03-22) */
-function stepWaves(_game: Game): void {}
