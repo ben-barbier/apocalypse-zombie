@@ -440,6 +440,62 @@ function createCannonPool(size: number): CannonPool {
   };
 }
 
+// ----------------------------------------------------------------- the diamond
+
+/**
+ * What the second button will do where he stands, and there are three answers
+ * and no fourth. It is read off a mark laid on the floor under his feet: **wide
+ * and white**, a cannon goes down; **tight, white and pulsing**, the one within
+ * three blocks moves up a tier; **wide and black**, there is nothing left to do
+ * here. No word, no figure. (spec 05-17, 05-18)
+ *
+ * The two first share **one** distance, which is what leaves no gap between
+ * them: under three blocks one upgrades, at three blocks and over one puts down
+ * a new one, and there is no reading at all in which a press does nothing where
+ * something was possible. (spec 05-13)
+ */
+export const DIAMOND = {
+  /** Wide and white: a cannon goes down under his feet. (spec 05-7, 05-17) */
+  PLACE: 0,
+  /** Tight, white and pulsing: the one within three blocks moves up. (spec 05-13, 05-17) */
+  UPGRADE: 1,
+  /** Wide and black: a third tier, or a second one out of the halo. (spec 05-18) */
+  NONE: 2,
+} as const;
+
+export type DiamondType = (typeof DIAMOND)[keyof typeof DIAMOND];
+
+/**
+ * The question one is asking, settled once a step from where one stands. It is
+ * **not the state of any cannon**: it follows the feet, so walking off a spot
+ * takes it away, mark and reach together. That is why it rides in the volatile
+ * branch and never crosses a wave boundary. (spec 05-20, 10-12)
+ *
+ * It answers "may I *here*?" and never "may I pay?" — the purse is the badge's
+ * question, and the two never overlap. (spec 08-28)
+ */
+export interface Diamond {
+  /** Which of the three it shows. (spec 05-17, 05-18) */
+  shows: DiamondType;
+  /** The cannon it names, or -1 when it names none. (spec 05-13) */
+  at: number;
+  /** The floor cell under his feet, which is where it is laid. (spec 05-17) */
+  x: number;
+  y: number;
+  z: number;
+  /**
+   * How far a ball would carry from here, in horizontal blocks — the circle the
+   * reach paints on the floor, in the colour of the mark above it. It is what
+   * teaches that height carries: he climbs, and the circle grows.
+   * (spec 05-19, 05-22)
+   */
+  reach: number;
+}
+
+function createDiamond(): Diamond {
+  return { shows: DIAMOND.PLACE, at: -1, x: 0, y: 0, z: 0, reach: 0 };
+}
+
 // ------------------------------------------------------------------ the player
 
 /**
@@ -594,9 +650,33 @@ export interface City {
   readonly height: Uint8Array;
   /** 1 where one has the right to be, 0 everywhere else. (spec 02-4, 04-8) */
   readonly walkable: Uint8Array;
+  /**
+   * The middle of the base, which is what the halo is measured from, and how far
+   * it carries in horizontal blocks — on the ground exactly as on a roof.
+   * (spec 02-31)
+   */
+  readonly baseX: number;
+  readonly baseZ: number;
+  readonly halo: number;
   readonly buildings: BuildingPool;
   readonly rails: RailPool;
   readonly gateways: GatewayPool;
+}
+
+/** The one reading of the halo, which `createCity` takes before a `City` exists. */
+function haloReaches(baseX: number, baseZ: number, halo: number, x: number, z: number): boolean {
+  return Math.hypot(x - baseX, z - baseZ) < halo;
+}
+
+/**
+ * Whether a spot lies in the halo: sixteen blocks of horizontal distance from
+ * the base, on the ground as on the roofs. It is what a conveyor asks, and it is
+ * therefore the one thing that says whether a cannon may ever reach its third
+ * tier — nine roofs out of eighty-seven, plus the ground the halo covers.
+ * (spec 02-31, 02-33, 05-16)
+ */
+export function inHalo(city: City, x: number, z: number): boolean {
+  return haloReaches(city.baseX, city.baseZ, city.halo, x, z);
 }
 
 /** The cell a spot falls in, or -1 past the city. */
@@ -743,8 +823,6 @@ export function createCity(balance: CityBalance): City {
   const baseAt = townHall + balance.baseWidth / 2;
   const baseX = dirX(0) * baseAt;
   const baseZ = dirZ(0) * baseAt;
-  const inHalo = (x: number, z: number): boolean =>
-    Math.hypot(x - baseX, z - baseZ) < balance.halo;
 
   const baysOf = (edge: number): readonly number[] =>
     edge === 0 ? balance.alignedBays : balance.shiftedBays;
@@ -829,10 +907,13 @@ export function createCity(balance: CityBalance): City {
     return most;
   }
 
+  const haloed = (x: number, z: number): boolean =>
+    haloReaches(baseX, baseZ, balance.halo, x, z);
+
   function walk(at: number, floor: number, owner: number, x: number, z: number): void {
     walkable[at] = 1;
     height[at] = floor;
-    if (owner >= 0 && inHalo(x, z)) buildings.haloed[owner] = 1;
+    if (owner >= 0 && haloed(x, z)) buildings.haloed[owner] = 1;
   }
 
   for (let i = 0; i < side; i += 1) {
@@ -923,7 +1004,17 @@ export function createCity(balance: CityBalance): City {
     gateways.ang[k] = ang;
   }
 
-  return { side, height, walkable, buildings, rails, gateways };
+  return {
+    side,
+    height,
+    walkable,
+    baseX,
+    baseZ,
+    halo: balance.halo,
+    buildings,
+    rails,
+    gateways,
+  };
 }
 
 // ----------------------------------------------------------- the three branches
@@ -1007,6 +1098,12 @@ export interface Assault {
   readonly player: Player;
   /** The blow in the air, and the one the aim holds. (spec 04-25, 04-31) */
   readonly sword: Sword;
+  /**
+   * What the second button would do where he stands. It is a question and not a
+   * state of anything, so it sits here rather than in the branch that crosses a
+   * wave boundary. (spec 05-20, 08-70, 10-12)
+   */
+  readonly diamond: Diamond;
 }
 
 /** The one object, allocated at load and mutated in place ever after. (spec 10-10) */
@@ -1058,6 +1155,7 @@ export function createGame(balance: Balance, seed = 0): Game {
       events: createEventBuffer(balance.pools.events),
       player: createPlayer(),
       sword: createSword(),
+      diamond: createDiamond(),
     },
   };
 }

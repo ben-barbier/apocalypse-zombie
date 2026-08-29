@@ -50,6 +50,11 @@ function flatCity(): City {
     side: SIDE,
     height: new Uint8Array(SIDE * SIDE),
     walkable: new Uint8Array(SIDE * SIDE).fill(1),
+    // The base and the halo, which this file never reads: no camera of this game
+    // has anything to say about a conveyor. (spec 02-31)
+    baseX: 0,
+    baseZ: 0,
+    halo: 16,
     buildings: {
       count: 0,
       x: new Float32Array(0),

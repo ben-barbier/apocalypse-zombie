@@ -15,6 +15,7 @@
  * parts below that are still empty move into their own modules as their chapters
  * land. (spec 10-14)
  */
+import { stepCannons } from './cannons';
 import { stepEconomy } from './economy';
 import { stepPlayer } from './player';
 import type { Game, InputState } from './state';
@@ -30,7 +31,7 @@ export function step(game: Game, input: Readonly<InputState>): void {
   stepPlayer(game, input, seconds);
   stepSword(game, input, seconds);
   stepZombies(game, seconds);
-  stepCannons(game);
+  stepCannons(game, input);
   stepProjectiles(game);
   stepEconomy(game);
   stepWaves(game, seconds);
@@ -45,9 +46,6 @@ export function step(game: Game, input: Readonly<InputState>): void {
  * (spec 10-30, 10-31)
  */
 function stepInput(_game: Game, _input: Readonly<InputState>): void {}
-
-/** Aims the ball and the flame, each on its own. (spec 05-40) */
-function stepCannons(_game: Game): void {}
 
 /** Flies the balls and lands the blows they booked. (spec 05-25) */
 function stepProjectiles(_game: Game): void {}

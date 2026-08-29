@@ -116,6 +116,11 @@ function cityOf(bays: number): City {
     side: SIDE,
     height,
     walkable,
+    // The base sits at the middle, and the halo reaches its sixteen blocks from
+    // it, exactly as the plan has it. (spec 02-8, 02-31)
+    baseX: 0,
+    baseZ: 0,
+    halo: 16,
     buildings,
     rails: {
       stops: 2,
