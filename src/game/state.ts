@@ -71,7 +71,7 @@ export const EVENT = {
   CANNON_HIT: 12,
   /** A ground cannon reaches zero and goes. (spec 05-50) */
   CANNON_LOST: 13,
-  /** A breach strikes the town hall. (spec 03-17) */
+  /** A breach strikes the town hall, and a cube comes off it. (spec 03-18, 06-34) */
   TOWN_HALL_HIT: 14,
   /** A coin enters the purse. (spec 06-7) */
   COIN_TAKEN: 15,
@@ -87,6 +87,10 @@ export const EVENT = {
   ASSAULT_BEGAN: 20,
   /** The last zombie of the assault has fallen. (spec 01-12) */
   ASSAULT_ENDED: 21,
+  /** A tenth of the ceiling is gone, so a piece of the town hall falls, and only
+   * a reinforcement ever brings it back. The `value` is how many segments still
+   * stand. (spec 06-35, 06-36) */
+  TOWN_HALL_SEGMENT_LOST: 22,
 } as const;
 
 export type EventType = (typeof EVENT)[keyof typeof EVENT];
@@ -552,6 +556,21 @@ export function railX(rails: RailPool, street: number, progress: number): number
 
 export function railZ(rails: RailPool, street: number, progress: number): number {
   return alongRail(rails.z, rails, street, progress);
+}
+
+/**
+ * Which way a rail runs at a given advance, in radians — from the entrance
+ * towards the face of the town hall, which is the one way anything walks it.
+ * It is what a lateral offset is measured across, and what a body faces.
+ * (spec 03-7, 03-12)
+ */
+export function railAng(rails: RailPool, street: number, progress: number): number {
+  const first = street * rails.stops;
+  const k = segmentAt(rails, street, progress);
+  return Math.atan2(
+    rails.z[first + k + 1] - rails.z[first + k],
+    rails.x[first + k + 1] - rails.x[first + k],
+  );
 }
 
 /**
