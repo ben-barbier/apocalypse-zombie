@@ -187,6 +187,10 @@ L'unité de dégâts infligés aux constructions. Les points de vie de la mairie
 Une tourelle achetée avec l'argent gagné, posée là où le joueur se tient — sur un toit ou au sol. Trois niveaux. Au sol, elle ne bloque pas les zombies mais s'use sous leurs coups ; sur un toit, elle est intouchable. **C'est la seule construction du jeu** : rien d'autre ne se pose, rien d'autre ne se bâtit, et ses trois niveaux sont linéaires — on n'y choisit jamais entre deux voies. Le bouton d'action n'a qu'un seul sens à un endroit donné, et le canon, l'amélioration et le renfort de la mairie ont déjà pris les trois seuls endroits qui existent.
 _Éviter_ : tourelle, tour, défense
 
+**Niveau** :
+L'un des trois états d'un canon — 1, 2, 3 — et jamais autre chose. Il ne monte que par une **amélioration**, ne redescend jamais, et la suite est linéaire : aucun embranchement, aucun quatrième. Le mot ne désigne rien d'autre dans ce jeu — il n'y a ni niveau de jeu ni niveau de difficulté ; ce qui se succède s'appelle une **vague**, et ce qu'on achète pour la mairie a des **paliers**.
+_Éviter_ : palier (réservé au Renfort), rang, grade, stade
+
 **Boulet** :
 L'arme de longue portée du canon, à tous les niveaux. Tir en cloche, munitions infinies, une cible à la fois. Sa portée grandit avec la hauteur du toit.
 
