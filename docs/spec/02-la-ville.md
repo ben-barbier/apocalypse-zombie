@@ -61,6 +61,13 @@ Ce chapitre décide le terrain : l'étoile à trois branches, la place et son po
 32. Il ne couvre pas toute la place, et n'entre que de **6 blocs dans la rue 1** : les rues 2 et 3 n'ont aucun toit éligible.
 33. **Neuf toits sur 87** sont éligibles au tapis roulant : les six du pourtour que le halo atteint, et les trois du pied de la rue 1. Partout ailleurs, un canon se ravitaille à pied pour toute la partie.
 
+**Le pourtour de la place**
+
+34. Le pourtour est **tout ce que la place, les rues et leurs fronts bâtis laissent libre à l'intérieur d'un disque de 26 blocs** depuis le centre de la ville — l'apothème 16, les 8 blocs de profondeur d'un front bâti, plus 2 — et ce n'est donc pas un anneau : il court sur 10 blocs de profondeur sur la normale d'un pan et sur 7,5 dans un coin de l'hexagone.
+35. Une cellule se résout dans l'ordre **place, rue, front bâti, pourtour** : le pourtour ne prend que ce qui reste, et c'est ce qui interdit qu'un de ses bâtiments soit à cheval sur une rue.
+36. Il se partage en **trois secteurs de 120°**, d'un axe de rue au suivant, dont on retire à chaque extrémité l'angle que le bord extérieur d'un front bâti — 11 blocs de l'axe, la demi-largeur 3 plus la profondeur 8 — sous-tend depuis la bouche, soit `atan(11 / 16) ≈ 34,51°`.
+37. Les **50,98°** qui restent d'un secteur se coupent en **trois îlots égaux de 16,99°**, chacun portant un bâtiment dont l'échelle se tient au **milieu angulaire de son îlot, sur la façade de place** ; une cellule tombée dans une marge retirée revient à l'îlot d'extrémité le plus proche.
+
 ## Les chiffres
 
 ### La ville
@@ -69,7 +76,8 @@ Ce chapitre décide le terrain : l'étoile à trois branches, la place et son po
 |---|---:|
 | Côté de la ville | 216 blocs |
 | Cellules de la ville | 46 656 |
-| Cellules praticables (sol et toits) | 6 800 |
+| Cellules de sol et de toit, mairie et base comprises | 6 800 |
+| Cellules praticables, les 88 de la mairie et de la base retirées | 6 712 |
 | Cellules de rue | 1 440 |
 | Bout d'une rue, depuis le centre | 96 blocs |
 | Extérieur au-delà, jusqu'au bord | 12 blocs |
@@ -87,6 +95,19 @@ Ce chapitre décide le terrain : l'étoile à trois branches, la place et son po
 | Base | 6 × 4 blocs, 3 de haut |
 | Bouche de rue → face de la mairie | 12 blocs |
 | Bâtiments du pourtour | 9, tous à 4 blocs |
+
+### Le pourtour de la place
+
+| Grandeur | Valeur |
+|---|---:|
+| Portée du disque, depuis le centre de la ville | 26 blocs |
+| Profondeur sur la normale d'un pan | 10 blocs |
+| Profondeur dans un coin de l'hexagone | 7,5 blocs |
+| Secteur, d'un axe de rue au suivant | 120° |
+| Marge retirée à chaque extrémité d'un secteur | 34,51° |
+| Angle libre, les deux marges retirées | 50,98° |
+| Îlot, trois par secteur | 16,99° |
+| Cellules de toit que le pourtour ferme | 632 |
 
 ### Une rue
 
@@ -179,6 +200,8 @@ bord décalé    4 6 8 8 · 4 6 8 · 4 6 8 · 4 6 8      coupures après les 4e,
 **Pourquoi le profil porte seul le rythme d'une rue.** La ville est à la densité 1, le mur est une tuile unique, et il n'y a rien à poser au sol : une rue de 80 blocs ne dispose donc que de la **hauteur** des bâtiments, des **trois tuiles de toit** et des **corniches** pour ne pas ressembler à un couloir. Deux longues séries à la même hauteur donneraient littéralement deux couloirs identiques, et l'enfant n'aurait rien pour dire où il se trouve — d'où les tronçons courts, et le fait qu'on reconnaisse le pied, le milieu et le fond d'une rue au premier coup d'œil.
 
 **Pourquoi le pourtour est tout entier à 4 blocs.** Rien ne l'avait posé, et c'est une décision de ce chapitre : la place s'ouvre, la mairie domine, et les neuf toits font un balcon continu autour d'elle, relié au pied de chaque rue. C'est là que l'enfant pose son premier canon.
+
+**Pourquoi ce découpage du pourtour, et pas un autre.** Rien n'avait dit comment neuf bâtiments occupent le moyeu, et plusieurs partages se valaient à la lecture ; ce sont les comptes de ce chapitre qui ont tranché, parce qu'un seul plan les retrouve tous les deux. Couper chaque pan de l'hexagone en trois façades égales, au lieu de couper le secteur en trois angles égaux, pousse le troisième bâtiment de chacun des deux secteurs qui bordent la rue 1 à **0,51 bloc** au-delà des 16 blocs du halo : les toits éligibles au tapis roulant tombent alors à **7 au lieu de 9**, et la règle 33 devient fausse. Et le pourtour n'est pas un anneau : **aucune profondeur constante ne donne les 632 cellules** qu'il doit fermer pour que le compte de 6 800 sorte — d'un cran de profondeur au suivant, l'anneau passe de **628 à 634** sans jamais s'y arrêter.
 
 **Pourquoi le halo n'entre que dans une rue.** Mesuré : 16 blocs depuis la base ne couvrent même pas toute la place, et n'entrent que de 6 blocs dans la rue devant laquelle la base se tient. C'est retenu tel quel, avec la base face à la rue 1 : le tapis roulant devient la récompense du pied de la rue d'apprentissage, celle où l'enfant a posé son premier canon, et les canons des rues 2 et 3 se ravitaillent à pied pour toute la partie. Le ravitaillement demandait qu'il existe des emplacements franchement attractifs hors du halo ; il est ici maximal.
 
