@@ -20,8 +20,16 @@
  */
 import { BALANCE } from '../game/balance';
 import { placePlayer } from '../game/player';
-import { DIAMOND, EVENT, type EventBuffer, createGame, createInput } from '../game/state';
-import { reinforcementNotch } from '../game/townhall';
+import {
+  DIAMOND,
+  EVENT,
+  type EventBuffer,
+  PHASE,
+  STREETS,
+  createGame,
+  createInput,
+} from '../game/state';
+import { reinforcementNotch, reinforcementPrice } from '../game/townhall';
 import { beginAssault } from '../game/waves';
 import { loadAtlas } from '../render/atlas';
 import {
@@ -33,6 +41,7 @@ import {
   retractConveyor,
 } from '../render/cannons';
 import {
+  acrossOf,
   aimCamera,
   createCamera,
   fitCamera,
@@ -66,6 +75,14 @@ import {
   strike,
   sweepArc,
 } from '../render/effects';
+import {
+  createHud,
+  loseSegments,
+  reinforceBar,
+  showNotch,
+  strikeSegment,
+  writeHud,
+} from '../render/hud';
 import { createScene } from '../render/scene';
 import { createQuality, mayDraw, senseQuality, tierOf } from '../render/quality';
 import { createPad } from './gamepad';
@@ -145,6 +162,38 @@ function raise(): void {
  */
 const camera = createCamera(BALANCE.camera, BALANCE.city);
 settleCamera(camera, game.assault.city, game.assault.player);
+
+/**
+ * The five displays over the world, and the five constants of the game they
+ * read: ten segments whatever the notch, five pips, three streets at most, three
+ * left at which the figure goes white, and the prices of chapter 6 which this
+ * one only shows. They are handed over here, where the balance is named, exactly
+ * as every other constant of the drawing is. (spec 08-13, 08-20, 08-36, 08-40,
+ * 10-15)
+ *
+ * The nodes are found on the page rather than built, because the page carries
+ * them and its sheet carries the two dispositions, every size and every colour:
+ * this is the one file that knows a browser at all. (spec 08-11)
+ */
+const hud = createHud((name) => document.getElementById(name), {
+  segments: BALANCE.economy.townHallSegments,
+  pips: BALANCE.player.hp,
+  streets: STREETS,
+  few: BALANCE.assault.beaconsAt,
+  prices: BALANCE.economy.prices,
+});
+
+// The picto takes the stuff of the notch the town hall stands at, and the fourth
+// badge the price of the notch to come — read off the state at load exactly as
+// the crown is, and off the one fact of the buffer ever after. (spec 08-15, 08-26)
+showNotch(hud, reinforcementNotch(game), reinforcementPrice(game));
+
+/**
+ * Where each gateway falls across the screen, from -1 at the left border to +1 at
+ * the right. It is the one thing an arrow takes from the camera, and it is filled
+ * here, once a frame, into an array made at load. (spec 08-32, 10-14)
+ */
+const across = new Float32Array(STREETS);
 
 const context = createContext(canvas, {
   // The scene is a projection of the state, so it is simply built again — the
@@ -292,7 +341,17 @@ const loop = createLoop(game, input, {
       // is no sound of a ball landing at all.
       // (spec 05-24, 07-36, 09 "Ce qui déclenche chacun")
       else if (kind === EVENT.CANNONBALL_HIT) blow(events, STRUCK.ZOMBIE, i, now);
-      else if (kind === EVENT.TOWN_HALL_HIT) blow(events, STRUCK.TOWN_HALL, i, now);
+      else if (kind === EVENT.TOWN_HALL_HIT) {
+        blow(events, STRUCK.TOWN_HALL, i, now);
+        // And in the hud, the segment being eaten lights white for 80 ms. It
+        // comes before the segment lost of the same blow, which is what makes
+        // the segment being eaten the one still standing. (spec 08-16)
+        strikeSegment(hud);
+      }
+      // A tenth of the ceiling gone: the segments past what is left go almost
+      // black, and only a reinforcement brings one back. The count rides in the
+      // fact, so nothing compares two states. (spec 08-18, 10-19)
+      else if (kind === EVENT.TOWN_HALL_SEGMENT_LOST) loseSegments(hud, events.value[i]);
       else if (kind === EVENT.CANNON_HIT) blow(events, STRUCK.CANNON, i, now);
       // The one thing a fatal blow puts into the world, and it puts it in the air.
       // (spec 03-19, 03-21, 07-30)
@@ -323,7 +382,13 @@ const loop = createLoop(game, input, {
       // movement, at the notch the fact carries, and that is the one thing that
       // brings back what has come off the town hall. Nothing anywhere draws a
       // figure of it. (spec 06-36, 06-37)
-      else if (kind === EVENT.REINFORCEMENT_BOUGHT) showCrown(crown, events.value[i]);
+      else if (kind === EVENT.REINFORCEMENT_BOUGHT) {
+        showCrown(crown, events.value[i]);
+        // And in the hud, the whole bar back with white filling it from left to
+        // right in 400 ms, the picto on the stuff of its new notch, and the
+        // fourth badge on the price of the notch to come. (spec 08-17, 08-26)
+        reinforceBar(hud, events.value[i], reinforcementPrice(game));
+      }
       // A cannon going down, which takes 0,3 second and comes up out of the
       // ground over it. What it looks like once it is up is read off the pool,
       // never off a comparison of two states. (spec 05-7, 10-19)
@@ -356,6 +421,19 @@ const loop = createLoop(game, input, {
       fit(); // a tier that moves moves the resolution
       holdShards(effects, tierOf(quality).shards); // and, one tier on, the shards
     }
+    // The hud, before the tier of quality has its say: it is DOM over the canvas
+    // and costs no draw call at all, so a frame held back at 30 is no reason for
+    // a figure to go stale. It writes only what has moved, and a game standing
+    // still writes nothing. (spec 08-11, 08-12)
+    //
+    // The gateways are read against the camera where the last frame left it,
+    // which is a frame of lag on a spot quantised to a hundredth of the screen.
+    const gateways = held.assault.city.gateways;
+    for (let s = 0; s < STREETS; s += 1) {
+      across[s] = acrossOf(camera, gateways.x[s], gateways.z[s]);
+    }
+    writeHud(hud, held, held.assault.phase === PHASE.PREP, across);
+
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
     placeCharacters(
       characters,
