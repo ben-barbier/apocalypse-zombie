@@ -4,12 +4,15 @@
  * one canvas, builds the one scene, and gives the loop to the frames. Everything
  * it wires is decided elsewhere; nothing is decided here. (spec 10-15)
  *
- * The scene it opens is empty on purpose: the city, the bodies, the cannons and
- * the effects each arrive with their own chapter, into this same scene.
+ * The scene it opens holds the one hour and the city under it; the bodies, the
+ * cannons and the effects each arrive with their own chapter, into this same
+ * scene.
  */
 import * as THREE from 'three';
 import { BALANCE } from '../game/balance';
 import { createGame, createInput } from '../game/state';
+import { loadAtlas } from '../render/atlas';
+import { buildCity } from '../render/city';
 import { createContext, resize } from '../render/context';
 import { createScene } from '../render/scene';
 import { createQuality, mayDraw, senseQuality, tierOf } from '../render/quality';
@@ -23,7 +26,15 @@ const game = createGame(BALANCE);
 const input = createInput();
 const quality = createQuality();
 
+// The one image of the whole game, and the one city it clothes. (spec 07-43)
+const sheet = loadAtlas();
 let scene = createScene(BALANCE.city);
+raise();
+
+/** Puts the city into the scene, from the grid the rules engender. (spec 02, 04-8) */
+function raise(): void {
+  scene.add(buildCity(game.assault.city, BALANCE.city, sheet).node);
+}
 
 /**
  * The one camera, and it is provisional: chapter 4 decides the assisted camera,
@@ -35,10 +46,11 @@ camera.position.set(0, 12, 24);
 camera.lookAt(0, 0, 0);
 
 const context = createContext(canvas, {
-  // The scene is a projection of the state, so it is simply built again. For now
-  // the state has nothing in it to build. (spec 10-37)
+  // The scene is a projection of the state, so it is simply built again — the
+  // city included, since no datum of the game lives only on the GPU. (spec 10-37)
   repopulate: () => {
     scene = createScene(BALANCE.city);
+    raise();
     fit();
   },
 });
