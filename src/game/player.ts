@@ -19,9 +19,27 @@
  * What the arc of a jump is worth is not written in the spec, and it is not
  * chosen here either: it is read off the two bounds of 04-10 and the one pace of
  * 04-6. See `gravityOf` below, which carries the derivation in full.
+ *
+ * His five hp are here too, and what they really are is written in chapter 4:
+ * **a converter**. He never falls for good — at nought he goes down where he
+ * stands, gets up three seconds later in that same spot and whole — so what a
+ * contact takes from him is time, and time is already priced in hp of the town
+ * hall, which is the one bar whose fall ends a game. The chain runs one way and
+ * one way only: *he is touched → he goes down → he fells nobody → the town hall
+ * takes the blows*. Anything that pointed that arrow the other way would be wrong.
+ * (spec 04-5, 04-42, and the "Pourquoi" of chapter 4 on what his hp are for)
  */
 import type { PlayerBalance } from './balance';
-import { type City, type Game, type InputState, type Player, heightAt, walkableAt } from './state';
+import {
+  EVENT,
+  type City,
+  type Game,
+  type InputState,
+  type Player,
+  heightAt,
+  pushEvent,
+  walkableAt,
+} from './state';
 
 /**
  * How far above the feet a floor may stand and still be walked into.
@@ -143,6 +161,108 @@ function takeLadder(game: Game, dx: number, dz: number): boolean {
   return false;
 }
 
+/**
+ * He goes down where he stands, at nought hp.
+ *
+ * **On the spot, and nowhere else.** Getting up at the base would cost three
+ * seconds where walking back from the far end of a street costs fifteen: going
+ * down would become the fastest way across the city, and losing his hp while
+ * defending would *earn* him hp of the town hall. On the spot, what a collapse
+ * costs grows with how far out he was — three seconds on the floor **plus** the
+ * walk he owed anyway, while the column keeps coming down.
+ * (spec 04-42, and the "Pourquoi" of chapter 4 on the collapse being on the spot)
+ *
+ * **His armful goes with him**, and that is the one place in the whole game
+ * where firebombs are lost: none of them ever falls to the ground, and none is
+ * ever picked up off it. (spec 04-43, 04-48)
+ *
+ * Nothing here is an end. There is no state of being gone, no screen, no walking
+ * back in: the one end of a game is the fall of the town hall. (spec 04-5, 01)
+ */
+export function collapsePlayer(game: Game): void {
+  const player = game.assault.player;
+  const balance = game.balance.player;
+
+  // What the armful held rides in the `value`, because the cubes over his head
+  // go out on this one fact and the drawing never compares two states.
+  // (spec 04-47, 10-19)
+  const carried = game.snapshot.armful;
+  game.snapshot.armful = 0; // spec 04-43
+
+  player.collapseLeft = balance.collapseTime; // spec 04-42
+  // He is on the floor: nothing holds him there but the floor itself, and the
+  // three seconds of being untouchable begin when he gets up, not now. (spec 04-42)
+  player.staggerLeft = 0;
+  player.invulnerableLeft = 0;
+  pushEvent(game.assault.events, EVENT.COLLAPSE, 0, player.x, player.y, player.z, carried);
+}
+
+/**
+ * He gets up, three seconds later, in the very spot he went down in and at full
+ * hp — with three seconds of being untouchable, which is the one exception to
+ * the second the rest of the chapter runs on: without them he would get up
+ * inside the pack that had just put him down, over and over. (spec 04-42)
+ */
+function risePlayer(game: Game): void {
+  const player = game.assault.player;
+  const balance = game.balance.player;
+
+  player.collapseLeft = 0;
+  game.snapshot.playerHp = balance.hp; // spec 04-42
+  player.staggerLeft = 0;
+  player.invulnerableLeft = balance.riseInvulnerable; // spec 04-42
+  player.regenLeft = balance.regenPeriod;
+  pushEvent(game.assault.events, EVENT.RISE, 0, player.x, player.y, player.z, balance.hp);
+}
+
+/**
+ * What his hp do in one step: the two counts a contact bought, the one thing
+ * that ever gives one back, and getting him up off the floor.
+ *
+ * The two counts run one after the other — staggered a second, then untouchable
+ * a second — so two seconds stand between two losses whatever walks into him,
+ * and five hp are ten seconds of a body pressed against a pack. They are counted
+ * down here, in the phase of the step that is his, and the contact that buys them
+ * is settled in the phase of the zombies, which comes after it. (spec 04-39, 10-25)
+ *
+ * **The regeneration is the one mending of the game** — no potion, no pick-up,
+ * nothing made whole between two waves — and **every contact starts its count
+ * over**, which is what makes six seconds the number it is: six is longer than
+ * the two of the loss ceiling, so one never comes back at close quarters. One
+ * has to break off, and since the sweep does not go up, breaking off means going
+ * up: the roof is the infirmary, and it is paid for in the bravery bonus one is
+ * not earning up there. The same six covers the second need without a second
+ * rule — thirty seconds of preparation are five hp, so a preparation refills him
+ * whole. (spec 04-41, and the "Pourquoi" of chapter 4 on the six seconds)
+ */
+function carryHp(game: Game, seconds: number): void {
+  const player = game.assault.player;
+  const balance = game.balance.player;
+
+  if (player.staggerLeft > 0) player.staggerLeft = Math.max(0, player.staggerLeft - seconds);
+  if (player.invulnerableLeft > 0) {
+    player.invulnerableLeft = Math.max(0, player.invulnerableLeft - seconds);
+  }
+
+  if (player.collapseLeft > 0) {
+    player.collapseLeft -= seconds;
+    if (player.collapseLeft <= 0) risePlayer(game);
+    return; // nothing comes back to a body on the floor: he gets up whole
+  }
+
+  if (game.snapshot.playerHp >= balance.hp) {
+    player.regenLeft = balance.regenPeriod;
+    return;
+  }
+  player.regenLeft -= seconds;
+  if (player.regenLeft > 0) return;
+  // One hp, and the count starts over; what a step overshoots by is carried, so
+  // six seconds stay six seconds instead of drifting to a whole number of steps.
+  // (spec 04-41, 10-16)
+  player.regenLeft += balance.regenPeriod;
+  game.snapshot.playerHp = Math.min(balance.hp, game.snapshot.playerHp + 1);
+}
+
 /** Carries a climb along, and steps him off at the end of it. (spec 04-13) */
 function climb(player: Player, seconds: number, ladderTime: number): void {
   player.climbLeft -= seconds;
@@ -164,6 +284,11 @@ function climb(player: Player, seconds: number, ladderTime: number): void {
  * cleared for at the moment he crosses them. Settled after, a stride would buy
  * itself one step of ground it has not risen for, and a jump would carry three
  * blocks of void where the rule gives it two. (spec 04-10 to 04-13)
+ *
+ * His hp are carried first of all, and before either of the two ways out below:
+ * the counts a contact bought run down while he climbs and while he lies there,
+ * which is what makes the three seconds on the floor three seconds and not the
+ * length of whatever he does next. (spec 04-39, 04-42)
  */
 export function stepPlayer(game: Game, input: Readonly<InputState>, seconds: number): void {
   const player = game.assault.player;
@@ -175,6 +300,8 @@ export function stepPlayer(game: Game, input: Readonly<InputState>, seconds: num
   player.yPrev = player.y;
   player.zPrev = player.z;
   player.angPrev = player.ang;
+
+  carryHp(game, seconds);
 
   if (isClimbing(player)) {
     climb(player, seconds, balance.ladderTime);

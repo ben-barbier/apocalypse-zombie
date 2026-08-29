@@ -325,10 +325,25 @@ describe('the player, walked into', () => {
     expect(pool.progress[at]).toBeCloseTo(30 + 1.5 * SECONDS, 4);
   });
 
-  it('takes no second hp before two seconds have gone', () => {
-    // spec 04-39: staggered a second, then untouchable a second, so one hp every
-    // two seconds and ten seconds of standing in a pack before he falls.
-    const game = createGame(BALANCE, 13);
+  it('costs the same one hp whatever the kind walked into him', () => {
+    // spec 04-37, 04-38: one hp per contact, whatever the kind, and a contact is
+    // the one thing that ever costs him one.
+    for (const type of [ZOMBIE.SHAMBLER, ZOMBIE.SPRINTER, ZOMBIE.BRUISER, ZOMBIE.COLOSSUS]) {
+      const game = createGame(BALANCE, 13);
+      const at = put(game, type, 0, 30, 0);
+      const player = game.assault.player;
+      player.x = game.assault.zombies.x[at];
+      player.z = game.assault.zombies.z[at];
+      stepZombies(game, SECONDS);
+      expect(`${type} ${game.snapshot.playerHp}`).toBe(`${type} ${BALANCE.player.hp - 1}`);
+    }
+  });
+
+  it('arms the two counts and takes nothing while they run', () => {
+    // spec 04-39: a touch staggers him a second, then leaves him untouchable a
+    // second — armed here, counted down in the phase of the step that is his,
+    // which is where the ceiling of one hp every two seconds is read back.
+    const game = createGame(BALANCE, 130);
     const at = put(game, ZOMBIE.COLOSSUS, 0, 30, 0);
     const pool = game.assault.zombies;
     const player = game.assault.player;
@@ -337,21 +352,38 @@ describe('the player, walked into', () => {
       player.z = pool.z[at];
       stepZombies(game, SECONDS);
     }
-    expect(game.snapshot.playerHp).toBe(BALANCE.player.hp - 2);
+    expect(player.staggerLeft).toBe(BALANCE.player.stagger);
+    expect(player.invulnerableLeft).toBe(BALANCE.player.stagger + BALANCE.player.invulnerable);
+    expect(game.snapshot.playerHp).toBe(BALANCE.player.hp - 1);
   });
 
-  it('never touches a body standing a storey up', () => {
-    // spec 04-9: a roof is a whole refuge, and a zombie walks the floor of its
-    // street and nothing else. (spec 03-12)
-    const game = createGame(BALANCE, 14);
-    const at = put(game, ZOMBIE.SHAMBLER, 0, 30, 0);
-    const player = game.assault.player;
-    player.x = game.assault.zombies.x[at];
-    player.z = game.assault.zombies.z[at];
-    player.y = 4;
-    walk(game, 60);
-    expect(game.snapshot.playerHp).toBe(BALANCE.player.hp);
-    expect(counted(game.assault.events, EVENT.CONTACT)).toBe(0);
+  it('never touches him on the lowest roof of the city, whatever kind stands at its foot', () => {
+    // spec 04-26, 02-20: on a roof nothing touches him, and the lowest roof of
+    // the city is four blocks. The height is taken floor to floor and does not
+    // grow with the kind — the colossus is the case that proves it, since at a
+    // scale of 2,2 its box stands 4,4 blocks and would otherwise reach over that
+    // roof. Ten seconds of it, which is what would put him down in the street.
+    // (spec 04-9, 04-39)
+    for (const type of [ZOMBIE.SHAMBLER, ZOMBIE.SPRINTER, ZOMBIE.BRUISER, ZOMBIE.COLOSSUS]) {
+      for (const y of [0, 4]) {
+        const game = createGame(BALANCE, 14);
+        const at = put(game, type, 0, 30, 0);
+        const pool = game.assault.zombies;
+        const player = game.assault.player;
+        player.y = y;
+        for (let i = 0; i < 60 * 10; i += 1) {
+          player.x = pool.x[at];
+          player.z = pool.z[at];
+          stepZombies(game, SECONDS);
+        }
+        // On the floor of the street he is touched; four blocks up, never once.
+        const touched = counted(game.assault.events, EVENT.CONTACT) > 0;
+        expect(`${type} ${y} ${touched}`).toBe(`${type} ${y} ${y === 0}`);
+        expect(`${type} ${y} ${game.snapshot.playerHp}`).toBe(
+          `${type} ${y} ${y === 0 ? BALANCE.player.hp - 1 : BALANCE.player.hp}`,
+        );
+      }
+    }
   });
 
   it('never turns towards him, whatever he does', () => {

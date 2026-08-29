@@ -22,6 +22,7 @@ import {
   flingHead,
   placeCharacters,
 } from './characters';
+import { WHITE } from './effects';
 
 /** A body standing still, so a test only has to move what it is about. */
 function playerAt(x: number, y: number, z: number, ang = 0): Player {
@@ -152,6 +153,22 @@ describe('the fourteen boxes', () => {
       worn.add(`#${paint.getHexString()}`);
     }
     expect(worn).toEqual(new Set([TUNIC, SKIN, STEEL]));
+  });
+
+  it('goes white all over on the blink of a body walked into', () => {
+    // spec 07-41: the blink of a body that has been touched takes the whole
+    // silhouette, sword included — a garment changing colour would read as a
+    // second character, and the two states are told apart by the rhythm alone.
+    const view = buildCharacters(1);
+    placeCharacters(view, playerAt(0, 0, 0), 1, 0, true);
+    const worn = new Set<string>();
+    const paint = new THREE.Color();
+    for (let i = 0; i < view.bodies.count; i += 1) {
+      view.bodies.getColorAt(i, paint);
+      worn.add(`#${paint.getHexString()}`);
+    }
+    expect(worn).toEqual(new Set([WHITE]));
+    expect(view.bodies.count).toBe(BOXES + 1); // and it is still the same fifteen
   });
 });
 

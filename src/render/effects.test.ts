@@ -13,6 +13,8 @@ import { describe, expect, it } from 'vitest';
 import {
   ARC,
   ARC_SPAN,
+  BLINK_FAST,
+  BLINK_SLOW,
   type Effects,
   LIT_FOR,
   PRIORITY,
@@ -21,8 +23,10 @@ import {
   SHARD_SIDE,
   STRUCK,
   WHITE,
+  blink,
   buildEffects,
   holdShards,
+  isBlinking,
   isLit,
   lightUp,
   placeShards,
@@ -393,5 +397,70 @@ describe('the arc of a sweep', () => {
     expect(effects.count).toBe(ARC);
     placeShards(effects, 151);
     expect(effects.count).toBe(0);
+  });
+});
+
+describe('the blink of the one body the child drives', () => {
+  /** How many times it goes on and off over a span, sampled a step at a time. */
+  function blinksOver(effects: Effects, from: number, to: number): number {
+    let turns = 0;
+    let was = false;
+    for (let now = from; now < to; now += 1000 / 60) {
+      const on = isBlinking(effects, now);
+      if (on && !was) turns += 1;
+      was = on;
+    }
+    return turns;
+  }
+
+  it('goes white at two a second while he is staggered', () => {
+    // spec 07-41: a white blink at 2 Hz for a second — the second being chapter
+    // 4's stagger, which arrives with the fact rather than being written here.
+    expect(BLINK_SLOW).toBe(2);
+    const effects = buildEffects(POOL);
+    blink(effects, 1000, 0, 0);
+    expect(blinksOver(effects, 0, 1000)).toBe(BLINK_SLOW);
+    expect(isBlinking(effects, 0)).toBe(true); // it starts on, so it is seen at once
+    expect(isBlinking(effects, 1001)).toBe(false);
+  });
+
+  it('is the same signal sped up to six a second while he is untouchable', () => {
+    // spec 07-41: two states, one signal — the fast one is the slow one
+    // accelerated, and never a second colour. Nothing red is drawn anywhere.
+    expect(BLINK_FAST).toBe(6);
+    const effects = buildEffects(POOL);
+    blink(effects, 1000, 1000, 0);
+    expect(blinksOver(effects, 0, 1000)).toBe(BLINK_SLOW);
+    expect(blinksOver(effects, 1000, 2000)).toBe(BLINK_FAST);
+    expect(isBlinking(effects, 2001)).toBe(false);
+  });
+
+  it('takes the fast one alone, for as long as it is given', () => {
+    // spec 04-42: three seconds of being untouchable when he gets up, and no
+    // stagger with them — he is not staggered by getting up.
+    const effects = buildEffects(POOL);
+    blink(effects, 0, 3000, 0);
+    expect(isBlinking(effects, 0)).toBe(true);
+    expect(blinksOver(effects, 0, 3000)).toBe(BLINK_FAST * 3);
+    expect(isBlinking(effects, 3001)).toBe(false);
+  });
+
+  it('is replaced outright by the next fact, and two zeros put it out', () => {
+    // What has just happened to him is what is shown: a blink never queues
+    // behind the one before it.
+    const effects = buildEffects(POOL);
+    blink(effects, 1000, 1000, 0);
+    blink(effects, 0, 0, 500);
+    expect(isBlinking(effects, 500)).toBe(false);
+    expect(isBlinking(effects, 1200)).toBe(false);
+  });
+
+  it('throws no shard, because a rhythm is not a puff', () => {
+    // spec 07-36, 07-41: what takes a blow in the world puffs and lights white
+    // for 80 ms; he answers with a rhythm instead.
+    const effects = buildEffects(POOL);
+    blink(effects, 1000, 1000, 0);
+    expect(effects.count).toBe(0);
+    expect(isLit(effects, STRUCK.ZOMBIE, 0, 0)).toBe(false);
   });
 });

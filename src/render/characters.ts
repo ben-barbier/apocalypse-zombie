@@ -24,6 +24,7 @@
  */
 import * as THREE from 'three';
 import type { Player } from '../game/state';
+import { WHITE } from './effects';
 
 /** The fourteen, and there will never be a fifteenth. (spec 07-18) */
 export const BOXES = 14;
@@ -350,6 +351,7 @@ function seatBody(
   scale: number,
   cloth: string,
   skin: string,
+  steel: string,
   armed: boolean,
 ): number {
   const turn = Math.PI / 2 - ang;
@@ -364,7 +366,7 @@ function seatBody(
     put += 1;
   }
   if (armed) {
-    seatBox(view.bodies, put, SWORD, x, y, z, cos, sin, scale, STEEL);
+    seatBox(view.bodies, put, SWORD, x, y, z, cos, sin, scale, steel);
     put += 1;
   }
 
@@ -378,12 +380,18 @@ function seatBody(
  * Places every body of the game for this frame, interpolating between the two
  * last steps. Nothing is allocated here, and the two counts are what say how
  * much of each mesh is drawn. (spec 10-14, 10-24)
+ *
+ * `white` is the blink of a body that has just been walked into: every box of
+ * him goes white at once, sword included, so what reads is the whole silhouette
+ * flashing and not a garment changing colour. Whether it is on this frame is
+ * `isBlinking`'s to say, and how long it runs is chapter 4's. (spec 07-41)
  */
 export function placeCharacters(
   view: CharacterView,
   player: Readonly<Player>,
   alpha: number,
   now: number,
+  white = false,
 ): void {
   const put = seatBody(
     view,
@@ -394,8 +402,9 @@ export function placeCharacters(
     between(player.zPrev, player.z, alpha),
     betweenTurns(player.angPrev, player.ang, alpha),
     1,
-    TUNIC,
-    SKIN,
+    white ? WHITE : TUNIC,
+    white ? WHITE : SKIN,
+    white ? WHITE : STEEL,
     // The sword is stowed for the whole of a ladder, and out again at the top.
     // (spec 04-13)
     player.climbLeft <= 0,

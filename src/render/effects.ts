@@ -84,6 +84,25 @@ export type Struck = (typeof STRUCK)[keyof typeof STRUCK];
 export const LIT_FOR = 80;
 
 /**
+ * The two rates the one body the child drives blinks at, in blinks a second.
+ *
+ * He is the fourth thing that takes a blow and the only one that answers with a
+ * rhythm rather than with a flash: white at **2 Hz while he is staggered**, then
+ * **the same accelerated to 6 Hz while he is untouchable** — two states told
+ * apart by one signal, which is why the fast one is the slow one sped up and not
+ * a second colour: white is the one colour of "it has just happened", and there
+ * is no red anywhere in this game to say anything else with. (spec 07-12, 07-15,
+ * 07-41)
+ *
+ * How long each of the two runs is not written here: it is chapter 4's, read off
+ * the balance by whoever reads the buffer of events — a second and a second
+ * after a contact, three seconds of the fast one after he gets up. This file
+ * knows the two rates and nothing else. (spec 04-39, 04-42)
+ */
+export const BLINK_SLOW = 2;
+export const BLINK_FAST = 6;
+
+/**
  * The puff of a blow taken, erased in the same 80 ms the white light lasts.
  * (spec 07-36, 07 "Ce que chaque effet consomme")
  *
@@ -174,6 +193,15 @@ export interface Effects {
   readonly litWhat: Uint8Array;
   readonly litIndex: Uint16Array;
   readonly litUntil: Float64Array;
+
+  /**
+   * The blink of the one body the child drives: when it was armed, in ms, and
+   * how long each of its two rates runs. There is one such body and there will
+   * never be a second, so this is three numbers and not a pool. (spec 04-1, 07-41)
+   */
+  blinkFrom: number;
+  blinkSlowFor: number;
+  blinkFastFor: number;
 }
 
 // The one set of scratch objects of this file, made once at load: a frame writes
@@ -235,6 +263,9 @@ export function buildEffects(holds: number): Effects {
     litWhat: new Uint8Array(LITS),
     litIndex: new Uint16Array(LITS),
     litUntil: new Float64Array(LITS),
+    blinkFrom: 0,
+    blinkSlowFor: 0,
+    blinkFastFor: 0,
   };
 }
 
@@ -458,6 +489,42 @@ export function strike(
 ): void {
   scatter(effects, PRIORITY.PLAIN, PUFF, x, y, z, WHITE, PUFF_SPEED, PUFF_SPAN, now);
   lightUp(effects, what, index, now);
+}
+
+/**
+ * Arms the blink of the one body the child drives: `slowFor` ms at 2 Hz, then
+ * `fastFor` ms at 6 Hz. The two spans come from chapter 4 and arrive with the
+ * fact that armed them, so this file settles the rhythm and never the length.
+ * A second call replaces the first outright rather than queueing behind it: what
+ * has just happened to him is what is shown. Two zeros put it out. (spec 07-41)
+ *
+ * It throws no shards. What takes a blow in the world puffs and lights white for
+ * 80 ms; he answers with a rhythm instead, which is what tells the two states
+ * apart without a word and without a colour of alarm. (spec 07-36, 07-41)
+ */
+export function blink(effects: Effects, slowFor: number, fastFor: number, now: number): void {
+  effects.blinkFrom = now;
+  effects.blinkSlowFor = slowFor;
+  effects.blinkFastFor = fastFor;
+}
+
+/**
+ * Whether he is white this frame. The drawing that carries him asks once a frame
+ * and paints him white instead of his own blue while the answer is yes.
+ *
+ * A blink is a square wave: on for the first half of each of its 1/`rate`
+ * seconds, off for the second. The fast run picks up where the slow one leaves
+ * off, on its own count, so its first half-blink is a full one however long the
+ * slow run was. (spec 07-41)
+ */
+export function isBlinking(effects: Readonly<Effects>, now: number): boolean {
+  const since = now - effects.blinkFrom;
+  if (since < 0) return false;
+  const slow = effects.blinkSlowFor;
+  if (since < slow) return Math.floor((since / 1000) * BLINK_SLOW * 2) % 2 === 0;
+  const fast = since - slow;
+  if (fast >= effects.blinkFastFor) return false;
+  return Math.floor((fast / 1000) * BLINK_FAST * 2) % 2 === 0;
 }
 
 /**
