@@ -40,7 +40,7 @@ La spec, le glossaire, les tickets, les commits et le texte affiché dans le jeu
 | Liseré | `reach` | | Tache | `blot` |
 | Manche | `stick` | | Mur | `wall` |
 | Toit | `roof` | | Corniche | `cornice` |
-| Planche | `atlas` | | | |
+| Planche | `atlas` | | Auto-ciblage | `aim` |
 | Banc | `bench` | | Indicateur | `indicator` |
 | Pilote | `pilot` | | Seuil | `threshold` |
 | Profil | `profile` | | Campagne | `campaign` |

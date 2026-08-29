@@ -159,6 +159,10 @@ L'arme de corps-à-corps du joueur, la seule qu'il porte. Elle ne s'achète pas,
 La zone qu'un coup d'épée balaie devant le joueur : un secteur de 120° sur 3 blocs, haut de 1,5 bloc au-dessus et au-dessous de lui. Tout ce qui s'y trouve est touché d'un seul coup — on ne frappe jamais une cible unique.
 _Éviter_ : arc, cône (réservé au jet de feu), balayage
 
+**Auto-ciblage** :
+Ce qui tourne le joueur vers le zombie le plus proche à l'instant où il frappe. Il **oriente, il ne désigne pas** : le coup balaie la fauchée entière, donc aucune victime n'est jamais élue, et la règle ne change ni près de la mairie ni face au Colosse. La caméra l'ignore, et l'orientation ne suit plus la cible une fois le coup lancé.
+_Éviter_ : visée, verrouillage, ciblage automatique
+
 **Étourdissement** :
 La seconde d'immobilité qui suit un contact avec un zombie, pendant laquelle le joueur ne frappe pas. Elle est suivie d'une seconde d'invulnérabilité : le joueur ne peut donc pas perdre plus d'un point de vie toutes les deux secondes.
 _Éviter_ : stun, KO, assommé
@@ -305,7 +309,7 @@ _Éviter_ : tuile (réservé aux textures), bouton, carte, option
 
 **Manche** :
 Le joystick tactile de la main gauche. **Flottant** : il naît là où le pouce se pose, dans la moitié gauche sous la mi-hauteur, et un anneau fantôme au repos le montre jusqu'au premier usage. Un enfant ne cherche pas un cercle, il pose son pouce.
-_Éviter_ : joystick, croix, stick, pavé directionnel
+_Éviter_ : joystick, croix, stick (réservé aux deux sticks de la manette), pavé directionnel
 
 **Titre** :
 Le nom du jeu, *Apocalypse Zombie* — choisi par l'enfant à qui il est destiné. Le jeu ne l'**affiche jamais** : le Sas est sans un mot de texte et le bandeau est fermé à cinq choses. Il ne vit qu'en dehors du jeu — l'onglet du navigateur, la spec, et sous l'icône de l'écran d'accueil où il se raccourcit en **Zombies**, le seul texte du projet qu'un enfant de 8 ans lira vraiment.
