@@ -1,21 +1,27 @@
 /**
  * Where a run is composed, and the only file that names both a balance and a
  * canvas. It hands the constants to `createGame`, hangs the one context on the
- * one canvas, builds the one scene, and gives the loop to the frames. Everything
- * it wires is decided elsewhere; nothing is decided here. (spec 10-15)
+ * one canvas, builds the one scene, wires the two entries onto the one
+ * `InputState`, and gives the loop to the frames. Everything it wires is decided
+ * elsewhere; nothing is decided here. (spec 10-15)
  *
- * The scene it opens holds the one hour and the city under it; the bodies, the
- * cannons and the effects each arrive with their own chapter, into this same
- * scene.
+ * The scene it opens holds the one hour, the city under it and the bodies that
+ * walk it; the cannons and the effects each arrive with their own chapter, into
+ * this same scene.
  */
 import * as THREE from 'three';
 import { BALANCE } from '../game/balance';
+import { placePlayer } from '../game/player';
 import { createGame, createInput } from '../game/state';
 import { loadAtlas } from '../render/atlas';
+import { buildCharacters, placeCharacters } from '../render/characters';
 import { buildCity } from '../render/city';
 import { createContext, resize } from '../render/context';
 import { createScene } from '../render/scene';
 import { createQuality, mayDraw, senseQuality, tierOf } from '../render/quality';
+import { createPad } from './gamepad';
+import { sampleInput } from './input';
+import { createKeys, listenKeys } from './keyboard';
 import { createLoop, startLoop } from './loop';
 
 const canvas = document.getElementById('view') as HTMLCanvasElement;
@@ -26,24 +32,44 @@ const game = createGame(BALANCE);
 const input = createInput();
 const quality = createQuality();
 
+// He stands at the base, in front of the town hall, which is where a game opens
+// and where a resumed one picks up. (spec 01-22, 08-71)
+placePlayer(game);
+
+// The two entries that write the one `InputState`: the gamepad the game is
+// designed for, and the keyboard that is only a shortcut for testing. The touch
+// screen arrives with chapter 8, into this same object. (spec 04-56, 10-30)
+const pad = createPad();
+const keys = createKeys();
+listenKeys(keys);
+
 // The one image of the whole game, and the one city it clothes. (spec 07-43)
 const sheet = loadAtlas();
+// Sized for every body the game can hold at once: the player and the pool of
+// zombies. (spec 10-13)
+const characters = buildCharacters(1 + BALANCE.pools.zombies);
 let scene = createScene(BALANCE.city);
 raise();
 
-/** Puts the city into the scene, from the grid the rules engender. (spec 02, 04-8) */
+/** Puts the city and the bodies into the scene, from the grid the rules engender. */
 function raise(): void {
   scene.add(buildCity(game.assault.city, BALANCE.city, sheet).node);
+  scene.add(characters.node);
 }
 
 /**
  * The one camera, and it is provisional: chapter 4 decides the assisted camera,
- * and it will land in `render/camera.ts`. Its far plane clears the haze, which
- * stops at the edge of the city. (spec 07-6)
+ * and it will land in `render/camera.ts`. Until then it holds one fixed offset
+ * over whoever it watches — it neither turns, nor recentres, nor climbs — so the
+ * player is driven in the frame of the world and not in the frame of a view. Its
+ * far plane clears the haze, which stops at the edge of the city. (spec 07-6)
  */
 const camera = new THREE.PerspectiveCamera(60, 1, 0.1, BALANCE.city.side);
-camera.position.set(0, 12, 24);
-camera.lookAt(0, 0, 0);
+
+function watch(x: number, y: number, z: number): void {
+  camera.position.set(x, y + 12, z + 24);
+  camera.lookAt(x, y, z);
+}
 
 const context = createContext(canvas, {
   // The scene is a projection of the state, so it is simply built again — the
@@ -65,11 +91,19 @@ function fit(): void {
 }
 
 const loop = createLoop(game, input, {
+  // Once per step, never once a frame: a rising edge belongs to one step alone.
+  // (spec 10-31)
+  sample: () => {
+    sampleInput(input, pad, keys);
+  },
   // The audio and the effects read the buffer here, with their chapters. (spec 10-19)
   read: () => {},
-  draw: (_game, _alpha, now) => {
+  draw: (held, alpha, now) => {
     if (senseQuality(quality, now)) fit(); // a tier that moves moves the resolution
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
+    const player = held.assault.player;
+    placeCharacters(characters, player, alpha);
+    watch(player.x, player.y, player.z);
     context.renderer.render(scene, camera);
   },
 });

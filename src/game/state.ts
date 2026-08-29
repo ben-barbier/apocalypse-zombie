@@ -352,6 +352,15 @@ export interface Player {
   yPrev: number;
   zPrev: number;
   angPrev: number;
+  /** How fast he rises or falls, in blocks a second; nought on the floor. (spec 04-10, 04-12) */
+  vy: number;
+  /** Seconds left of a ladder, which is also the whole of its immunity. (spec 04-13) */
+  climbLeft: number;
+  /** The height it started from, and the cell it steps off onto. (spec 04-13) */
+  climbFromY: number;
+  climbToX: number;
+  climbToY: number;
+  climbToZ: number;
   /** Seconds staggered after a contact — no blow possible. (spec 04-39) */
   staggerLeft: number;
   /** Seconds untouchable, after a contact or after getting up. (spec 04-39, 04-42) */
@@ -374,6 +383,12 @@ function createPlayer(): Player {
     yPrev: 0,
     zPrev: 0,
     angPrev: 0,
+    vy: 0,
+    climbLeft: 0,
+    climbFromY: 0,
+    climbToX: 0,
+    climbToY: 0,
+    climbToZ: 0,
     staggerLeft: 0,
     invulnerableLeft: 0,
     regenLeft: 0,

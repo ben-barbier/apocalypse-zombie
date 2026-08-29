@@ -90,6 +90,14 @@ export function takeFreeze(clock: Clock, events: Readonly<EventBuffer>, seconds:
 }
 
 export interface LoopHooks {
+  /**
+   * Fills the one `InputState` for the step about to run. It is called once per
+   * step and never once per frame, because a rising edge is cleared by the
+   * reading: a frame that owes six steps hands the jump to the first of them and
+   * nothing to the five that follow. A run with no entries leaves it out.
+   * (spec 10-30, 10-31)
+   */
+  sample?(): void;
   /** Reads the buffer, once, before the drawing. (spec 10-18, 10-19) */
   read(game: Readonly<Game>): void;
   /** Draws, interpolating between the two last steps. (spec 10-24) */
@@ -133,7 +141,10 @@ export function frame(loop: Loop, now: number): void {
 
   clearEvents(events); // emptied at the start of the frame (spec 10-18)
   advance(clock, now, game.balance.loop);
-  for (let i = 0; i < clock.steps; i += 1) step(game, loop.input);
+  for (let i = 0; i < clock.steps; i += 1) {
+    loop.hooks.sample?.(); // the entries are sampled at the step (spec 10-31)
+    step(game, loop.input);
+  }
 
   takeFreeze(clock, events, game.balance.loop.fatalBlowFreeze); // spec 10-26
   loop.hooks.read(game); // read once, before the drawing (spec 10-18)
