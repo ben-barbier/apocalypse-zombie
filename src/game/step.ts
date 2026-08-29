@@ -7,16 +7,22 @@
  * A step is 16,666 ms — 60 Hz — and it is fixed: a slow frame does not stretch
  * it, it makes the loop catch several up, six at most. (spec 10-21, 10-23)
  *
- * A step allocates nothing: no object, no array, no closure, no string. The nine
- * parts below are empty for now, and each one moves into its own module as its
- * chapter lands. (spec 10-14)
+ * The balance is written in blocks, seconds, sword hits and coins, never in what
+ * a step is worth; turning one into the other is the business of this file and
+ * of what it calls, and of nothing else. (spec 10-16)
+ *
+ * A step allocates nothing: no object, no array, no closure, no string. The
+ * parts below that are still empty move into their own modules as their chapters
+ * land. (spec 10-14)
  */
+import { stepPlayer } from './player';
 import type { Game, InputState } from './state';
 
 /** The one step, in the one order. (spec 10-25) */
 export function step(game: Game, input: Readonly<InputState>): void {
+  const seconds = 1 / game.balance.loop.hz; // spec 10-16, 10-21
   stepInput(game, input);
-  stepPlayer(game);
+  stepPlayer(game, input, seconds);
   stepSword(game);
   stepZombies(game);
   stepCannons(game);
@@ -26,11 +32,14 @@ export function step(game: Game, input: Readonly<InputState>): void {
   stepTownHall(game);
 }
 
-/** Reads the entries of this step — sampled at the step, never on an event. (spec 10-31) */
+/**
+ * The entries of this step. They arrive already sampled: whoever fills the one
+ * `InputState` — the gamepad, the touch screen, the keyboard or the pilot of the
+ * bench — does it once per step and clears its rising edges by that very
+ * reading, so the rules have nothing left to do but read what they are handed.
+ * (spec 10-30, 10-31)
+ */
 function stepInput(_game: Game, _input: Readonly<InputState>): void {}
-
-/** Runs, jumps and climbs against the height grid, the one collision of the game. (spec 04-8) */
-function stepPlayer(_game: Game): void {}
 
 /** Sweeps the sector in front of him, and knocks what it touches sideways. (spec 04-22) */
 function stepSword(_game: Game): void {}
