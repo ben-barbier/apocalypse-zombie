@@ -66,7 +66,7 @@ Ce chapitre décide la stack, la frontière entre la logique de jeu et le rendu,
 37. L'état de partie est une donnée pure et la scène 3D en est une projection reconstructible : aucune donnée de jeu ne vit uniquement sur le GPU.
 38. `render/context.ts` pose `webglcontextlost` avec `preventDefault()` et `webglcontextrestored`, ouvre le Sas pendant la reconstruction, repeuple la scène depuis l'état, et recharge la page si rien ne revient sous 3 s.
 39. `render/quality.ts` ne joue que sur la résolution et le pool d'éclats, et ne touche **jamais** la simulation.
-40. Son capteur est la médiane glissante de l'écart entre deux `requestAnimationFrame` sur 2 s : on descend d'un palier au-delà de 20 ms pendant 2 s, on remonte en dessous de 15 ms pendant 10 s.
+40. Son capteur est la médiane glissante de l'écart entre deux `requestAnimationFrame` sur 2 s : on descend d'un palier au-delà de 20 ms pendant 2 s, on remonte en dessous de 17,5 ms pendant 10 s.
 
 **Les tests**
 
@@ -193,6 +193,8 @@ docs/               spec/ · adr/ · research/
 **Pourquoi TypeScript en `strict`.** Le compilateur est le seul retour automatique qui attrape `zombie.pv` écrit pour `zombie.hp` sans lancer le jeu. Pour un lecteur humain c'est un confort ; pour l'agent qui écrit ce code, c'est le garde-fou principal.
 
 **Pourquoi la qualité de rendu ne touche jamais la simulation.** Un palier qui baisserait le plafond de zombies ferait dépendre la difficulté de la température de l'appareil, casserait le déterminisme, et invaliderait tout ce que le banc mesure. Un plafond de population est une règle de jeu ; la résolution est un réglage de rendu ; les deux ne se rencontrent pas.
+
+**Pourquoi le seuil de remontée est à 17,5 ms.** Une image parfaite à 60 Hz fait **16,666 ms** (10-21). Un seuil placé sous cette valeur rendrait la remontée inatteignable : sur un écran à 60 Hz, la médiane ne descend jamais sous le pas nominal, donc l'échelle ne saurait que descendre, et un appareil qui a bronché une fois resterait au palier bas pour le reste de la partie. Le seuil est donc **au-dessus** du pas, et assez près de lui pour qu'une image régulièrement en retard ne se lise pas comme un retour au calme. L'écart avec les **20 ms** de la descente est l'**hystérésis** : entre les deux, la médiane ne fait bouger personne, ce qui empêche l'échelle d'osciller d'un palier à l'autre autour d'un seuil unique.
 
 **Pourquoi le stockage tient dans un fichier et trois fonctions.** Un Safari réglé pour bloquer tous les cookies fait lever une exception à la **lecture même** de `window.localStorage` : le cas doit être traité une fois, à un seul endroit, et jamais redécouvert ailleurs. D'où l'enfermement, d'où les trois fonctions qui ne lèvent jamais, et d'où l'absence de sonde au démarrage — elle exigerait une seconde clé.
 

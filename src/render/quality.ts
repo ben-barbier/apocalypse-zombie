@@ -8,7 +8,7 @@
  * bench would measure nothing. (spec 10-39)
  *
  * Its sensor is the sliding median of the gap between two frames over 2 s: it
- * goes down a tier past 20 ms held for 2 s, and back up under 15 ms held for
+ * goes down a tier past 20 ms held for 2 s, and back up under 17,5 ms held for
  * 10 s. A median rather than a mean, because one long frame — a page coming
  * back, a scene built again — must not cost a tier. (spec 10-40)
  *
@@ -44,8 +44,12 @@ export const SPAN = 2000;
 /** Past this gap, held this long, the scale goes down a tier. (spec 10-40) */
 export const DOWN_ABOVE = 20;
 export const DOWN_FOR = 2000;
-/** Under this gap, held this long, it goes back up. (spec 10-40) */
-export const UP_BELOW = 15;
+/**
+ * Under this gap, held this long, it goes back up. It stands above the 16,666 ms
+ * of a perfect frame at 60 Hz, without which the scale could only ever go down.
+ * (spec 10-40, 10-21)
+ */
+export const UP_BELOW = 17.5;
 export const UP_FOR = 10000;
 
 /**
@@ -72,7 +76,7 @@ export interface Quality {
   last: number;
   /** How long the sensor has been fed, up to the span of the median. */
   fedFor: number;
-  /** How long the median has held above 20 ms, and under 15 ms. (spec 10-40) */
+  /** How long the median has held above 20 ms, and under 17,5 ms. (spec 10-40) */
   overFor: number;
   underFor: number;
   /** When the last frame was drawn, which is what the last tier holds back. */

@@ -10,6 +10,9 @@
         margin: 0;
         height: 100%;
         overflow: hidden;
+        /* The haze, so the page never flashes white before the scene is up.
+           The one code lives in the spec — 07, "La lumière et la brume" — and
+           render/scene.ts reads it from there too. */
         background: #d9955c;
       }
       #view {

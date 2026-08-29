@@ -28,13 +28,12 @@ export interface CityExtent {
   };
 }
 
-/** How high the sun stands, in degrees, and it never moves. (spec 07-2) */
+/** How high the sun stands, in degrees, and it never moves. (spec 07-2, "La lumière et la brume") */
 export const SUN_RISE = 60;
 
 /**
- * Which way it comes from, in degrees off the first street. The spec fixes the
- * height and says nothing of the bearing: this one is chosen so the three
- * branches of the star are not lit alike.
+ * Which way it comes from, in degrees off the first street, so the three
+ * branches of the star are not lit alike. (spec 07, "La lumière et la brume")
  */
 export const SUN_TURN = 45;
 
@@ -47,22 +46,29 @@ export const SUN_STRENGTH = 0.75;
 export const AMBIENT_STRENGTH = 0.35;
 
 /**
- * The three colours of the hour. Chapter 7 fixes the palette of the city and of
- * what is played, and names these three without a code: a near-white sun so a
- * tile keeps its own colour on the top face, the violet of the ambient, and the
- * orange of the haze — lighter and less saturated than the highest roof, so the
- * ramp of the roofs still reads against it. (spec 07-2, 07-6, 07-54)
+ * The three colours of the hour, read off chapter 7 and nowhere else: a
+ * near-white sun so a tile keeps its own colour on the top face, the violet of
+ * the ambient, and the orange of the haze — lighter and less saturated than the
+ * highest roof, so the ramp of the roofs still reads against it.
+ * (spec 07, "La lumière et la brume"; 07-2, 07-6, 07-54)
  */
 export const SUN_COLOUR = '#fff2dd';
 export const AMBIENT_COLOUR = '#6d5ac4';
 export const HAZE_COLOUR = '#d9955c';
 
-/** Where the haze starts: the far end of a street, which stays plain. (spec 07-6) */
+/**
+ * Where the haze starts: the far end of a street, which stays plain. 96 blocks,
+ * and it is derived from the city rather than chosen.
+ * (spec 07-6, "La lumière et la brume")
+ */
 export function hazeNear(city: CityExtent): number {
   return city.apothem + city.street.length;
 }
 
-/** Where it is total: the edge of the city, past the frontages. (spec 07-6) */
+/**
+ * Where it is total: the edge of the city, past the frontages. 108 blocks, and
+ * derived the same way. (spec 07-6, "La lumière et la brume")
+ */
 export function hazeFar(city: CityExtent): number {
   return hazeNear(city) + city.outskirts;
 }
