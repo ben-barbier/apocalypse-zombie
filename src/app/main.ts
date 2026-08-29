@@ -7,13 +7,21 @@
  *
  * The scene it opens holds the one hour, the city under it and the bodies that
  * walk it; the cannons and the effects each arrive with their own chapter, into
- * this same scene.
+ * this same scene. The camera that watches all of it is handed its constants
+ * here and then left entirely alone: nothing in this file, and nothing the child
+ * can press, ever aims it. (spec 04-19, 04-20)
  */
-import * as THREE from 'three';
 import { BALANCE } from '../game/balance';
 import { placePlayer } from '../game/player';
-import { createGame, createInput } from '../game/state';
+import { EVENT, createGame, createInput } from '../game/state';
 import { loadAtlas } from '../render/atlas';
+import {
+  aimCamera,
+  createCamera,
+  fitCamera,
+  freezeRecentring,
+  settleCamera,
+} from '../render/camera';
 import { buildCharacters, placeCharacters } from '../render/characters';
 import { buildCity } from '../render/city';
 import { createContext, resize } from '../render/context';
@@ -58,18 +66,12 @@ function raise(): void {
 }
 
 /**
- * The one camera, and it is provisional: chapter 4 decides the assisted camera,
- * and it will land in `render/camera.ts`. Until then it holds one fixed offset
- * over whoever it watches — it neither turns, nor recentres, nor climbs — so the
- * player is driven in the frame of the world and not in the frame of a view. Its
- * far plane clears the haze, which stops at the edge of the city. (spec 07-6)
+ * The one camera, assisted and commanded by nobody: it takes the six constants
+ * of chapter 4 and places itself from there on. Nothing in this file ever aims
+ * it, and no entry reaches it. (spec 04-15 to 04-20)
  */
-const camera = new THREE.PerspectiveCamera(60, 1, 0.1, BALANCE.city.side);
-
-function watch(x: number, y: number, z: number): void {
-  camera.position.set(x, y + 12, z + 24);
-  camera.lookAt(x, y, z);
-}
+const camera = createCamera(BALANCE.camera, BALANCE.city);
+settleCamera(camera, game.assault.city, game.assault.player);
 
 const context = createContext(canvas, {
   // The scene is a projection of the state, so it is simply built again — the
@@ -86,8 +88,7 @@ function fit(): void {
   const width = window.innerWidth;
   const height = window.innerHeight;
   resize(context, width, height, tierOf(quality).ratio);
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
+  fitCamera(camera, width, height);
 }
 
 const loop = createLoop(game, input, {
@@ -96,15 +97,24 @@ const loop = createLoop(game, input, {
   sample: () => {
     sampleInput(input, pad, keys);
   },
-  // The audio and the effects read the buffer here, with their chapters. (spec 10-19)
-  read: () => {},
+  // The one reading of the buffer, before anything is drawn. The audio and the
+  // effects join it here, with their chapters. (spec 10-18, 10-19)
+  read: (held) => {
+    const events = held.assault.events;
+    for (let i = 0; i < events.count; i += 1) {
+      // A blow of his sword, whether it touches or not, freezes the recentring
+      // of the camera — and the fatal blow is deliberately not one of them: it
+      // names whatever landed it, a cannon included. (spec 04-17)
+      const kind = events.type[i];
+      if (kind === EVENT.SWORD_HIT || kind === EVENT.SWORD_MISS) freezeRecentring(camera);
+    }
+  },
   draw: (held, alpha, now) => {
     if (senseQuality(quality, now)) fit(); // a tier that moves moves the resolution
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
-    const player = held.assault.player;
-    placeCharacters(characters, player, alpha);
-    watch(player.x, player.y, player.z);
-    context.renderer.render(scene, camera);
+    placeCharacters(characters, held.assault.player, alpha);
+    aimCamera(camera, held.assault.city, held.assault.player, alpha, now);
+    context.renderer.render(scene, camera.lens);
   },
 });
 
