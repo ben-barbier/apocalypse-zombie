@@ -360,26 +360,40 @@ export function stepPlayer(game: Game, input: Readonly<InputState>, seconds: num
 }
 
 /**
- * Stands him where a game opens and where a resumed one picks up: at the base,
- * half a block in front of the face of the shed and at the edge of that face,
- * turned towards the gateway of street one — the one street the first assault
- * walks in from. Every length of it is read off the plan and none is chosen: the
- * half block is his own half-width, so he stands against the shed without
- * standing in it, and the step sideways is the half-length of the shed itself.
- * (spec 01-22, 08-71, 02-8, 02-27)
+ * How far clear of the flank of the shed a game opens, in blocks.
  *
- * **Why at the edge of that face, and turned.** The camera seats itself 6,5
- * blocks behind him, 5,5 over his ground, and it climbs as high as ten more when
- * a build comes between it and him (spec 04-15, 04-18). Straight in front of the
- * shed, on the axis of the street, those 6,5 blocks put it inside the town hall,
- * seven blocks of it, and the roof of the shed cuts the line of sight on the way
- * out: it opens at fourteen blocks up, looking down at a roof with the child's
- * own body under it. From the edge of the face, turned towards the gateway, the
- * line of sight leaves the axis as it goes back — it never comes near the three
- * blocks of half-length of the shed, and it is four blocks clear of the axis
- * before it has walked the four the town hall reaches along it. The camera lands
- * on the floor of the square, in neither build, and opens at its nominal height
- * with no climb at all.
+ * Six is what the spec settles, and the recoil of the camera is what fixes the
+ * order of it: the lens seats itself 6,5 blocks behind him, so anything nearer
+ * than that leaves the shed in the front plane of the first picture of a run.
+ * (spec 01-22, 04-15)
+ */
+const CLEAR_OF_THE_SHED = 6;
+
+/**
+ * Stands him where a game opens and where a resumed one picks up: on the square
+ * in front of the base, **clear of the shed and no longer against it** — four
+ * blocks past its face, which is its own depth again, and six past its flank —
+ * turned onto the stretch of street one where its four shamblers stand.
+ * (spec 01-22, 08-71, 02-8, 02-30)
+ *
+ * **Why he is not at the shed.** The camera seats itself 6,5 blocks behind him,
+ * 5,5 over his ground, and it climbs as high as ten more when a build comes
+ * between it and him (spec 04-15, 04-18). Against the shed those 6,5 blocks land
+ * the lens at the flank of the two tall builds of the square, and the first
+ * picture of a run was the shed in the front plane, the town hall behind it and
+ * the child's own body half hidden. Twelve blocks along the axis and nine across
+ * it, the lens comes down on the floor of the square 3,3 blocks clear of
+ * anything built, opens at its nominal height with no climb at all, and neither
+ * build is in the frame — every one of their corners falls beyond the borders of
+ * the picture, while the gateway of street one stands in it.
+ *
+ * **Why sideways, and never back along the axis.** The two directions do not
+ * cost the same. Backing along the axis walks him towards the four shamblers and
+ * the first blow of his sword falls under three seconds; the step sideways walks
+ * him away from them and leaves it at 3,6 seconds, in the fourth second rule
+ * 01-23 asks for. Nothing is lost by standing off: his purse is empty at the
+ * rise of the curtain and firebombs are paid for (spec 04-46), so there is
+ * nothing at the shed to take before he has felled something.
  */
 export function placePlayer(game: Game): void {
   const player = game.assault.player;
@@ -387,12 +401,19 @@ export function placePlayer(game: Game): void {
   const plan = game.balance.city;
 
   const ang = city.gateways.ang[0];
-  const along = plan.townHallSide / 2 + plan.baseWidth + 0.5;
-  const across = plan.baseLength / 2;
+  const along = plan.townHallSide / 2 + plan.baseWidth * 2;
+  const across = plan.baseLength / 2 + CLEAR_OF_THE_SHED;
   player.x = Math.cos(ang) * along - Math.sin(ang) * across;
   player.z = Math.sin(ang) * along + Math.cos(ang) * across;
   player.y = heightAt(city, player.x, player.z);
-  player.ang = Math.atan2(city.gateways.z[0] - player.z, city.gateways.x[0] - player.x);
+  // He watches street one twenty blocks up from its mouth, where the four of the
+  // first assault stand: it is a spot of the plan and not a body, so a resumed
+  // game is turned exactly as a new one is. (spec 01-22, 02-30, 08-71)
+  const watchAt = plan.apothem + plan.street.firstPackAt;
+  player.ang = Math.atan2(
+    Math.sin(ang) * watchAt - player.z,
+    Math.cos(ang) * watchAt - player.x,
+  );
   player.vy = 0;
   player.climbLeft = 0;
   player.xPrev = player.x;

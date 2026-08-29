@@ -552,6 +552,7 @@ describe('the attack button', () => {
 
 describe('the first blow of a new game', () => {
   it('falls towards the fourth second, with the button held from the start', () => {
+    // spec 01-23: the first blow of the sword falls towards the fourth second.
     // spec 02-30, 03-31: the four shamblers of wave one stand twenty blocks up
     // street one when the curtain goes up, so the child who runs at them and
     // holds the button fells one before he has had time to wonder what to do.
@@ -559,20 +560,25 @@ describe('the first blow of a new game', () => {
     placePlayer(game);
     beginAssault(game);
     const input = createInput();
-    // He runs at them, which from where a game opens is very nearly straight
-    // ahead: street one opens due east of the base, and the four of them stand
-    // twenty blocks up it. (spec 01-22, 02-29, 02-30)
-    const player = game.assault.player;
-    const packAt = BALANCE.city.apothem + BALANCE.city.street.firstPackAt;
-    const toX = packAt - player.x;
-    const toZ = -player.z;
-    const away = Math.hypot(toX, toZ);
-    input.dx = toX / away;
-    input.dz = toZ / away;
     input.strike = true;
+
+    // He opens on the square, nine blocks off the axis of street one and turned
+    // down it (spec 01-22), so running at them is the two legs of 04-8: out
+    // through the mouth, which is the one way in, then straight at the four of
+    // them. Standing off sideways is what keeps this blow in the fourth second —
+    // stepping back along the axis instead would land it under three.
+    const mouth = BALANCE.city.apothem; // 16 (spec 02-6)
+    const packAt = mouth + BALANCE.city.street.firstPackAt; // 36 (spec 02-30)
+    const player = game.assault.player;
 
     let fellAt = -1;
     for (let i = 0; i < 600 && fellAt < 0; i += 1) {
+      const through = player.x > mouth - 0.5 && Math.abs(player.z) < BALANCE.city.street.width / 2;
+      const toX = (through ? packAt : mouth) - player.x;
+      const toZ = -player.z;
+      const away = Math.hypot(toX, toZ);
+      input.dx = toX / away;
+      input.dz = toZ / away;
       clearEvents(game.assault.events);
       step(game, input);
       for (let e = 0; e < game.assault.events.count; e += 1) {

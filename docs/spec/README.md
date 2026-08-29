@@ -44,6 +44,7 @@ Un interdit se lève **par une PR sur le chapitre qui le porte**, jamais en pass
 | un bouton « prêt », une préparation qu'on allonge ou qu'on abrège | [1](01-la-partie.md) |
 | une préparation sous 30 secondes, Rallonge comprise | [1](01-la-partie.md) |
 | une régénération de la mairie | [1](01-la-partie.md) |
+| une ouverture au contact du hangar | [1](01-la-partie.md) |
 | un tutoriel | [1](01-la-partie.md) |
 | un texte d'échec, une musique triste | [1](01-la-partie.md) |
 | un score — compteur de zombies écrasés, total de pièces en fin de partie | [1](01-la-partie.md) |

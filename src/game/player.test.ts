@@ -15,6 +15,7 @@ import {
   type Game,
   ZOMBIE,
   type ZombieType,
+  atBase,
   cellAt,
   clearEvents,
   createGame,
@@ -299,32 +300,33 @@ describe('the ladder, which is the one climb from street height', () => {
 });
 
 describe('where he stands when a game opens', () => {
-  it('is at the base, at the edge of the face of the shed, on ground he may stand on', () => {
-    // spec 01-22, 08-71: he opens at the base, half a block in front of the face
-    // of the shed and at the edge of that face — 8,5 blocks along the axis of
-    // street one and 3 across it, street one running due east of the middle of
-    // the city. (spec 02-7, 02-8, 02-29)
+  it('is on the square in front of the base, on ground he may stand on', () => {
+    // spec 01-22, 08-71: he opens on the square in front of the base, four
+    // blocks past the face of the shed and six past its flank — 12 blocks along
+    // the axis of street one and 9 across it, street one running due east of the
+    // middle of the city. (spec 02-7, 02-8, 02-29)
     const game = createGame(BALANCE);
     placePlayer(game);
     const player = game.assault.player;
     const city = game.assault.city;
-    expect(player.x).toBeCloseTo(8.5, 6);
-    expect(player.z).toBeCloseTo(3, 6);
+    expect(player.x).toBeCloseTo(12, 6);
+    expect(player.z).toBeCloseTo(9, 6);
     expect(walkableAt(city, player.x, player.z)).toBe(true);
     expect(heightAt(city, player.x, player.z)).toBe(0);
     expect(player.y).toBe(0);
-    // Clear of the shed, and short of the mouth of the street. (spec 02-7, 02-8)
-    const along = Math.hypot(player.x, player.z);
-    expect(along).toBeGreaterThan(BALANCE.city.townHallSide / 2 + BALANCE.city.baseWidth);
-    expect(along).toBeLessThan(BALANCE.city.apothem);
+    // On the floor of the square, which the apothem of 16 bounds. (spec 02-6)
+    expect(Math.hypot(player.x, player.z)).toBeLessThan(BALANCE.city.apothem);
     expect(player.xPrev).toBe(player.x);
   });
 
-  it('presses against the shed, no further off it than half his own side', () => {
-    // spec 01-22, 08-71, 04-45: "at the base" is the contact of the shed, which
-    // is where an armful is taken; the step sideways is along the face and never
-    // away from it, so he stands exactly as close to it as the half block his
-    // own body is wide. (spec 02-8, 03-14)
+  it('stands six blocks clear of the shed, and no longer at the contact of it', () => {
+    // spec 01-22: the opening is no longer at the base but on the square in
+    // front of it, six blocks clear of the flank of the shed — the order of the
+    // 6,5 blocks the camera stands back (spec 04-15), which is what takes the
+    // shed out of the front plane of the first picture of a run. Nothing is lost
+    // by it: the purse is empty at the rise of the curtain and firebombs are paid
+    // for, so there is nothing at the shed to take before he has felled
+    // something. (spec 04-45, 04-46)
     const game = createGame(BALANCE);
     placePlayer(game);
     const player = game.assault.player;
@@ -333,36 +335,45 @@ describe('where he stands when a game opens', () => {
       Math.max(0, Math.abs(player.x - city.baseX) - city.baseAlong),
       Math.max(0, Math.abs(player.z - city.baseZ) - city.baseAcross),
     );
-    expect(off).toBeCloseTo(0.5, 6);
+    expect(off).toBeCloseTo(Math.hypot(4, 6), 6); // 7,21 blocks (spec 01-22)
+    expect(off).toBeGreaterThan(6);
+    // Six blocks off its flank is not a contact by any reach the game has: the
+    // shortest way to an armful is a run. (spec 04-45)
+    expect(atBase(city, player.x, player.z, 3)).toBe(false);
   });
 
-  it('is turned onto the gateway of street one, where the first assault walks in', () => {
-    // spec 01-22, 02-27, 02-29: he watches the gateway of street one, which
-    // stands at its mouth, on the side of the square.
+  it('is turned onto street one, where the four shamblers of the first assault stand', () => {
+    // spec 01-22, 02-30: he watches the stretch of street one its four shamblers
+    // stand on, twenty blocks up from the mouth — a spot of the plan and not a
+    // body, so a resumed game is turned exactly as a new one is. (spec 08-71)
     const game = createGame(BALANCE);
     placePlayer(game);
     const player = game.assault.player;
-    const city = game.assault.city;
-    const onto = Math.atan2(city.gateways.z[0] - player.z, city.gateways.x[0] - player.x);
+    const watchAt = BALANCE.city.apothem + BALANCE.city.street.firstPackAt; // 36
+    const onto = Math.atan2(0 - player.z, watchAt - player.x);
     expect(player.ang).toBeCloseTo(onto, 6);
     expect(player.angPrev).toBe(player.ang);
+    // Turned down the street and never across it: he heads within a quarter turn
+    // of the way street one runs. (spec 02-29)
+    expect(Math.abs(player.ang)).toBeLessThan(Math.PI / 4);
   });
 });
 
 describe('the real plan, where a roof is never a case of its own', () => {
   it('walks out of the base and down street one, on the grid the rules engender', () => {
-    // spec 04-8: the grid is the one collision structure of the game. He opens
-    // at the edge of the face of the shed and turned onto the gateway (spec
-    // 01-22), so walking out is two legs: he pushes the way he watches until he
-    // is through the mouth, then down the street itself.
+    // spec 04-8: the grid is the one collision structure of the game. He opens on
+    // the square, nine blocks off the axis of street one (spec 01-22), so walking
+    // out is two legs: he pushes towards the gateway until he is through the
+    // mouth — the one way in — then down the street itself.
     const game = createGame(BALANCE);
     placePlayer(game);
     const player = game.assault.player;
     const city = game.assault.city;
     const input = createInput();
-    input.dx = Math.cos(player.ang);
-    input.dz = Math.sin(player.ang);
-    for (let i = 0; i < 90; i += 1) stepPlayer(game, input, SECONDS); // a second and a half
+    const toGateway = Math.atan2(city.gateways.z[0] - player.z, city.gateways.x[0] - player.x);
+    input.dx = Math.cos(toGateway);
+    input.dz = Math.sin(toGateway);
+    for (let i = 0; i < 120; i += 1) stepPlayer(game, input, SECONDS); // two seconds
 
     const ang = city.gateways.ang[0];
     input.dx = Math.cos(ang);

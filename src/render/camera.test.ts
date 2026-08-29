@@ -123,6 +123,43 @@ function floorUnder(city: City, x: number, z: number): number {
 }
 
 /**
+ * The two builds of the square, written out here from chapter 2 and from nowhere
+ * else: the town hall eight blocks square on seven, at the exact middle, and the
+ * shed of the base six by four on three, adossed to the face that watches street
+ * one — which in this hand-built grid is the x of the world. (spec 02-7, 02-8)
+ */
+const TOWN_HALL_HALF = 4;
+const TOWN_HALL_HIGH = 7;
+const SHED_OUT = 4; // how far it runs out from the face
+const SHED_HALF = 3; // half the six it is wide
+const SHED_HIGH = 3;
+
+/** The hexagon of the square, and the ring of four-block builds that closes it. */
+const APOTHEM = 16; // spec 02-6
+const PERIMETER_REACH = 26; // the apothem, a frontage of eight, and two (spec 02-10)
+const PERIMETER_HIGH = 4; // all nine of them (spec 02-11)
+
+/** Where the mouth of street one stands, on the x of this hand-built world. */
+const MOUTH = APOTHEM; // spec 02-6, 02-7
+/** Where the four shamblers of the first assault stand. (spec 02-30) */
+const WATCHES_AT = MOUTH + 20;
+
+/**
+ * Where a game opens: on the square in front of the base, four blocks past the
+ * face of the shed — its own depth again — and six past its flank, turned onto
+ * the stretch of street one its four shamblers stand on. Every length is read
+ * off the plan: four blocks of town hall, four of shed, four more, and the three
+ * of the flank plus the six that hold him clear of it.
+ * (spec 01-22, 02-8, 02-30, 08-71)
+ */
+const OPENS_ALONG = TOWN_HALL_HALF + SHED_OUT * 2;
+const OPENS_ACROSS = SHED_HALF + 6;
+const OPENS_ANG = Math.atan2(-OPENS_ACROSS, WATCHES_AT - OPENS_ALONG);
+
+/** Where he stands whenever he comes back for an armful: at the face of the shed. */
+const AT_THE_SHED = TOWN_HALL_HALF + SHED_OUT + 0.5;
+
+/**
  * The middle of the city as chapter 2 builds it: the town hall eight by eight
  * and seven high at the very middle, and the shed of the base six by four and
  * three high against the face that watches street one, which runs down the x of
@@ -130,9 +167,64 @@ function floorUnder(city: City, x: number, z: number): number {
  */
 function middleOfTheCity(): City {
   const city = flatCity();
-  raiseBox(city, -4, 4, -4, 4, 7);
-  raiseBox(city, 4, 8, -3, 3, 3);
+  raiseBox(city, -TOWN_HALL_HALF, TOWN_HALL_HALF, -TOWN_HALL_HALF, TOWN_HALL_HALF, TOWN_HALL_HIGH);
+  raiseBox(city, TOWN_HALL_HALF, TOWN_HALL_HALF + SHED_OUT, -SHED_HALF, SHED_HALF, SHED_HIGH);
   return city;
+}
+
+/** How far a spot stands from the middle, on the three axes of the hexagon. (spec 02-6) */
+function hexAt(x: number, z: number): number {
+  let most = 0;
+  for (let s = 0; s < 3; s += 1) {
+    const a = (s * Math.PI) / 3;
+    const away = Math.abs(x * Math.cos(a) + z * Math.sin(a));
+    if (away > most) most = away;
+  }
+  return most;
+}
+
+/**
+ * Closes the hub: everything the hexagon of apothem sixteen leaves out, within
+ * twenty-six blocks of the middle, stands four blocks high — the nine builds of
+ * the perimeter. The three streets are not cut through it here, which can only
+ * bring built ground nearer to a lens than the real city does: what this grid
+ * says about a clearance, the city says at least as well. (spec 02-10, 02-11)
+ */
+function raisePerimeter(city: City): void {
+  for (let i = 0; i < SIDE; i += 1) {
+    for (let j = 0; j < SIDE; j += 1) {
+      const x = i + 0.5 - HALF;
+      const z = j + 0.5 - HALF;
+      if (hexAt(x, z) < APOTHEM) continue;
+      if (Math.hypot(x, z) > PERIMETER_REACH) continue;
+      city.height[i * SIDE + j] = PERIMETER_HIGH;
+    }
+  }
+}
+
+/** The whole square: the two builds at the middle, and the ring that closes it. */
+function theSquare(): City {
+  const city = middleOfTheCity();
+  raisePerimeter(city);
+  return city;
+}
+
+/** How far the nearest built volume stands from a spot, in blocks. (spec 01-22) */
+function nearestBuilt(city: City, x: number, y: number, z: number): number {
+  let least = Infinity;
+  for (let i = 0; i < SIDE; i += 1) {
+    for (let j = 0; j < SIDE; j += 1) {
+      const high = city.height[i * SIDE + j] ?? 0;
+      if (high === 0) continue;
+      const lowX = i - HALF;
+      const lowZ = j - HALF;
+      const offX = Math.max(lowX - x, 0, x - (lowX + 1));
+      const offZ = Math.max(lowZ - z, 0, z - (lowZ + 1));
+      const away = Math.hypot(offX, Math.max(0, y - high), offZ);
+      if (away < least) least = away;
+    }
+  }
+  return least;
 }
 
 /** A body at a spot, heading a way, standing still unless told otherwise. */
@@ -221,38 +313,80 @@ describe('where it stands', () => {
     expect(view.lens.position.x).toBeCloseTo(1 - 6.5, 6);
   });
 
-  it('opens a game clear of the town hall and of the shed, and climbs not at all', () => {
-    // spec 01-22: a game opens at the base, half a block in front of the face of
-    // the shed and at the edge of that face, turned towards the gateway of
-    // street one. spec 02-6, 02-7, 02-8: the town hall is eight by eight and
-    // seven high at the middle of the city, the shed six by four and three high
-    // against the face that watches street one, and the mouth of that street
-    // stands sixteen blocks out. spec 04-15, 04-18: 6,5 back and 5,5 up, and the
-    // climb is only ever bought by something coming in the way.
-    const city = middleOfTheCity();
-    const player = playerAt(8.5, 3, Math.atan2(0 - 3, 16 - 8.5));
+  it('opens a game on the floor of the square, clear of everything, and climbs not at all', () => {
+    // spec 01-22: a game opens on the square in front of the base — twelve blocks
+    // along the axis of street one and nine across it — turned onto the stretch
+    // of that street its four shamblers stand on. spec 02-6 to 02-11: the town
+    // hall is eight by eight and seven high at the middle of the city, the shed
+    // six by four and three high against the face that watches street one, the
+    // mouth of that street stands sixteen blocks out, and the perimeter closes
+    // the hexagon four blocks high. spec 04-15, 04-18: 6,5 back and 5,5 up, and
+    // the climb is only ever bought by something coming in the way.
+    const city = theSquare();
+    const player = playerAt(OPENS_ALONG, OPENS_ACROSS, OPENS_ANG);
     const view = createCamera(RULE, EXTENT);
     settleCamera(view, city, player);
 
     expect(view.back).toBe(6.5);
     expect(view.above).toBe(5.5); // its nominal height, with nothing added to it
     expect(view.lens.position.y).toBeCloseTo(5.5, 6);
-    // And it sits over the floor of the square, in neither of the two builds.
+    // It sits over the floor of the square, in none of the builds of the city…
     expect(floorUnder(city, view.lens.position.x, view.lens.position.z)).toBe(0);
+    const lens = view.lens.position;
+    // …and no nearer than two blocks to any of them, which is what the opening
+    // spot is chosen for. (spec 01-22)
+    expect(nearestBuilt(city, lens.x, lens.y, lens.z)).toBeGreaterThan(2);
+    // Nothing comes between the lens and his middle: a build in the way is
+    // precisely what would have bought a climb, and none was bought. (spec 04-18)
+    expect(view.above).toBe(RULE.above);
   });
 
-  it('would open fourteen blocks up on the axis, which is what moved him', () => {
-    // spec 01-22, 04-18: on the axis of street one, half a block in front of the
-    // face of the shed, the recoil lands inside the town hall and the roof of
-    // the shed cuts the line of sight — the climb is spent and the child looks
-    // for his own body under a roof. This is the screen the spot was moved off.
+  it('would open at the base fourteen blocks up on the axis, which is what moved him', () => {
+    // spec 01-22, 04-18: at the base itself, on the axis of street one and half a
+    // block in front of the face of the shed, the recoil lands inside the town
+    // hall and the roof of the shed cuts the line of sight — the climb is spent
+    // and the child looks for his own body under a roof. This is the screen the
+    // opening spot was moved off, and it is why the opening is no longer there.
     const city = middleOfTheCity();
-    const player = playerAt(8.5, 0, 0);
+    const player = playerAt(AT_THE_SHED, 0, 0);
     const view = createCamera(RULE, EXTENT);
     settleCamera(view, city, player);
 
     expect(view.above).toBeCloseTo(14, 6); // the fourteen blocks that were seen
     expect(floorUnder(city, view.lens.position.x, view.lens.position.z)).toBe(7);
+  });
+
+  it('opens with neither the town hall nor the shed in the frame, and the gateway in it', () => {
+    // spec 01-22: the first picture of a run holds the child's own body and the
+    // street he has to walk down, and neither of the two builds of the square:
+    // every one of their corners falls beyond the borders of the picture,
+    // whatever shape the screen is, while the gateway of street one stands
+    // inside them. It is the whole reason the opening spot stands off the shed —
+    // against it, the shed and the town hall took the left half of the picture.
+    // (spec 02-27, 04-15)
+    const city = theSquare();
+    const view = createCamera(RULE, EXTENT);
+    settleCamera(view, city, playerAt(OPENS_ALONG, OPENS_ACROSS, OPENS_ANG));
+
+    const corners: [number, number][] = [];
+    for (const along of [-TOWN_HALL_HALF, TOWN_HALL_HALF]) {
+      for (const across of [-TOWN_HALL_HALF, TOWN_HALL_HALF]) corners.push([along, across]);
+    }
+    for (const along of [TOWN_HALL_HALF, TOWN_HALL_HALF + SHED_OUT]) {
+      for (const across of [-SHED_HALF, SHED_HALF]) corners.push([along, across]);
+    }
+
+    const inFrame: string[] = [];
+    // A square screen, an iPad and a wide one: the narrower the screen, the
+    // further out a corner falls, so the widest is the one that has to hold.
+    for (const shape of [1, 4 / 3, 16 / 9]) {
+      fitCamera(view, shape * 100, 100);
+      for (const [x, z] of corners) {
+        if (Math.abs(acrossOf(view, x, z)) <= 1) inFrame.push(`${shape} ${x} ${z}`);
+      }
+      expect(Math.abs(acrossOf(view, MOUTH, 0))).toBeLessThan(1); // the gateway (spec 02-27)
+    }
+    expect(inFrame).toEqual([]);
   });
 
   it('stops its far plane where the haze is total', () => {
@@ -385,26 +519,6 @@ describe('what a building does to it', () => {
   });
 });
 
-/**
- * The two builds of the square, written out here from chapter 2 and from nowhere
- * else: the town hall eight blocks square on seven, at the exact middle, and the
- * shed of the base six by four on three, adossed to the face that watches street
- * one — which in this hand-built grid is the x of the world. (spec 02-7, 02-8)
- */
-const TOWN_HALL_HALF = 4;
-const TOWN_HALL_HIGH = 7;
-const SHED_OUT = 4; // how far it runs out from the face
-const SHED_HALF = 3; // half the six it is wide
-const SHED_HIGH = 3;
-
-/**
- * Where a game opens: at the base, in front of the town hall, half a block off
- * the far face of the shed and facing down street one. It is read off the plan
- * and never chosen — four blocks of town hall, four of shed, and the half block
- * that holds him clear of it. (spec 01-22, 02-7, 02-8, 08-71)
- */
-const OPENS_AT = TOWN_HALL_HALF + SHED_OUT + 0.5;
-
 /** Raises the two builds in the grid, height alone: nobody ever walks there. (spec 02-9) */
 function raiseHub(city: City): void {
   for (let i = 0; i < SIDE; i += 1) {
@@ -451,15 +565,15 @@ const lensIsIn = (view: CameraView): boolean =>
   inHub(view.lens.position.x, view.lens.position.y, view.lens.position.z);
 
 describe('the town hall and the shed', () => {
-  it('never holds the lens inside either of them, at the spot a game opens on', () => {
-    // The first picture of a run: he stands at the base facing down street one,
-    // and the camera is 6,5 blocks behind him — which is straight through the
-    // shed and into the town hall. The two of them carry their height in the
-    // grid, so the sight climbs over them rather than through them.
-    // (spec 02-9, 04-15, 04-18, 04-8)
+  it('never holds the lens inside either of them, at the face of the shed', () => {
+    // He comes back to the base for an armful and stands at the face of the shed
+    // facing down street one, and the camera is 6,5 blocks behind him — which is
+    // straight through the shed and into the town hall. The two of them carry
+    // their height in the grid, so the sight climbs over them rather than through
+    // them. (spec 02-9, 04-8, 04-15, 04-18, 04-45)
     const city = flatCity();
     raiseHub(city);
-    const player = playerAt(OPENS_AT, 0, 0);
+    const player = playerAt(AT_THE_SHED, 0, 0);
     const view = createCamera(RULE, EXTENT);
     settleCamera(view, city, player);
 
@@ -495,12 +609,12 @@ describe('the town hall and the shed', () => {
   });
 
   it('stays out of them frame after frame, as he leaves the base', () => {
-    // Not only where it settles: the first seconds of a run, when he sets off
-    // down street one with the shed at his back and the town hall behind it.
+    // Not only where it settles: the seconds that follow an armful, when he sets
+    // off down street one with the shed at his back and the town hall behind it.
     // The camera trails over the two of them the whole way out. (spec 04-6, 04-18)
     const city = flatCity();
     raiseHub(city);
-    const player = playerAt(OPENS_AT, 0, 0);
+    const player = playerAt(AT_THE_SHED, 0, 0);
     const view = createCamera(RULE, EXTENT);
     settleCamera(view, city, player);
 

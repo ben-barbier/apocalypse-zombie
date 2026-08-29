@@ -33,7 +33,7 @@ Ce chapitre décide le cadre : ce qu'est *Apocalypse Zombie*, sur quoi il se jou
 
 **La première vague**
 
-22. Le joueur apparaît **à la base, l'épée en main, tourné vers le portique de la rue 1** — un demi-bloc devant la face du hangar et au bord de cette face, soit **8,5 blocs sur l'axe de la rue 1 et 3 blocs de côté** ([chapitre 2](02-la-ville.md)) : ainsi posé et ainsi tourné, la caméra qui se place 6,5 blocs derrière lui tombe sur la place, **hors de l'emprise de la mairie comme de celle du hangar**, et ouvre à sa hauteur nominale sans avoir à grimper ([chapitre 4](04-le-joueur.md)) — c'est le premier écran d'une partie neuve, et l'enfant doit y voir son personnage ; l'assaut de la vague 1 a déjà commencé, quatre Traînards descendent la rue 1, debout au lever de rideau.
+22. Le joueur apparaît **sur la place devant la base, l'épée en main, tourné vers la rue 1** — non plus au contact du hangar mais **dégagé de lui** : quatre blocs au-delà de sa face et six au-delà de son flanc, soit **12 blocs sur l'axe de la rue 1 et 9 blocs de côté** ([chapitre 2](02-la-ville.md)), à **7,2 blocs du hangar**, l'ordre de grandeur du recul de la caméra ; ainsi posé, et tourné vers les vingt blocs de rue où se tiennent ses quatre Traînards ([chapitre 2](02-la-ville.md)), la caméra qui se place 6,5 blocs derrière lui tombe sur la place à plus de 3 blocs de tout bâti, **hors de l'emprise de la mairie comme de celle du hangar**, ouvre à sa hauteur nominale sans avoir à grimper ([chapitre 4](04-le-joueur.md)), et **ne cadre plus ni l'une ni l'autre** — leurs angles tombent tous hors des bords de l'image, quand le portique de la rue 1 y est ; c'est le premier écran d'une partie neuve, l'enfant doit y voir son personnage et la rue à descendre, et l'assaut de la vague 1 a déjà commencé : quatre Traînards descendent la rue 1, debout au lever de rideau.
 23. Le premier coup d'épée tombe vers la **quatrième seconde**, la première pièce dans les **quinze premières secondes** : frapper, voir le zombie se désintégrer, ramasser une pièce enseigne le jeu entier en un geste.
 24. Il n'y a **aucun tutoriel, aucun texte d'accueil, aucune séquence scriptée** : la vague 1 est le tutoriel, et c'est une vague comme les autres.
 
@@ -82,7 +82,8 @@ Ce chapitre décide le cadre : ce qu'est *Apocalypse Zombie*, sur quoi il se jou
 
 | Repère | Valeur |
 |---|---:|
-| Position d'ouverture, sur l'axe de la rue 1 puis de côté | 8,5 et 3 blocs |
+| Position d'ouverture, sur l'axe de la rue 1 puis de côté | 12 et 9 blocs |
+| Distance du hangar à l'ouverture | 7,2 blocs |
 | Traînards debout dans la rue 1 au lever de rideau | 4 |
 | Premier coup d'épée | ≈ 4e seconde |
 | Première pièce | < 15 s |
@@ -113,6 +114,7 @@ La composition par type, la cadence d'entrée et les fenêtres sont au chapitre 
 - **Jamais un texte d'échec, jamais une musique triste** — on perd en trois secondes de fondu et on rejoue d'un appui.
 - **Jamais un compteur de zombies écrasés à la fin de partie** — c'est un score, et ce jeu n'en a pas ; le numéro de la vague atteinte dit tout et clôt la série.
 - **Jamais rien qui survive à une partie** — ni record, ni médaille, ni réglage, ni progression : la partie suivante repart exactement au même endroit que la première.
+- **Jamais une ouverture au contact du hangar** — la caméra se place 6,5 blocs derrière le joueur, et de si près le hangar et la mairie prennent la moitié du premier écran ; c'est l'endroit où le joueur se tient qui cadre l'ouverture, jamais un mouvement de caméra.
 - **Jamais un tutoriel** — la vague 1 en tient lieu, et elle se joue.
 - **Jamais une souris, jamais une visée libre, jamais un clavier équilibré** — deux entrées sont conçues, la manette et le tactile, et rien d'autre ne l'est.
 - **Jamais un asset Minecraft** — on emprunte le langage visuel, jamais les fichiers.
@@ -129,7 +131,9 @@ La composition par type, la cadence d'entrée et les fenêtres sont au chapitre 
 
 **Pourquoi la durée n'est pas garantie, et pourquoi on accepte 15 minutes.** Depuis la boucle en deux temps, la durée appartient au rythme du joueur : elle ne peut plus être une promesse. Le compte complet — rails de 92 blocs, filet du dernier zombie à 4 blocs par seconde, Colosse à 115 secondes — donne environ 15,2 minutes bien jouée et 19 au pire. On l'accepte tel quel, sans compenser ailleurs : ce n'est pas la difficulté qui s'est allongée, c'est le trajet. Les trois leviers d'équilibrage — la table, les prix, la portée — resteraient tous à côté du sujet.
 
-**Pourquoi la première vague est un tutoriel déguisé.** Rien n'apparaît au lever de rideau : quatre Traînards descendent déjà la rue, le joueur a l'épée en main à la base, la caméra ouvre dégagée derrière lui et le portique de la rue 1 est devant, et la seule chose qu'il puisse faire est de frapper. Le zombie se désintègre, une pièce tombe, elle est aimantée : la boucle entière du jeu — frapper, gagner, acheter — est enseignée en un geste, sans une ligne de texte et sans qu'on ait rien scripté.
+**Pourquoi la première vague est un tutoriel déguisé.** Rien n'apparaît au lever de rideau : quatre Traînards descendent déjà la rue, le joueur a l'épée en main sur la place, la caméra ouvre dégagée derrière lui et le portique de la rue 1 est dans le cadre, et la seule chose qu'il puisse faire est de frapper. Le zombie se désintègre, une pièce tombe, elle est aimantée : la boucle entière du jeu — frapper, gagner, acheter — est enseignée en un geste, sans une ligne de texte et sans qu'on ait rien scripté.
+
+**Pourquoi l'ouverture s'écarte du hangar, et pourquoi de côté.** Le premier écran ne doit montrer que deux choses : le personnage et la rue à descendre. Au contact du hangar il en montrait une troisième, et elle prenait la moitié de l'image — la caméra se place 6,5 blocs derrière le joueur, et à un demi-bloc du hangar ces 6,5 blocs la posent au flanc des deux seuls bâtiments hauts de la place : le hangar au premier plan, la mairie derrière, le personnage à moitié caché. Cela ne se corrige pas à la caméra — aucun cadrage n'est jamais repris au joueur ([chapitre 4](04-le-joueur.md)) — mais à l'endroit où le joueur se tient. Six blocs au-delà du flanc du hangar suffisent : mairie et hangar sortent du champ, la caméra ouvre sur la place vide à 3,3 blocs de tout bâti, et **rien n'est perdu** — la bourse est vide au lever de rideau et les bombes se paient ([chapitre 4](04-le-joueur.md), [chapitre 6](06-l-argent.md)), donc il n'y a rien à prendre au hangar avant d'avoir tué. L'écart est **latéral** et jamais dans l'axe de la rue, parce que les deux directions ne coûtent pas la même chose : reculer dans l'axe rapproche des Traînards et fait tomber le premier coup **sous les trois secondes**, quand l'écart de côté les éloigne et le laisse à **3,6 secondes**, dans la quatrième seconde que demande la règle 23.
 
 **Pourquoi la difficulté ne monte jamais par les statistiques.** L'épée est l'unité de dégâts du jeu et elle ne s'améliore jamais (chapitre 4). Tout le barème se lit en coups d'épée : gonfler les points de vie d'un type revient à casser l'unité de mesure sous les pieds du joueur, qui ne dira pas « ce zombie est plus fort » mais « mon épée ne marche plus ». Le nombre, les types et les rues suffisent — ils sont, eux, visibles.
 
