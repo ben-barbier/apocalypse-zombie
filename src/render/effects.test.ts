@@ -10,25 +10,33 @@
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import type { CoinPool, Player } from '../game/state';
 import {
   ARC,
   ARC_SPAN,
+  BLACK,
   BLINK_FAST,
   BLINK_SLOW,
+  COIN,
+  COIN_FLIGHT,
   type Effects,
   LIT_FOR,
   PRIORITY,
   PUFF,
   PUFF_SPAN,
+  RIM,
   SHARD_SIDE,
   STRUCK,
   WHITE,
   blink,
   buildEffects,
+  coinSide,
+  flyCoin,
   holdShards,
   isBlinking,
   isLit,
   lightUp,
+  placeCoins,
   placeShards,
   scatter,
   strike,
@@ -37,6 +45,15 @@ import {
 
 /** The pool, allocated at load. (spec 07-27, 10 "Les pools") */
 const POOL = 600;
+
+/**
+ * How many coins can lie in the city at once. It is derived and not settled by
+ * any chapter: one springs from every zombie felled (spec 06-2), it lies until
+ * the end of the assault (spec 06-8), the end of an assault pays every one of
+ * them (spec 06-14), and no line of the wave table walks more than sixty in
+ * (spec 03-42, 10-43).
+ */
+const COINS = 60;
 
 /** What the third tier of the quality scale lowers it to. (spec 10 "L'échelle de qualité") */
 const LOWERED = 200;
@@ -56,23 +73,26 @@ function howMany(effects: Effects, priority: number): number {
 
 /** A pool small enough for a test to fill it by hand, without allocating a second one. */
 function smallPool(holds: number): Effects {
-  const effects = buildEffects(POOL);
+  const effects = buildEffects(POOL, COINS);
   holdShards(effects, holds);
   return effects;
 }
 
 describe('the pool', () => {
   it('costs one call, whatever it holds', () => {
-    // spec 07-27: one InstancedMesh carries them all.
-    const effects = buildEffects(POOL);
-    expect(effects.draws.length).toBe(1);
+    // spec 07-27: one InstancedMesh carries them all — and the coins ride in two
+    // more, whatever number of them lies about. (spec 07-16, 07-35)
+    const effects = buildEffects(POOL, COINS);
+    expect(effects.draws.length).toBe(3);
     expect(effects.draws[0]).toBe(effects.shards);
-    expect(effects.shards.isInstancedMesh).toBe(true);
+    expect(effects.draws[1]).toBe(effects.coins);
+    expect(effects.draws[2]).toBe(effects.rims);
+    for (const mesh of effects.draws) expect(mesh.isInstancedMesh).toBe(true);
   });
 
   it('is six hundred, allocated at load and empty', () => {
     // spec 07-27, spec 10-13.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     expect(effects.shards.instanceMatrix.count).toBe(POOL);
     expect(effects.x.length).toBe(POOL);
     expect(effects.priority.length).toBe(POOL);
@@ -83,7 +103,7 @@ describe('the pool', () => {
   it('never grows, whatever is asked of it', () => {
     // spec 07-27, 10-14: the pool is fixed, and saturation applies the order of
     // 07-29 instead of making room.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     const held = effects.x;
     for (let i = 0; i < 400; i += 1) {
       scatter(effects, PRIORITY.PLAIN, 10, 0, 1, 0, WHITE, 3, 600, i);
@@ -100,7 +120,7 @@ describe('a shard', () => {
   it('is a cube of a quarter of a block', () => {
     // spec 07-25.
     expect(SHARD_SIDE).toBe(0.25);
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     scatter(effects, PRIORITY.PLAIN, 1, 4, 2, -3, WHITE, 0, 600, 0);
     placeShards(effects, 0);
     effects.shards.getMatrixAt(0, SEAT);
@@ -118,7 +138,7 @@ describe('a shard', () => {
     // spec 07-10: what moves and what is put down is plain.
     // spec 07-8: an effect never takes the haze.
     // spec 07-17: nothing in this game is the least bit see-through.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     const paint = effects.shards.material as THREE.MeshBasicMaterial;
     expect(paint.isMeshBasicMaterial).toBe(true);
     expect(paint.map).toBe(null);
@@ -130,7 +150,7 @@ describe('a shard', () => {
   it('drifts in a straight line, off its own age', () => {
     // spec 10-14: nothing integrates between frames, so a frame allocates and
     // carries nothing.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     scatter(effects, PRIORITY.PLAIN, 1, 0, 1, 0, WHITE, 4, 1000, 100);
     placeShards(effects, 600);
     effects.shards.getMatrixAt(0, SEAT);
@@ -145,7 +165,7 @@ describe('the erasing', () => {
     // spec 07-28: a shard goes out by lightening towards white.
     // spec 07-17: it is opaque the whole way, and it is the depth buffer that
     // ranges the scene.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     scatter(effects, PRIORITY.PLAIN, 1, 0, 1, 0, '#000000', 0, 600, 0);
 
     placeShards(effects, 0);
@@ -169,7 +189,7 @@ describe('the erasing', () => {
 
   it('is white all along when it starts white', () => {
     // spec 07-36: the puff of a blow taken is white, and it lightens to nowhere.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     scatter(effects, PRIORITY.PLAIN, 1, 0, 1, 0, WHITE, 0, 600, 0);
     for (const now of [0, 200, 400, 599]) {
       placeShards(effects, now);
@@ -182,7 +202,7 @@ describe('the erasing', () => {
 
   it('gives its slot back the moment its span runs out', () => {
     // spec 07, "Ce que chaque effet consomme": a span is what erases a cloud.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     scatter(effects, PRIORITY.PLAIN, 10, 0, 1, 0, WHITE, 3, 600, 1000);
     placeShards(effects, 1599);
     expect(effects.count).toBe(10);
@@ -257,7 +277,7 @@ describe('a blow taken', () => {
     // taken is erased in 80 ms.
     expect(LIT_FOR).toBe(80);
     expect(PUFF_SPAN).toBe(80);
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     strike(effects, STRUCK.ZOMBIE, 7, 2, 1.5, 3, 1000);
 
     expect(effects.count).toBe(PUFF);
@@ -277,7 +297,7 @@ describe('a blow taken', () => {
 
   it('is the same call for the three things that take one', () => {
     // spec 07-36: a zombie, a block of the town hall, a cannon — and no fourth.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     strike(effects, STRUCK.ZOMBIE, 1, 0, 1, 0, 0);
     strike(effects, STRUCK.TOWN_HALL, 1, 0, 1, 0, 0);
     strike(effects, STRUCK.CANNON, 1, 0, 1, 0, 0);
@@ -289,7 +309,7 @@ describe('a blow taken', () => {
 
   it('lights the one thing it names, and nothing beside it', () => {
     // spec 07-36: the white is on what took the blow, never on its neighbours.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     lightUp(effects, STRUCK.ZOMBIE, 3, 0);
     expect(isLit(effects, STRUCK.ZOMBIE, 3, 0)).toBe(true);
     expect(isLit(effects, STRUCK.ZOMBIE, 4, 0)).toBe(false);
@@ -298,7 +318,7 @@ describe('a blow taken', () => {
 
   it('puts the 80 ms back on a second blow rather than taking a second slot', () => {
     // spec 07-36: one signal, whatever lands on it.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     lightUp(effects, STRUCK.CANNON, 2, 0);
     lightUp(effects, STRUCK.CANNON, 2, 50);
     expect(isLit(effects, STRUCK.CANNON, 2, 100)).toBe(true);
@@ -310,7 +330,7 @@ describe('the quality scale', () => {
   it('takes the pool from 600 down to 200 without allocating anything', () => {
     // spec 10-39, spec 10 "L'échelle de qualité": the third tier lowers the
     // shards, and the simulation hears nothing of it.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     const held = effects.born;
     for (let i = 0; i < 60; i += 1) scatter(effects, PRIORITY.PLAIN, 10, 0, 1, 0, WHITE, 3, 600, 0);
     expect(effects.count).toBe(POOL);
@@ -333,7 +353,7 @@ describe('a frame', () => {
   it('replaces nothing, a thousand frames in', () => {
     // spec 10-14: the loop allocates nothing, so what a frame writes into was
     // made at load and is still the same object a thousand frames later.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     const pool = [effects.x, effects.dx, effects.born, effects.span, effects.priority];
     const mesh = effects.shards;
     const seats = mesh.instanceMatrix;
@@ -354,7 +374,7 @@ describe('the arc of a sweep', () => {
   it('lays white shards along the sector, at the range of the blow', () => {
     // spec 07-31: the sweep is a white arc of opaque shards, erased in 150 ms.
     // spec 04-22: a sector of 120° on 3 blocks.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     const arc = (120 * Math.PI) / 180;
     sweepArc(effects, 10, 0, -4, 0, arc, 3, 1000);
     expect(effects.count).toBe(ARC);
@@ -380,7 +400,7 @@ describe('the arc of a sweep', () => {
 
   it('opens the arc about the heading it was thrown on', () => {
     // spec 04-32: the blow leaves where it was launched.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     const arc = (120 * Math.PI) / 180;
     sweepArc(effects, 0, 0, 0, Math.PI / 2, arc, 3, 0);
     for (let i = 0; i < effects.count; i += 1) {
@@ -391,7 +411,7 @@ describe('the arc of a sweep', () => {
 
   it('is gone in 150 ms, and gives its slots back', () => {
     // spec 07-31: erased in 150 ms.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     sweepArc(effects, 0, 0, 0, 0, (120 * Math.PI) / 180, 3, 0);
     placeShards(effects, 149);
     expect(effects.count).toBe(ARC);
@@ -417,7 +437,7 @@ describe('the blink of the one body the child drives', () => {
     // spec 07-41: a white blink at 2 Hz for a second — the second being chapter
     // 4's stagger, which arrives with the fact rather than being written here.
     expect(BLINK_SLOW).toBe(2);
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     blink(effects, 1000, 0, 0);
     expect(blinksOver(effects, 0, 1000)).toBe(BLINK_SLOW);
     expect(isBlinking(effects, 0)).toBe(true); // it starts on, so it is seen at once
@@ -428,7 +448,7 @@ describe('the blink of the one body the child drives', () => {
     // spec 07-41: two states, one signal — the fast one is the slow one
     // accelerated, and never a second colour. Nothing red is drawn anywhere.
     expect(BLINK_FAST).toBe(6);
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     blink(effects, 1000, 1000, 0);
     expect(blinksOver(effects, 0, 1000)).toBe(BLINK_SLOW);
     expect(blinksOver(effects, 1000, 2000)).toBe(BLINK_FAST);
@@ -438,7 +458,7 @@ describe('the blink of the one body the child drives', () => {
   it('takes the fast one alone, for as long as it is given', () => {
     // spec 04-42: three seconds of being untouchable when he gets up, and no
     // stagger with them — he is not staggered by getting up.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     blink(effects, 0, 3000, 0);
     expect(isBlinking(effects, 0)).toBe(true);
     expect(blinksOver(effects, 0, 3000)).toBe(BLINK_FAST * 3);
@@ -448,7 +468,7 @@ describe('the blink of the one body the child drives', () => {
   it('is replaced outright by the next fact, and two zeros put it out', () => {
     // What has just happened to him is what is shown: a blink never queues
     // behind the one before it.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     blink(effects, 1000, 1000, 0);
     blink(effects, 0, 0, 500);
     expect(isBlinking(effects, 500)).toBe(false);
@@ -458,9 +478,190 @@ describe('the blink of the one body the child drives', () => {
   it('throws no shard, because a rhythm is not a puff', () => {
     // spec 07-36, 07-41: what takes a blow in the world puffs and lights white
     // for 80 ms; he answers with a rhythm instead.
-    const effects = buildEffects(POOL);
+    const effects = buildEffects(POOL, COINS);
     blink(effects, 1000, 1000, 0);
     expect(effects.count).toBe(0);
     expect(isLit(effects, STRUCK.ZOMBIE, 0, 0)).toBe(false);
+  });
+});
+
+// ------------------------------------------------------------------- the coins
+
+/** A pool of coins lying where a test puts them, in the shape the rules hold. */
+function lying(spots: readonly (readonly [number, number, number, number])[]): CoinPool {
+  const pool: CoinPool = {
+    count: spots.length,
+    x: new Float32Array(COINS),
+    y: new Float32Array(COINS),
+    z: new Float32Array(COINS),
+    value: new Float32Array(COINS),
+  };
+  spots.forEach(([x, y, z, worth], at) => {
+    pool.x[at] = x;
+    pool.y[at] = y;
+    pool.z[at] = z;
+    pool.value[at] = worth;
+  });
+  return pool;
+}
+
+/** Him, standing still, which is all the flight of a coin ever asks of him. */
+function standing(x: number, y: number, z: number): Player {
+  return {
+    x,
+    y,
+    z,
+    ang: 0,
+    xPrev: x,
+    yPrev: y,
+    zPrev: z,
+    angPrev: 0,
+    vy: 0,
+    climbLeft: 0,
+    climbFromY: 0,
+    climbToX: 0,
+    climbToY: 0,
+    climbToZ: 0,
+    staggerLeft: 0,
+    invulnerableLeft: 0,
+    regenLeft: 0,
+    collapseLeft: 0,
+    strikeLeft: 0,
+  };
+}
+
+/** How large the coin in one slot is drawn, on a side. */
+function sideOf(mesh: THREE.InstancedMesh, at: number): number {
+  mesh.getMatrixAt(at, SEAT);
+  SEAT.decompose(SPOT, TURN, SIZE);
+  return SIZE.x;
+}
+
+describe('a coin', () => {
+  it('is a shard when it is worth one, and grows with what it is worth', () => {
+    // spec 06-9: the size says the value, and it is the only thing that says it.
+    // spec 07-25: a shard is a quarter of a block.
+    expect(coinSide(1)).toBeCloseTo(SHARD_SIDE, 6);
+    const worths = [1, 2, 4, 5, 10, 50, 100];
+    for (let i = 1; i < worths.length; i += 1) {
+      expect(coinSide(worths[i])).toBeGreaterThan(coinSide(worths[i - 1]));
+    }
+    // A bruiser's coin is larger than a shambler's, and one the sword earned
+    // larger still. (spec 06-9)
+    expect(coinSide(5)).toBeGreaterThan(coinSide(1));
+    expect(coinSide(10)).toBeGreaterThan(coinSide(5));
+    // The largest coin of the game still lies under one block. (spec 06-3)
+    expect(coinSide(100)).toBeLessThan(1);
+  });
+
+  it('wears the gold of the palette and a rim of matte black', () => {
+    // spec 07-12, 07-13, 07-16, 07-35: a yellow shard ringed in black, and the
+    // rim is the far faces of a larger cube so it never hides what it rings.
+    const effects = buildEffects(POOL, COINS);
+    const coins = effects.coins.material as THREE.MeshBasicMaterial;
+    const rims = effects.rims.material as THREE.MeshBasicMaterial;
+    expect(`#${coins.color.getHexString()}`).toBe(COIN);
+    expect(`#${rims.color.getHexString()}`).toBe(BLACK);
+    expect(rims.side).toBe(THREE.BackSide);
+    // Neither takes the haze: a coin at the far end of a street is still there.
+    // (spec 07-8)
+    expect(coins.fog).toBe(false);
+    expect(rims.fog).toBe(false);
+  });
+
+  it('rings every coin, and by the same thickness whatever it is worth', () => {
+    // spec 07-16: the rim is what says "take me", and it says nothing else.
+    const effects = buildEffects(POOL, COINS);
+    placeCoins(effects, lying([[3, 0, 0, 1], [-3, 0, 0, 100]]), standing(40, 0, 40), 1, 0);
+    expect(effects.coins.count).toBe(2);
+    expect(effects.rims.count).toBe(2);
+    for (let at = 0; at < 2; at += 1) {
+      expect(sideOf(effects.rims, at) - sideOf(effects.coins, at)).toBeCloseTo(RIM * 2, 6);
+    }
+    expect(sideOf(effects.coins, 0)).toBeCloseTo(coinSide(1), 6);
+    expect(sideOf(effects.coins, 1)).toBeCloseTo(coinSide(100), 6);
+  });
+
+  it('lies where the rules say it lies, and sits on the floor', () => {
+    // spec 06-8: it lies where it fell. It is lifted by half its own side so it
+    // sits on the floor instead of sinking into it.
+    const effects = buildEffects(POOL, COINS);
+    placeCoins(effects, lying([[7, 0, -4, 5]]), standing(40, 0, 40), 1, 0);
+    effects.coins.getMatrixAt(0, SEAT);
+    SEAT.decompose(SPOT, TURN, SIZE);
+    expect(SPOT.x).toBeCloseTo(7, 6);
+    expect(SPOT.z).toBeCloseTo(-4, 6);
+    expect(SPOT.y).toBeGreaterThan(0);
+    expect(SPOT.y).toBeLessThan(coinSide(5));
+  });
+
+  it('turns, and it never stands still', () => {
+    // spec 07-35: it turns before it is drawn in.
+    const effects = buildEffects(POOL, COINS);
+    const pool = lying([[0, 0, 0, 1]]);
+    placeCoins(effects, pool, standing(40, 0, 40), 1, 0);
+    effects.coins.getMatrixAt(0, SEAT);
+    SEAT.decompose(SPOT, TURN, SIZE);
+    const first = TURN.clone();
+    placeCoins(effects, pool, standing(40, 0, 40), 1, 300);
+    effects.coins.getMatrixAt(0, SEAT);
+    SEAT.decompose(SPOT, TURN, SIZE);
+    expect(TURN.angleTo(first)).toBeGreaterThan(0.1);
+  });
+
+  it('costs two calls, however many lie about', () => {
+    // spec 10 "Le budget de rendu": one mesh of coins and one of rims, whatever
+    // an assault leaves on the floor.
+    const effects = buildEffects(POOL, COINS);
+    const many: [number, number, number, number][] = [];
+    for (let i = 0; i < COINS; i += 1) many.push([i, 0, 0, 1]);
+    placeCoins(effects, lying(many), standing(400, 0, 400), 1, 0);
+    expect(effects.draws.length).toBe(3);
+    expect(effects.coins.count).toBe(COINS);
+    expect(effects.rims.count).toBe(COINS);
+  });
+});
+
+describe('a coin on its way to him', () => {
+  it('leaves where it lay and is gone when its span runs out', () => {
+    // spec 06-12, 07-35: in the rules it is his the instant he passes; this is
+    // what the eye is shown of it, and it lands nowhere.
+    const effects = buildEffects(POOL, COINS);
+    const none = lying([]);
+    const him = standing(0, 0, 0);
+    flyCoin(effects, 10, 0, 0, 2, COIN_FLIGHT, 0);
+    expect(effects.takenCount).toBe(1);
+
+    placeCoins(effects, none, him, 1, 0);
+    effects.coins.getMatrixAt(0, SEAT);
+    SEAT.decompose(SPOT, TURN, SIZE);
+    expect(SPOT.x).toBeCloseTo(10, 6);
+
+    placeCoins(effects, none, him, 1, COIN_FLIGHT / 2);
+    effects.coins.getMatrixAt(0, SEAT);
+    SEAT.decompose(SPOT, TURN, SIZE);
+    expect(SPOT.x).toBeCloseTo(5, 6);
+
+    placeCoins(effects, none, him, 1, COIN_FLIGHT);
+    expect(effects.takenCount).toBe(0);
+    expect(effects.coins.count).toBe(0);
+    expect(effects.rims.count).toBe(0);
+  });
+
+  it('flies at the size of what it was worth', () => {
+    // spec 06-9, 06-10: the size is the whole of what a coin ever says, in the
+    // air as on the floor — there is no figure over it anywhere.
+    const effects = buildEffects(POOL, COINS);
+    flyCoin(effects, 4, 0, 0, 100, COIN_FLIGHT, 0);
+    placeCoins(effects, lying([]), standing(0, 0, 0), 1, 0);
+    expect(sideOf(effects.coins, 0)).toBeCloseTo(coinSide(100), 6);
+  });
+
+  it('never grows its pool, whatever is asked of it', () => {
+    // spec 10-14: nothing in a frame allocates, and nothing grows.
+    const effects = buildEffects(POOL, COINS);
+    for (let i = 0; i < COINS * 3; i += 1) flyCoin(effects, i, 0, 0, 1, COIN_FLIGHT, 0);
+    expect(effects.takenCount).toBe(COINS);
+    expect(effects.takenX.length).toBe(COINS);
   });
 });

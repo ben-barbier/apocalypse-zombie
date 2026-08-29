@@ -446,7 +446,7 @@ describe('the escort of the colossus', () => {
 });
 
 describe('the fatal blow', () => {
-  it('takes the body out of the world and leaves nothing behind it', () => {
+  it('takes the body out of the world and leaves nothing of it behind', () => {
     // spec 03-19, 03-21: the head goes off, the body comes apart in shards, and
     // no corpse, no mark and no blood is left on the ground. Here that is one
     // thing: the body leaves the pool, so there is no object for a floor to hold.
@@ -455,13 +455,34 @@ describe('the fatal blow', () => {
     const events = game.assault.events;
     expect(game.assault.zombies.count).toBe(1);
 
-    fellZombie(game, at);
+    fellZombie(game, at, true);
     expect(game.assault.zombies.count).toBe(0);
     expect(counted(events, EVENT.FATAL_BLOW)).toBe(1);
     // The kind rides in the `value`, because the shards fly in its colour.
     // (spec 07-30)
     expect(events.value[events.count - 1]).toBe(ZOMBIE.SPRINTER);
-    expect(events.count).toBe(1); // and nothing else is said, and nothing dropped
+    expect(events.count).toBe(1); // one fact, and one only, for a body felled
+  });
+
+  it('leaves its coin, which is the one thing it does leave', () => {
+    // spec 06-2: one coin and one only, worth what its kind pays — and twice
+    // that when the sword landed the blow, which is the bravery bonus and is
+    // decided by the fatal blow and by nothing that came before it. (spec 06-3,
+    // 06-4). It lies where the body stood, and nothing announces it: the drawing
+    // reads the pool, as it reads the pool of the bodies. (spec 06-8)
+    const game = createGame(BALANCE, 11);
+    const bySword = put(game, ZOMBIE.BRUISER, 0, 30, 0);
+    const spot = { x: game.assault.zombies.x[bySword], z: game.assault.zombies.z[bySword] };
+    fellZombie(game, bySword, true);
+    expect(game.assault.coins.count).toBe(1);
+    expect(game.assault.coins.value[0]).toBe(10); // spec 06-3
+    expect(game.assault.coins.x[0]).toBeCloseTo(spot.x, 6);
+    expect(game.assault.coins.z[0]).toBeCloseTo(spot.z, 6);
+
+    const byCannon = put(game, ZOMBIE.BRUISER, 1, 30, 0);
+    fellZombie(game, byCannon, false);
+    expect(game.assault.coins.count).toBe(2);
+    expect(game.assault.coins.value[1]).toBe(5); // spec 06-2
   });
 
   it('carries the last of the pool into the slot that comes free, whole', () => {
@@ -484,7 +505,7 @@ describe('the fatal blow', () => {
       xPrev: pool.xPrev[last],
     };
 
-    fellZombie(game, middle);
+    fellZombie(game, middle, true);
     expect(pool.count).toBe(2);
     expect(pool.type[middle]).toBe(was.type);
     expect(pool.street[middle]).toBe(was.street);
@@ -504,11 +525,11 @@ describe('the fatal blow', () => {
     const last = put(game, ZOMBIE.SHAMBLER, 0, 30, 0);
 
     game.assault.sword.aimAt = last;
-    fellZombie(game, middle);
+    fellZombie(game, middle, true);
     expect(game.assault.sword.aimAt).toBe(middle);
 
     game.assault.sword.aimAt = middle;
-    fellZombie(game, middle);
+    fellZombie(game, middle, true);
     expect(game.assault.sword.aimAt).toBe(-1);
   });
 });

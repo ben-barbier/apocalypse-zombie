@@ -38,6 +38,7 @@
  * hearing of it. (spec 10-39)
  */
 import * as THREE from 'three';
+import type { CoinPool, Player } from '../game/state';
 
 /** A quarter of a block, and the one size a shard ever has. (spec 07-25) */
 export const SHARD_SIDE = 0.25;
@@ -47,6 +48,24 @@ export const SHARD_SIDE = 0.25;
  * throws. (spec 07-12, 07-36)
  */
 export const WHITE = '#ffffff';
+
+/**
+ * Matte black, the second of the two colours of the action. It says one thing
+ * and one thing only — **this is picked up** — so it is the colour of the rim
+ * and of nothing else here. (spec 07-12, 07-13)
+ */
+export const BLACK = '#000000';
+
+/**
+ * The gold a coin is drawn in. It is read off the palette of what is played
+ * rather than chosen: that palette owns exactly one gold, and the three other
+ * yellows in the game each name a street, so a coin wearing one of those would
+ * read as a street. It is the colour a colossus wears as well, and that costs
+ * nothing — one is a quarter of a block lying on the floor, the other is two
+ * blocks and a half walking down it.
+ * (spec 07-35, 07 "La palette de ce qui se joue")
+ */
+export const COIN = '#ffd24a';
 
 /**
  * What is asked for first when the pool is full: a fatal blow, then the mark,
@@ -119,6 +138,51 @@ export const PUFF_SPEED = 3;
 export const PUFF_SPAN = 80;
 
 /**
+ * How large a coin lies, in blocks, for what it is worth.
+ *
+ * A coin of one is **exactly a shard** — a quarter of a block — and the side
+ * grows as the fourth root of what the coin is worth: 0,25 for a shambler,
+ * 0,30 for a sprinter, 0,37 for a bruiser, 0,45 for a bruiser the sword felled,
+ * 0,66 for the colossus and 0,79 for the colossus the sword felled.
+ *
+ * The spec settles the **order** and no measurement at all — a bruiser's is
+ * larger than a shambler's, and one the sword earned larger still — so the law
+ * is the drawing's own, and it is the one place the bravery bonus is ever shown:
+ * there is no multiplier, no floating figure and no combo, here or anywhere.
+ * The fourth root is what folds a hundredfold worth into a threefold side, so
+ * the largest coin of the game still lies well under one block, which is the one
+ * measure this city gives anything. (spec 06-9, 06-10, 07-25, 07-35)
+ */
+export function coinSide(worth: number): number {
+  return SHARD_SIDE * Math.pow(worth < 1 ? 1 : worth, 0.25);
+}
+
+/**
+ * How thick the black rim runs around a coin, in blocks. The rim is the whole of
+ * "take me", it rings the coin and the firebomb and nothing else in the game, and
+ * it is drawn as the far faces of a slightly larger black cube — so it shows as a
+ * border and never hides what it rings. (spec 07-13, 07-16)
+ */
+export const RIM = 0.03;
+
+/**
+ * How fast a coin turns, in radians a second, and how far it floats over the
+ * floor. Chapter 7 settles that it turns and no measurement of it, so both are
+ * the drawing's own. (spec 07-35)
+ */
+const COIN_SPIN = 2.4;
+const COIN_LIFT = 0.02;
+
+/**
+ * How long a coin takes to be drawn into him, in ms, and how high up his body it
+ * lands. In the rules the coin is his the instant he passes, which is what lets
+ * him buy in the middle of a fight; what these two say is only how long the eye
+ * is given to see it go. (spec 06-12, 07-35)
+ */
+export const COIN_FLIGHT = 180;
+const COIN_TO = 1;
+
+/**
  * How many things can be white at once. 80 ms is under five frames at 60 Hz, an
  * assault holds sixty zombies at the very most (spec 10 "Les pools"), and one
  * blow lights one thing: sixty-four is well past what a twelfth of a second of
@@ -161,9 +225,17 @@ const SPREAD_Z = new Float32Array(SPREADS);
 export interface Effects {
   /** Everything they draw, under one node the scene takes in one go. */
   readonly node: THREE.Group;
-  /** One entry per call of a frame, and there is exactly one. (spec 07-27) */
+  /** One entry per call of a frame. (spec 10 "Le budget de rendu") */
   readonly draws: readonly THREE.InstancedMesh[];
+  /** All the shards of the game, in one call. (spec 07-27) */
   readonly shards: THREE.InstancedMesh;
+  /**
+   * The coins lying in the city and the ones on their way to him, in one call,
+   * and the black rims that ring them in a second. Two calls for every coin the
+   * game can hold, however many lie about. (spec 07-16, 07-35)
+   */
+  readonly coins: THREE.InstancedMesh;
+  readonly rims: THREE.InstancedMesh;
 
   /** Where a shard was thrown from, in blocks. */
   readonly x: Float32Array;
@@ -202,6 +274,25 @@ export interface Effects {
   blinkFrom: number;
   blinkSlowFor: number;
   blinkFastFor: number;
+
+  /**
+   * The coins on their way to him, in structures of arrays like every pool of
+   * this game. They ride in the same two meshes as the ones still lying, so they
+   * cost no call of their own, and no rule of the game knows of them: a coin is
+   * his the instant he passes it, and what flies here is what the eye is shown
+   * of that. It is armed off the buffer of events and never off a second state.
+   * (spec 06-12, 07-35, 10-11, 10-19)
+   */
+  readonly takenX: Float32Array;
+  readonly takenY: Float32Array;
+  readonly takenZ: Float32Array;
+  /** What it was worth, which is how large it flies. (spec 06-9) */
+  readonly takenValue: Float32Array;
+  /** The frame timestamp it was taken at, in ms, and how long until it is home. */
+  readonly takenBorn: Float64Array;
+  readonly takenSpan: Float32Array;
+  /** Coins in the air are `[0, count)`. */
+  takenCount: number;
 }
 
 // The one set of scratch objects of this file, made once at load: a frame writes
@@ -211,15 +302,19 @@ const FLAT = new THREE.Quaternion();
 const SIZE = new THREE.Vector3(SHARD_SIDE, SHARD_SIDE, SHARD_SIDE);
 const SEAT = new THREE.Matrix4();
 const PAINT = new THREE.Color();
+const TURN = new THREE.Quaternion();
+const UPRIGHT = new THREE.Vector3(0, 1, 0);
+const SPAN = new THREE.Vector3();
 
 /**
- * Builds the one mesh and the one pool, at load — and again after a lost
- * context, because the scene is a projection of the state and no datum of the
- * game lives only on the GPU. `holds` is the six hundred of chapter 7, which the
- * quality scale then lowers without ever allocating again.
- * (spec 07-27, 10-13, 10-37)
+ * Builds the meshes and the pools, at load — and again after a lost context,
+ * because the scene is a projection of the state and no datum of the game lives
+ * only on the GPU. `holds` is the six hundred of chapter 7, which the quality
+ * scale then lowers without ever allocating again; `coins` is how many can lie
+ * in the city at once, and the quality scale never touches it — it is a datum of
+ * the game and not an effect. (spec 07-27, 10-13, 10-37, 10-39)
  */
-export function buildEffects(holds: number): Effects {
+export function buildEffects(holds: number, coins: number): Effects {
   const shards = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, 1, 1),
     // Unlit, opaque, and blind to the haze: white must come out pure white, and
@@ -238,13 +333,44 @@ export function buildEffects(holds: number): Effects {
   PAINT.set(WHITE);
   for (let i = 0; i < holds; i += 1) shards.setColorAt(i, PAINT);
 
+  // A coin lying and a coin on its way to him ride in the same mesh, so the
+  // whole of the money of an assault is two calls whatever falls. (spec 07-21)
+  const held = coins * 2;
+  const lying = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    // Unlit and blind to the haze, like everything else in this file: a coin at
+    // the far end of a street must be seen to be there. (spec 07-8, 07-17)
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(COIN) }),
+    held,
+  );
+  lying.name = 'coins';
+  (lying.material as THREE.MeshBasicMaterial).fog = false;
+  lying.count = 0;
+
+  const rims = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    // The far faces of a slightly larger black cube, which is the whole of the
+    // rim: the near ones are dropped, so what shows is a border around the coin
+    // and never a black box over it. It is opaque like everything else, and the
+    // depth buffer is what ranges the two. (spec 07-16, 07-17)
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(BLACK), side: THREE.BackSide }),
+    held,
+  );
+  rims.name = 'rims';
+  (rims.material as THREE.MeshBasicMaterial).fog = false;
+  rims.count = 0;
+
   const node = new THREE.Group();
   node.add(shards);
+  node.add(lying);
+  node.add(rims);
 
   return {
     node,
-    draws: [shards],
+    draws: [shards, lying, rims],
     shards,
+    coins: lying,
+    rims,
     x: new Float32Array(holds),
     y: new Float32Array(holds),
     z: new Float32Array(holds),
@@ -266,6 +392,13 @@ export function buildEffects(holds: number): Effects {
     blinkFrom: 0,
     blinkSlowFor: 0,
     blinkFastFor: 0,
+    takenX: new Float32Array(coins),
+    takenY: new Float32Array(coins),
+    takenZ: new Float32Array(coins),
+    takenValue: new Float32Array(coins),
+    takenBorn: new Float64Array(coins),
+    takenSpan: new Float32Array(coins),
+    takenCount: 0,
   };
 }
 
@@ -489,6 +622,137 @@ export function strike(
 ): void {
   scatter(effects, PRIORITY.PLAIN, PUFF, x, y, z, WHITE, PUFF_SPEED, PUFF_SPAN, now);
   lightUp(effects, what, index, now);
+}
+
+/**
+ * Sends one coin off to him, from the spot it lay at. It is armed off the one
+ * fact the rules write when he passes within four blocks of a coin, and it is
+ * gone when its span runs out — it lands nowhere and nothing is left where it
+ * lay. In the rules the coin was his the instant he passed; this is only what
+ * the eye is shown of that. (spec 06-7, 06-12, 07-35, 10-19)
+ *
+ * The pool holds one entry per coin the city can hold, so it fills only if he
+ * walks past every coin of an assault inside a fifth of a second; should it ever,
+ * the coin is let go rather than anything growing. (spec 10-14)
+ */
+export function flyCoin(
+  effects: Effects,
+  x: number,
+  y: number,
+  z: number,
+  worth: number,
+  span: number,
+  now: number,
+): void {
+  const at = effects.takenCount;
+  if (at >= effects.takenValue.length) return;
+  effects.takenX[at] = x;
+  effects.takenY[at] = y;
+  effects.takenZ[at] = z;
+  effects.takenValue[at] = worth;
+  effects.takenBorn[at] = now;
+  effects.takenSpan[at] = span;
+  effects.takenCount = at + 1;
+}
+
+/** Moves one coin in the air, whole, from one slot to another. */
+function carryTaken(effects: Effects, from: number, to: number): void {
+  effects.takenX[to] = effects.takenX[from];
+  effects.takenY[to] = effects.takenY[from];
+  effects.takenZ[to] = effects.takenZ[from];
+  effects.takenValue[to] = effects.takenValue[from];
+  effects.takenBorn[to] = effects.takenBorn[from];
+  effects.takenSpan[to] = effects.takenSpan[from];
+}
+
+/**
+ * Seats one coin and its rim, turning about the upright, and hands back the slot
+ * that comes next. The rim is the same cube grown by its thickness on every side
+ * and drawn back faces first, which is what makes a border of it. (spec 07-16,
+ * 07-35)
+ */
+function seatCoin(
+  effects: Effects,
+  at: number,
+  x: number,
+  y: number,
+  z: number,
+  worth: number,
+  now: number,
+): number {
+  const side = coinSide(worth);
+  TURN.setFromAxisAngle(UPRIGHT, (now / 1000) * COIN_SPIN);
+  SPOT.set(x, y + side / 2 + COIN_LIFT, z);
+
+  SPAN.set(side, side, side);
+  effects.coins.setMatrixAt(at, SEAT.compose(SPOT, TURN, SPAN));
+  const ringed = side + RIM * 2;
+  SPAN.set(ringed, ringed, ringed);
+  effects.rims.setMatrixAt(at, SEAT.compose(SPOT, TURN, SPAN));
+  return at + 1;
+}
+
+/** Where a frame sits between two spots. (spec 10-24) */
+function between(from: number, to: number, alpha: number): number {
+  return from + (to - from) * alpha;
+}
+
+/**
+ * Places every coin of the frame: the ones lying in the city, read straight off
+ * the pool of the rules, and the ones on their way to him, read off this file's
+ * own. It allocates nothing and it grows nothing. (spec 10-14)
+ *
+ * A coin lying does not move at all — it has no `Prev` buffer to sit between,
+ * because it lies still until he passes — so only the ones in the air are
+ * interpolated, and they are interpolated onto him. (spec 06-8, 10-24)
+ *
+ * What is drawn says two things and no more: **the rim says it is picked up, the
+ * size says what it is worth.** There is no figure over it, no multiplier and no
+ * combo, and the bravery bonus is shown here and nowhere else in the whole game.
+ * (spec 06-9, 06-10, 06-11, 07-13)
+ */
+export function placeCoins(
+  effects: Effects,
+  lying: Readonly<CoinPool>,
+  player: Readonly<Player>,
+  alpha: number,
+  now: number,
+): void {
+  let put = 0;
+  for (let at = 0; at < lying.count; at += 1) {
+    put = seatCoin(effects, put, lying.x[at], lying.y[at], lying.z[at], lying.value[at], now);
+  }
+
+  const toX = between(player.xPrev, player.x, alpha);
+  const toY = between(player.yPrev, player.y, alpha) + COIN_TO;
+  const toZ = between(player.zPrev, player.z, alpha);
+  let live = 0;
+
+  for (let i = 0; i < effects.takenCount; i += 1) {
+    const span = effects.takenSpan[i];
+    if (!(span > 0)) continue;
+    const gone = (now - effects.takenBorn[i]) / span;
+    if (gone >= 1) continue; // it is home, and nothing is left where it lay
+    if (live !== i) carryTaken(effects, i, live);
+
+    const flown = gone < 0 ? 0 : gone;
+    put = seatCoin(
+      effects,
+      put,
+      between(effects.takenX[live], toX, flown),
+      between(effects.takenY[live], toY, flown),
+      between(effects.takenZ[live], toZ, flown),
+      effects.takenValue[live],
+      now,
+    );
+    live += 1;
+  }
+
+  effects.takenCount = live;
+  effects.coins.count = put;
+  effects.rims.count = put;
+  effects.coins.instanceMatrix.needsUpdate = true;
+  effects.rims.instanceMatrix.needsUpdate = true;
 }
 
 /**

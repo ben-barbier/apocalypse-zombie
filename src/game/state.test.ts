@@ -120,6 +120,12 @@ describe('the pools', () => {
     expectPool(game.assault.projectiles, 96);
     expectPool(game.assault.events, 256);
     expectPool(game.snapshot.cannons, 24); // spec 05-52
+    // No chapter sizes the coins, so the pool is derived: one springs from every
+    // zombie felled (spec 06-2), it lies until the end of the assault
+    // (spec 06-8), the end of an assault pays every one of them (spec 06-14) so
+    // nothing carries over, and no line of the wave table walks more than sixty
+    // in (spec 03-42, 10-43). Hence exactly the sixty of the zombies.
+    expectPool(game.assault.coins, 60);
   });
 
   it('start empty and are driven by a counter', () => {
@@ -129,6 +135,7 @@ describe('the pools', () => {
     expect(game.assault.projectiles.count).toBe(0);
     expect(game.snapshot.cannons.count).toBe(0);
     expect(game.assault.events.count).toBe(0);
+    expect(game.assault.coins.count).toBe(0);
   });
 
   it('carry a Prev buffer for whatever moves', () => {
@@ -143,6 +150,9 @@ describe('the pools', () => {
     expect(game.snapshot.cannons.angPrev).toHaveLength(24);
     expect(game.assault.player.xPrev).toBe(0);
     expect(game.assault.player.angPrev).toBe(0);
+    // A coin lies still until he passes it, so it has no two steps to sit
+    // between: what the eye sees fly is the drawing's. (spec 06-12, 07-35)
+    expect(Object.keys(game.assault.coins)).toEqual(['count', 'x', 'y', 'z', 'value']);
   });
 
   it('names the four kinds of zombie, and no fifth', () => {

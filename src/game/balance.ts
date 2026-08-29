@@ -33,6 +33,8 @@ export interface PoolBalance {
   readonly shards: number;
   readonly events: number;
   readonly cannons: number;
+  /** The coins lying in the city, and it is derived rather than settled. */
+  readonly coins: number;
 }
 
 // ------------------------------------------------------------------ the game
@@ -351,6 +353,24 @@ export const BALANCE: Balance = freeze({
     shards: 600,
     events: 256,
     cannons: 24,
+
+    // No chapter gives the coins a pool, so this one is **derived** and not
+    // chosen, and the derivation is written out here rather than guessed at:
+    //   - exactly one coin springs from every zombie felled (spec 06-2);
+    //   - it lies where it fell until the player walks past it (spec 06-8), so
+    //     an assault where he never walks past one leaves every one of them
+    //     lying at once;
+    //   - the end of an assault pays every one still lying, in the same
+    //     movement, and a preparation opens on a city with none (spec 06-14,
+    //     06-15) — so nothing ever carries over from one assault to the next;
+    //   - what can lie at once is therefore what one assault can fell, which is
+    //     the head count of its wave, and no line of the table — overtime
+    //     included — walks more in than the sixty of the zombie pool
+    //     (spec 03-42, 10-43).
+    // Hence exactly the sixty of the zombies, and `checkWaveTotals` is already
+    // what makes that binding: a table that grew past sixty would fail loudly
+    // there before ever filling this. (spec 03-43)
+    coins: 60,
   },
 
   pace: {
