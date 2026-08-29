@@ -361,10 +361,25 @@ export function stepPlayer(game: Game, input: Readonly<InputState>, seconds: num
 
 /**
  * Stands him where a game opens and where a resumed one picks up: at the base,
- * in front of the town hall, facing down the one street the first assault walks
- * in from. The base is the shed against the face of the town hall that watches
- * street one, so the spot is read off the plan and not chosen.
- * (spec 01-22, 08-71, 02-8)
+ * half a block in front of the face of the shed and at the edge of that face,
+ * turned towards the gateway of street one — the one street the first assault
+ * walks in from. Every length of it is read off the plan and none is chosen: the
+ * half block is his own half-width, so he stands against the shed without
+ * standing in it, and the step sideways is the half-length of the shed itself.
+ * (spec 01-22, 08-71, 02-8, 02-27)
+ *
+ * **Why at the edge of that face, and turned.** The camera seats itself 6,5
+ * blocks behind him, 5,5 over his ground, and it climbs as high as ten more when
+ * a build comes between it and him (spec 04-15, 04-18). Straight in front of the
+ * shed, on the axis of the street, those 6,5 blocks put it inside the town hall,
+ * seven blocks of it, and the roof of the shed cuts the line of sight on the way
+ * out: it opens at fourteen blocks up, looking down at a roof with the child's
+ * own body under it. From the edge of the face, turned towards the gateway, the
+ * line of sight leaves the axis as it goes back — it never comes near the three
+ * blocks of half-length of the shed, and it is four blocks clear of the axis
+ * before it has walked the four the town hall reaches along it. The camera lands
+ * on the floor of the square, in neither build, and opens at its nominal height
+ * with no climb at all.
  */
 export function placePlayer(game: Game): void {
   const player = game.assault.player;
@@ -373,10 +388,11 @@ export function placePlayer(game: Game): void {
 
   const ang = city.gateways.ang[0];
   const along = plan.townHallSide / 2 + plan.baseWidth + 0.5;
-  player.x = Math.cos(ang) * along;
-  player.z = Math.sin(ang) * along;
+  const across = plan.baseLength / 2;
+  player.x = Math.cos(ang) * along - Math.sin(ang) * across;
+  player.z = Math.sin(ang) * along + Math.cos(ang) * across;
   player.y = heightAt(city, player.x, player.z);
-  player.ang = ang;
+  player.ang = Math.atan2(city.gateways.z[0] - player.z, city.gateways.x[0] - player.x);
   player.vy = 0;
   player.climbLeft = 0;
   player.xPrev = player.x;

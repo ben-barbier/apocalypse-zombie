@@ -299,12 +299,17 @@ describe('the ladder, which is the one climb from street height', () => {
 });
 
 describe('where he stands when a game opens', () => {
-  it('is at the base, in front of the town hall, on ground he may stand on', () => {
-    // spec 01-22, 08-71: he stands at the base, in front of the town hall.
+  it('is at the base, at the edge of the face of the shed, on ground he may stand on', () => {
+    // spec 01-22, 08-71: he opens at the base, half a block in front of the face
+    // of the shed and at the edge of that face — 8,5 blocks along the axis of
+    // street one and 3 across it, street one running due east of the middle of
+    // the city. (spec 02-7, 02-8, 02-29)
     const game = createGame(BALANCE);
     placePlayer(game);
     const player = game.assault.player;
     const city = game.assault.city;
+    expect(player.x).toBeCloseTo(8.5, 6);
+    expect(player.z).toBeCloseTo(3, 6);
     expect(walkableAt(city, player.x, player.z)).toBe(true);
     expect(heightAt(city, player.x, player.z)).toBe(0);
     expect(player.y).toBe(0);
@@ -314,21 +319,56 @@ describe('where he stands when a game opens', () => {
     expect(along).toBeLessThan(BALANCE.city.apothem);
     expect(player.xPrev).toBe(player.x);
   });
-});
 
-describe('the real plan, where a roof is never a case of its own', () => {
-  it('walks out of the base and down street one, on the grid the rules engender', () => {
-    // spec 04-8: the grid is the one collision structure of the game.
+  it('presses against the shed, no further off it than half his own side', () => {
+    // spec 01-22, 08-71, 04-45: "at the base" is the contact of the shed, which
+    // is where an armful is taken; the step sideways is along the face and never
+    // away from it, so he stands exactly as close to it as the half block his
+    // own body is wide. (spec 02-8, 03-14)
     const game = createGame(BALANCE);
     placePlayer(game);
     const player = game.assault.player;
     const city = game.assault.city;
-    const ang = city.gateways.ang[0];
+    const off = Math.hypot(
+      Math.max(0, Math.abs(player.x - city.baseX) - city.baseAlong),
+      Math.max(0, Math.abs(player.z - city.baseZ) - city.baseAcross),
+    );
+    expect(off).toBeCloseTo(0.5, 6);
+  });
+
+  it('is turned onto the gateway of street one, where the first assault walks in', () => {
+    // spec 01-22, 02-27, 02-29: he watches the gateway of street one, which
+    // stands at its mouth, on the side of the square.
+    const game = createGame(BALANCE);
+    placePlayer(game);
+    const player = game.assault.player;
+    const city = game.assault.city;
+    const onto = Math.atan2(city.gateways.z[0] - player.z, city.gateways.x[0] - player.x);
+    expect(player.ang).toBeCloseTo(onto, 6);
+    expect(player.angPrev).toBe(player.ang);
+  });
+});
+
+describe('the real plan, where a roof is never a case of its own', () => {
+  it('walks out of the base and down street one, on the grid the rules engender', () => {
+    // spec 04-8: the grid is the one collision structure of the game. He opens
+    // at the edge of the face of the shed and turned onto the gateway (spec
+    // 01-22), so walking out is two legs: he pushes the way he watches until he
+    // is through the mouth, then down the street itself.
+    const game = createGame(BALANCE);
+    placePlayer(game);
+    const player = game.assault.player;
+    const city = game.assault.city;
     const input = createInput();
+    input.dx = Math.cos(player.ang);
+    input.dz = Math.sin(player.ang);
+    for (let i = 0; i < 90; i += 1) stepPlayer(game, input, SECONDS); // a second and a half
+
+    const ang = city.gateways.ang[0];
     input.dx = Math.cos(ang);
     input.dz = Math.sin(ang);
-
     const from = Math.hypot(player.x, player.z);
+    expect(from).toBeGreaterThan(BALANCE.city.apothem); // through the mouth, in the street
     for (let i = 0; i < 600; i += 1) stepPlayer(game, input, SECONDS);
     const to = Math.hypot(player.x, player.z);
     // Ten seconds at six blocks a second, and nothing in the way. (spec 04-6)

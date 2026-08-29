@@ -97,6 +97,44 @@ function build(city: City, fromX: number, toX: number, high: number): void {
   }
 }
 
+/**
+ * Raises a box of the grid: the two builds at the middle of the city, which are
+ * never walked on and which a line of sight has to stop against all the same.
+ * (spec 02-7, 02-8, 02-9)
+ */
+function raiseBox(
+  city: City,
+  fromX: number,
+  toX: number,
+  fromZ: number,
+  toZ: number,
+  high: number,
+): void {
+  for (let x = fromX; x < toX; x += 1) {
+    for (let z = fromZ; z < toZ; z += 1) {
+      city.height[Math.floor(x + HALF) * SIDE + Math.floor(z + HALF)] = high;
+    }
+  }
+}
+
+/** How high what stands in a cell goes, as the camera itself reads it. */
+function floorUnder(city: City, x: number, z: number): number {
+  return city.height[Math.floor(x + HALF) * SIDE + Math.floor(z + HALF)] ?? 0;
+}
+
+/**
+ * The middle of the city as chapter 2 builds it: the town hall eight by eight
+ * and seven high at the very middle, and the shed of the base six by four and
+ * three high against the face that watches street one, which runs down the x of
+ * the world here. (spec 02-7, 02-8)
+ */
+function middleOfTheCity(): City {
+  const city = flatCity();
+  raiseBox(city, -4, 4, -4, 4, 7);
+  raiseBox(city, 4, 8, -3, 3, 3);
+  return city;
+}
+
 /** A body at a spot, heading a way, standing still unless told otherwise. */
 function playerAt(x: number, z: number, ang: number): Player {
   return {
@@ -181,6 +219,40 @@ describe('where it stands', () => {
     player.xPrev = 0;
     aimCamera(view, city, player, 0.5, 0);
     expect(view.lens.position.x).toBeCloseTo(1 - 6.5, 6);
+  });
+
+  it('opens a game clear of the town hall and of the shed, and climbs not at all', () => {
+    // spec 01-22: a game opens at the base, half a block in front of the face of
+    // the shed and at the edge of that face, turned towards the gateway of
+    // street one. spec 02-6, 02-7, 02-8: the town hall is eight by eight and
+    // seven high at the middle of the city, the shed six by four and three high
+    // against the face that watches street one, and the mouth of that street
+    // stands sixteen blocks out. spec 04-15, 04-18: 6,5 back and 5,5 up, and the
+    // climb is only ever bought by something coming in the way.
+    const city = middleOfTheCity();
+    const player = playerAt(8.5, 3, Math.atan2(0 - 3, 16 - 8.5));
+    const view = createCamera(RULE, EXTENT);
+    settleCamera(view, city, player);
+
+    expect(view.back).toBe(6.5);
+    expect(view.above).toBe(5.5); // its nominal height, with nothing added to it
+    expect(view.lens.position.y).toBeCloseTo(5.5, 6);
+    // And it sits over the floor of the square, in neither of the two builds.
+    expect(floorUnder(city, view.lens.position.x, view.lens.position.z)).toBe(0);
+  });
+
+  it('would open fourteen blocks up on the axis, which is what moved him', () => {
+    // spec 01-22, 04-18: on the axis of street one, half a block in front of the
+    // face of the shed, the recoil lands inside the town hall and the roof of
+    // the shed cuts the line of sight — the climb is spent and the child looks
+    // for his own body under a roof. This is the screen the spot was moved off.
+    const city = middleOfTheCity();
+    const player = playerAt(8.5, 0, 0);
+    const view = createCamera(RULE, EXTENT);
+    settleCamera(view, city, player);
+
+    expect(view.above).toBeCloseTo(14, 6); // the fourteen blocks that were seen
+    expect(floorUnder(city, view.lens.position.x, view.lens.position.z)).toBe(7);
   });
 
   it('stops its far plane where the haze is total', () => {

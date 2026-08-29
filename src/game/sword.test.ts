@@ -559,7 +559,16 @@ describe('the first blow of a new game', () => {
     placePlayer(game);
     beginAssault(game);
     const input = createInput();
-    input.dx = 1; // down street one, which opens due east of the base
+    // He runs at them, which from where a game opens is very nearly straight
+    // ahead: street one opens due east of the base, and the four of them stand
+    // twenty blocks up it. (spec 01-22, 02-29, 02-30)
+    const player = game.assault.player;
+    const packAt = BALANCE.city.apothem + BALANCE.city.street.firstPackAt;
+    const toX = packAt - player.x;
+    const toZ = -player.z;
+    const away = Math.hypot(toX, toZ);
+    input.dx = toX / away;
+    input.dz = toZ / away;
     input.strike = true;
 
     let fellAt = -1;
