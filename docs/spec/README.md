@@ -2,9 +2,7 @@
 
 Ce dossier est la **spec** du jeu : le gameplay entièrement chiffré et l'architecture technique, assez complet pour qu'un agent code la v1 **sans reposer une seule question de conception**.
 
-Elle est la **source de vérité**. Les [trente-deux tickets fermés](https://github.com/ben-barbier/apocalypse-zombie/issues/1) qui l'ont produite sont l'archive du raisonnement : on y va pour comprendre un **motif**, jamais pour connaître une **valeur** — beaucoup ont été rectifiés, et lus seuls ils mentent.
-
-> **En cours de rédaction.** Un chapitre non écrit n'a pas de fichier ; sa source reste ses tickets, que le sommaire nomme. Le tableau des interdits se récolte quand les onze sont là.
+Elle est la **source de vérité**. Les [quarante-cinq tickets fermés](https://github.com/ben-barbier/apocalypse-zombie/issues/1) qui l'ont produite sont l'archive du raisonnement : on y va pour comprendre un **motif**, jamais pour connaître une **valeur** — beaucoup ont été rectifiés, et lus seuls ils mentent.
 
 ## Comment on la lit
 
@@ -30,9 +28,255 @@ Le vocabulaire, lui, est dans [`CONTEXT.md`](../../CONTEXT.md) : **le glossaire 
 
 ## Les interdits
 
-<!-- Récolté au ticket de clôture, une fois les onze chapitres écrits : une ligne par « jamais » du projet, avec le chapitre où son motif est écrit. -->
+**La page qu'on relit avant chaque session de code.** Elle récolte les « jamais » des onze chapitres, une ligne chacun, avec le chapitre où son **motif** est écrit — le motif ne se recopie pas ici, il se lit là-bas. Un interdit énoncé par plusieurs chapitres n'apparaît qu'une fois, chez celui qui le démontre.
 
-_À écrire._
+Ces refus sont exactement ce qu'un agent rajoute spontanément : un rouge d'alerte, une minicarte, un menu de construction, un cinquième type de zombie, un objet de décor, une ombre portée. Rien de tout cela n'est un oubli.
+
+Un interdit se lève **par une PR sur le chapitre qui le porte**, jamais en passant.
+
+### Le contrat avec l'enfant
+
+| Jamais… | Chapitre |
+|---|---|
+| un jeu infini sans victoire | [1](01-la-partie.md) |
+| une difficulté qui monte par les statistiques — points de vie, dégâts, vitesse | [1](01-la-partie.md) |
+| un chrono pendant l'assaut | [1](01-la-partie.md) |
+| un bouton « prêt », une préparation qu'on allonge ou qu'on abrège | [1](01-la-partie.md) |
+| une préparation sous 30 secondes, Rallonge comprise | [1](01-la-partie.md) |
+| une régénération de la mairie | [1](01-la-partie.md) |
+| un tutoriel | [1](01-la-partie.md) |
+| un texte d'échec, une musique triste | [1](01-la-partie.md) |
+| un score — compteur de zombies écrasés, total de pièces en fin de partie | [1](01-la-partie.md) |
+| rien qui survive à une partie : record, médaille, réglage, progression | [1](01-la-partie.md) |
+| un asset Minecraft | [1](01-la-partie.md) |
+| un texte à lire pour jouer — tutoriel, carton « tourne ta tablette », écran d'erreur | [8](08-le-bandeau-et-le-sas.md) |
+| un second octet écrit sur l'appareil | [8](08-le-bandeau-et-le-sas.md) |
+| une reprise qui reparte de zéro après une interruption | [8](08-le-bandeau-et-le-sas.md) |
+
+### Les listes fermées
+
+| Jamais… | Chapitre |
+|---|---|
+| une seconde ville, une ville engendrée par graine | [2](02-la-ville.md) |
+| une hauteur de bâtiment autre que 4, 6 ou 8 | [2](02-la-ville.md) |
+| un cinquième type de zombie | [3](03-les-zombies.md) |
+| deux Colosses à la fois | [3](03-les-zombies.md) |
+| une seconde construction | [5](05-les-canons.md) |
+| un quatrième niveau de canon, un embranchement au niveau 2 | [5](05-les-canons.md) |
+| un ralentisseur achetable — goudron, glu, barricade | [5](05-les-canons.md) |
+| un objet neuf pour rattraper l'équilibrage | [5](05-les-canons.md) |
+| un sixième poste de dépense | [6](06-l-argent.md) |
+| un quatrième palier de Renfort | [6](06-l-argent.md) |
+| une quatorzième tuile d'atlas | [7](07-le-regard.md) |
+| un sixième affichage du bandeau | [8](08-le-bandeau-et-le-sas.md) |
+| un second écran hors-jeu | [8](08-le-bandeau-et-le-sas.md) |
+| un dix-huitième bruitage | [9](09-les-bruitages.md) |
+| une nappe, un drone, une seconde musique | [9](09-les-bruitages.md) |
+| une deuxième alarme | [9](09-les-bruitages.md) |
+| un second `AudioContext`, un contexte par bruitage | [9](09-les-bruitages.md) |
+| un second contexte WebGL | [10](10-l-architecture.md) |
+| une dépendance d'exécution de plus | [10](10-l-architecture.md) |
+| un sixième script npm | [10](10-l-architecture.md) |
+| un quatrième profil de banc | [11](11-le-banc.md) |
+
+### Les commandes et la caméra
+
+| Jamais… | Chapitre |
+|---|---|
+| une souris, une visée libre, un clavier équilibré | [1](01-la-partie.md) |
+| une seconde allure — marche, sprint, ralentissement en charge | [4](04-le-joueur.md) |
+| un saut qui monte du sol à un toit | [4](04-le-joueur.md) |
+| un dégât de chute | [4](04-le-joueur.md) |
+| une commande de caméra, sur aucune plateforme | [4](04-le-joueur.md) |
+| une caméra asservie à l'auto-ciblage | [4](04-le-joueur.md) |
+| une cinématique, un cadrage repris au joueur | [4](04-le-joueur.md) |
+| une cible unique à l'épée | [4](04-le-joueur.md) |
+| une priorité de cible « intelligente » | [4](04-le-joueur.md) |
+| un tapis roulant qu'on trace, qu'on dirige ou qu'on détruit | [4](04-le-joueur.md) |
+| un bouton polyvalent | [4](04-le-joueur.md) |
+| une zone morte — un appui qui ne fait rien là où quelque chose est possible | [4](04-le-joueur.md) |
+| le bouton `B` sur manette | [4](04-le-joueur.md) |
+| une cible tactile près d'un bord, ou sous 44 px | [8](08-le-bandeau-et-le-sas.md) |
+
+### La ville
+
+| Jamais… | Chapitre |
+|---|---|
+| un raccourci d'une rue à l'autre | [2](02-la-ville.md) |
+| un anneau, une brèche, une place carrée | [2](02-la-ville.md) |
+| un bâtiment qui se traverse, s'abîme, ou se monte autrement que par son échelle | [2](02-la-ville.md) |
+| une variante de façade, une façade reculée | [2](02-la-ville.md) |
+| un objet de décor — lampadaire, caisse, banc, jardinière, cheminée | [2](02-la-ville.md) |
+| un bord de rue franchissable au saut du pied au fond | [2](02-la-ville.md) |
+| un portique au fond d'une rue | [2](02-la-ville.md) |
+| un halo qui serve les trois rues | [2](02-la-ville.md) |
+| un toit interdit à la construction | [2](02-la-ville.md) |
+
+### Les zombies
+
+| Jamais… | Chapitre |
+|---|---|
+| un calcul de chemin — A\*, navmesh, champ de flux | [3](03-les-zombies.md) |
+| un zombie qui quitte son rail, un zombie qui poursuit le joueur | [3](03-les-zombies.md) |
+| un avancement qui décroît, un recul qui fait reculer un zombie | [3](03-les-zombies.md) |
+| un zombie que le canon bloque, une barricade | [3](03-les-zombies.md) |
+| un zombie qui disparaît en atteignant la mairie | [3](03-les-zombies.md) |
+| un cadavre, une trace au sol, du sang | [3](03-les-zombies.md) |
+| un paquet mixte | [3](03-les-zombies.md) |
+| une cadence autre que 6 secondes | [3](03-les-zombies.md) |
+| une rue tirée au sort | [3](03-les-zombies.md) |
+| un Colosse qui sprinte | [3](03-les-zombies.md) |
+| une vitesse au-dessus de 4 blocs par seconde | [3](03-les-zombies.md) |
+| un garde-fou de population à l'exécution | [3](03-les-zombies.md) |
+| une vague engendrée par formule | [3](03-les-zombies.md) |
+
+### Le joueur
+
+| Jamais… | Chapitre |
+|---|---|
+| une épée qui s'améliore, s'achète ou se remplace | [4](04-le-joueur.md) |
+| un achat qui porte sur le joueur — points de vie, vitesse, portée, armure | [4](04-le-joueur.md) |
+| un tir ami, dans un sens comme dans l'autre | [4](04-le-joueur.md) |
+| un dégât de contact qui varie selon le type | [4](04-le-joueur.md) |
+| un soin autre que la régénération | [4](04-le-joueur.md) |
+| une mort du joueur, un relèvement ailleurs qu'à l'endroit de la chute | [4](04-le-joueur.md) |
+| une bombe qui tombe, une bombe au sol à ramasser | [4](04-le-joueur.md) |
+| une reprise de bombes dans un canon | [4](04-le-joueur.md) |
+
+### Les canons
+
+| Jamais… | Chapitre |
+|---|---|
+| une zone d'effet sur le boulet | [5](05-les-canons.md) |
+| un test de ligne de vue, un test de collision sur un projectile | [5](05-les-canons.md) |
+| un canon qui rate | [5](05-les-canons.md) |
+| un boulet qui vire en l'air | [5](05-les-canons.md) |
+| un ciblage par type, une visée réglable | [5](05-les-canons.md) |
+| un jet de feu qui s'éteint | [5](05-les-canons.md) |
+| une flamme allumée sans zombie dedans | [5](05-les-canons.md) |
+| une barre, un clignotement ou une couleur d'alerte sur un canon | [5](05-les-canons.md) |
+| une réparation, payante ou gratuite | [5](05-les-canons.md) |
+| un canon de toit qui s'abîme | [5](05-les-canons.md) |
+| une revente, un déplacement, une destruction volontaire | [5](05-les-canons.md) |
+| un plafond au nombre de canons | [5](05-les-canons.md) |
+
+### L'argent
+
+| Jamais… | Chapitre |
+|---|---|
+| un prix qui monte — avec la vague, avec le nombre de canons, en Rallonge | [6](06-l-argent.md) |
+| une prime calculée sur autre chose que le coup fatal | [6](06-l-argent.md) |
+| une pièce qui périme, une pièce perdue | [6](06-l-argent.md) |
+| un plafond de bourse, des intérêts, une dépense forcée | [6](06-l-argent.md) |
+| une remise | [6](06-l-argent.md) |
+| un remboursement, un crédit | [6](06-l-argent.md) |
+| un gain qui ne vienne pas d'un zombie | [6](06-l-argent.md) |
+| une réparation payante de la mairie | [6](06-l-argent.md) |
+| une armure, une réduction de dégâts | [6](06-l-argent.md) |
+| un prix de Renfort proportionnel aux dégâts subis | [6](06-l-argent.md) |
+| un Renfort qui attende la préparation | [6](06-l-argent.md) |
+| un plancher de prix calculé sur la masse monétaire | [6](06-l-argent.md) |
+
+### Le regard
+
+| Jamais… | Chapitre |
+|---|---|
+| une ombre portée | [7](07-le-regard.md) |
+| une lumière ponctuelle | [7](07-le-regard.md) |
+| une variation d'heure, de ciel ou de météo | [7](07-le-regard.md) |
+| un effet orange | [7](07-le-regard.md) |
+| un rouge, nulle part — ni dans le monde, ni dans le bandeau | [7](07-le-regard.md) |
+| un cerne ailleurs que sur ce qui se ramasse | [7](07-le-regard.md) |
+| une transparence | [7](07-le-regard.md) |
+| un sprite, un billboard, un système de particules | [7](07-le-regard.md) |
+| une tuile sur un corps ou sur un canon | [7](07-le-regard.md) |
+| une occlusion peinte dans la tuile | [7](07-le-regard.md) |
+| un dégradé vertical sur une tuile horizontale | [7](07-le-regard.md) |
+| une tuile de fissure | [7](07-le-regard.md) |
+| une fenêtre froide | [7](07-le-regard.md) |
+| une hauteur de toit lue à la teinte | [7](07-le-regard.md) |
+| un `SkinnedMesh`, un fichier d'animation | [7](07-le-regard.md) |
+| une planche dessinée à la main, un PNG retouché | [7](07-le-regard.md) |
+| un fichier d'image importé | [7](07-le-regard.md) |
+| une case d'atlas laissée vide en noir ou en transparent | [7](07-le-regard.md) |
+| une marge étirée | [7](07-le-regard.md) |
+| un `magFilter` linéaire, un `minFilter` sans mipmap | [7](07-le-regard.md) |
+| un effet qui prenne la brume | [7](07-le-regard.md) |
+
+### Le bandeau, le Sas et l'Instantané
+
+| Jamais… | Chapitre |
+|---|---|
+| un multiplicateur, un chiffre flottant, un combo | [6](06-l-argent.md) |
+| une carte, une minicarte, un radar, une vue de dessus | [8](08-le-bandeau-et-le-sas.md) |
+| un menu de construction, un magasin, un inventaire, une mise en pause pour acheter, une confirmation d'achat | [8](08-le-bandeau-et-le-sas.md) |
+| un affichage qui répète le monde | [8](08-le-bandeau-et-le-sas.md) |
+| un affichage sous un doigt | [8](08-le-bandeau-et-le-sas.md) |
+| un compteur de canons, un compteur de bombes | [8](08-le-bandeau-et-le-sas.md) |
+| un signal d'alarme — tremblement d'écran, flash plein écran, carton, message | [8](08-le-bandeau-et-le-sas.md) |
+| une mise en page décidée par l'orientation de l'appareil | [8](08-le-bandeau-et-le-sas.md) |
+| une pause sur redimensionnement | [8](08-le-bandeau-et-le-sas.md) |
+| un bandeau dessiné en WebGL | [8](08-le-bandeau-et-le-sas.md) |
+| une écriture du bandeau à chaque image | [8](08-le-bandeau-et-le-sas.md) |
+| une reprise automatique | [8](08-le-bandeau-et-le-sas.md) |
+| un réglage dans le Sas — volume, muet, qualité, langue | [8](08-le-bandeau-et-le-sas.md) |
+| une nouvelle partie lancée d'un appui simple quand une partie est en cours | [8](08-le-bandeau-et-le-sas.md) |
+| un instantané qui décrive un assaut | [8](08-le-bandeau-et-le-sas.md) |
+| un effacement de l'Instantané à la victoire | [8](08-le-bandeau-et-le-sas.md) |
+| une migration de format, un message d'erreur de sauvegarde | [8](08-le-bandeau-et-le-sas.md) |
+| une sonde de stockage au démarrage | [8](08-le-bandeau-et-le-sas.md) |
+
+### Le son
+
+| Jamais… | Chapitre |
+|---|---|
+| un fichier audio, une banque de sons | [9](09-les-bruitages.md) |
+| un son qui répète ce que l'image dit déjà | [9](09-les-bruitages.md) |
+| un son de canon à sec | [9](09-les-bruitages.md) |
+| un traitement « zombie derrière soi » | [9](09-les-bruitages.md) |
+| un son d'impact de boulet | [9](09-les-bruitages.md) |
+| un son de montée d'échelle | [9](09-les-bruitages.md) |
+| un son d'entrée du Colosse | [9](09-les-bruitages.md) |
+| un rugissement, un cri, un bruit de chair | [9](09-les-bruitages.md) |
+| un son de mort du joueur | [9](09-les-bruitages.md) |
+| un plafond de voix global | [9](09-les-bruitages.md) |
+| une voix refusée quand un bus est plein | [9](09-les-bruitages.md) |
+| un son différé, remis en file | [9](09-les-bruitages.md) |
+| un gémissement par zombie | [9](09-les-bruitages.md) |
+| un `PannerNode`, une atténuation par la distance, une réverbération | [9](09-les-bruitages.md) |
+| un message quand le son ne revient pas | [9](09-les-bruitages.md) |
+
+### Le code
+
+| Jamais… | Chapitre |
+|---|---|
+| `Math.random()` hors de `src/audio/` | [10](10-l-architecture.md) |
+| une horloge dans `src/game/` ou dans `bench/` | [10](10-l-architecture.md) |
+| une immuabilité, une copie de l'état | [10](10-l-architecture.md) |
+| un `damage: number` | [10](10-l-architecture.md) |
+| un Web Worker | [10](10-l-architecture.md) |
+| un gestionnaire `unload`, une écriture dans un gestionnaire d'interruption | [10](10-l-architecture.md) |
+| IndexedDB | [10](10-l-architecture.md) |
+| un palier de qualité qui touche la simulation | [10](10-l-architecture.md) |
+| un module `render/props.ts` | [10](10-l-architecture.md) |
+| une abstraction générique — `entity`, `gameObject` | [10](10-l-architecture.md) |
+| un test de rendu, une capture d'écran, un navigateur automatisé | [10](10-l-architecture.md) |
+
+### Le banc
+
+| Jamais… | Chapitre |
+|---|---|
+| un script écrit à la main par profil | [11](11-le-banc.md) |
+| un pilote qui écrive autre chose qu'un `InputState` | [11](11-le-banc.md) |
+| un seuil sur les écroulements | [11](11-le-banc.md) |
+| un seuil de durée à 15 minutes | [11](11-le-banc.md) |
+| la moyenne des cinq graines | [11](11-le-banc.md) |
+| un seuil sur un balayage, un code de sortie autre que 0 pour un balayage | [11](11-le-banc.md) |
+| un banc qui corrige un chiffre | [11](11-le-banc.md) |
+| un barème qui ne tienne qu'à une profondeur | [11](11-le-banc.md) |
+| un banc qui décide jusqu'où l'enfant descend | [11](11-le-banc.md) |
+| un `bench/reference.json` réparé à la main | [11](11-le-banc.md) |
+| un réglage de difficulté | [11](11-le-banc.md) |
 
 ## Comment on l'écrit
 
