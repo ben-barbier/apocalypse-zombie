@@ -142,8 +142,10 @@ export function eachFace(city: City, plan: CityPlan, look: FaceVisit): void {
   };
 
   /**
-   * The two builds the grid leaves out, because neither is ever walked on and
-   * nothing is ever put down on them. They are drawn from the plan instead.
+   * The two builds the grid holds without opening: it carries their height, so
+   * a line of sight stops on them, but never the right to be there, since
+   * neither is ever walked on and nothing is ever put down on them. Their faces
+   * are therefore drawn from the plan and not from the walk of the cells.
    * (spec 02-7, 02-8, 02-9)
    */
   const inTownHall = (x: number, z: number, y: number): boolean =>

@@ -19,7 +19,11 @@
 import type { InputState } from '../game/state';
 import { type Edge, createEdge, setEdge, takeEdge } from './input';
 
-/** Which way each walking key pushes, in the frame of the world. */
+/**
+ * Which way each walking key pushes, in the frame of the **screen**: up the
+ * screen is `dz` below nought, exactly as a stick pushed forward hands it over,
+ * and `input.ts` turns the whole of it onto the world before a step reads it.
+ */
 const WALK: readonly (readonly [string, number, number])[] = [
   ['ArrowUp', 0, -1],
   ['ArrowDown', 0, 1],

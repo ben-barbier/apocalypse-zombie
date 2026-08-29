@@ -434,6 +434,44 @@ describe('the plan of the city', () => {
     }
   });
 
+  it('stands the town hall seven blocks high in the grid, and the shed three', () => {
+    // spec 02-7, 02-8: eight by eight on seven blocks, six by four on three. The
+    // grid carries their height even though nobody ever walks there, because it
+    // is the one thing a line of sight is traced against, and a build left at
+    // nought is a build a camera stands inside. (spec 04-8, 04-18)
+    let hall = 0;
+    let shed = 0;
+    for (let i = 0; i < city.side; i += 1) {
+      for (let j = 0; j < city.side; j += 1) {
+        const [x, z] = spotOf(i, j);
+        const inHall = Math.abs(x) < TOWN_HALL && Math.abs(z) < TOWN_HALL;
+        const along = alongOf(0, x, z);
+        const inShed =
+          along > TOWN_HALL && along < TOWN_HALL + 4 && Math.abs(acrossOf(0, x, z)) < 3;
+        if (inHall) {
+          hall += 1;
+          expect(heightAt(city, x, z)).toBe(7); // spec 02-7
+        } else if (inShed) {
+          shed += 1;
+          expect(heightAt(city, x, z)).toBe(3); // spec 02-8
+        }
+        // And nothing rose beside them: ten blocks each way of the middle lies
+        // wholly inside the hexagon, and every cell of it that is not one of the
+        // two builds is paving at nought. (spec 02-6)
+        if (!inHall && !inShed && Math.abs(x) < 10 && Math.abs(z) < 10) {
+          expect(heightAt(city, x, z)).toBe(0);
+          expect(walkableAt(city, x, z)).toBe(true);
+        }
+        // Neither of the two is ever opened, whatever it now stands at: the
+        // height is one half of a cell and the right to be there the other, and
+        // only the first of them moved. (spec 02-9, 04-8)
+        if (inHall || inShed) expect(walkableAt(city, x, z)).toBe(false);
+      }
+    }
+    expect(hall).toBe(TOWN_HALL_CELLS);
+    expect(shed).toBe(BASE_CELLS);
+  });
+
   it('gives every building one ladder, and only one, onto walkable ground', () => {
     // spec 02-26: in the middle of the one face that gives onto walkable ground
     // — the street facade, or the square facade for the nine of the perimeter.

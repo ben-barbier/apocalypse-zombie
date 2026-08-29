@@ -313,6 +313,139 @@ describe('what a building does to it', () => {
   });
 });
 
+/**
+ * The two builds of the square, written out here from chapter 2 and from nowhere
+ * else: the town hall eight blocks square on seven, at the exact middle, and the
+ * shed of the base six by four on three, adossed to the face that watches street
+ * one — which in this hand-built grid is the x of the world. (spec 02-7, 02-8)
+ */
+const TOWN_HALL_HALF = 4;
+const TOWN_HALL_HIGH = 7;
+const SHED_OUT = 4; // how far it runs out from the face
+const SHED_HALF = 3; // half the six it is wide
+const SHED_HIGH = 3;
+
+/**
+ * Where a game opens: at the base, in front of the town hall, half a block off
+ * the far face of the shed and facing down street one. It is read off the plan
+ * and never chosen — four blocks of town hall, four of shed, and the half block
+ * that holds him clear of it. (spec 01-22, 02-7, 02-8, 08-71)
+ */
+const OPENS_AT = TOWN_HALL_HALF + SHED_OUT + 0.5;
+
+/** Raises the two builds in the grid, height alone: nobody ever walks there. (spec 02-9) */
+function raiseHub(city: City): void {
+  for (let i = 0; i < SIDE; i += 1) {
+    for (let j = 0; j < SIDE; j += 1) {
+      const x = i + 0.5 - HALF;
+      const z = j + 0.5 - HALF;
+      const at = i * SIDE + j;
+      if (Math.abs(x) < TOWN_HALL_HALF && Math.abs(z) < TOWN_HALL_HALF) {
+        city.height[at] = TOWN_HALL_HIGH;
+        city.walkable[at] = 0;
+      } else if (
+        x > TOWN_HALL_HALF &&
+        x < TOWN_HALL_HALF + SHED_OUT &&
+        Math.abs(z) < SHED_HALF
+      ) {
+        city.height[at] = SHED_HIGH;
+        city.walkable[at] = 0;
+      }
+    }
+  }
+}
+
+/**
+ * Whether a spot of the world stands inside one of the two builds. The footprint
+ * is held off by a hair, because a lens seated straight behind a player standing
+ * on a face lands a billionth of a block on the wrong side of it, and the grid,
+ * which reads by the middle of a cell, calls that the paving it is.
+ */
+const HAIR = 1e-9;
+function inHub(x: number, y: number, z: number): boolean {
+  const hall =
+    Math.abs(x) < TOWN_HALL_HALF - HAIR &&
+    Math.abs(z) < TOWN_HALL_HALF - HAIR &&
+    y < TOWN_HALL_HIGH;
+  const shed =
+    x > TOWN_HALL_HALF + HAIR &&
+    x < TOWN_HALL_HALF + SHED_OUT - HAIR &&
+    Math.abs(z) < SHED_HALF - HAIR &&
+    y < SHED_HIGH;
+  return hall || shed;
+}
+
+const lensIsIn = (view: CameraView): boolean =>
+  inHub(view.lens.position.x, view.lens.position.y, view.lens.position.z);
+
+describe('the town hall and the shed', () => {
+  it('never holds the lens inside either of them, at the spot a game opens on', () => {
+    // The first picture of a run: he stands at the base facing down street one,
+    // and the camera is 6,5 blocks behind him — which is straight through the
+    // shed and into the town hall. The two of them carry their height in the
+    // grid, so the sight climbs over them rather than through them.
+    // (spec 02-9, 04-15, 04-18, 04-8)
+    const city = flatCity();
+    raiseHub(city);
+    const player = playerAt(OPENS_AT, 0, 0);
+    const view = createCamera(RULE, EXTENT);
+    settleCamera(view, city, player);
+
+    expect(lensIsIn(view)).toBe(false);
+    // It sits over the town hall, so it stands over the seven of it. (spec 02-7)
+    expect(Math.abs(view.lens.position.x)).toBeLessThan(TOWN_HALL_HALF);
+    expect(view.lens.position.y).toBeGreaterThanOrEqual(TOWN_HALL_HIGH);
+    // And it climbed rather than came in, which is the order of the chapter.
+    expect(view.back).toBe(RULE.back); // spec 04-18
+    expect(view.above).toBeGreaterThan(RULE.above);
+    expect(view.above).toBeLessThanOrEqual(RULE.above + RULE.climb);
+  });
+
+  it('never holds it inside either of them, wherever he stands on the square', () => {
+    // The same reading swept over the whole hub: every spot of paving the square
+    // holds, and every heading he can face on it. Nothing of the two builds is
+    // ever between the lens and nothing at all. (spec 04-18)
+    const city = flatCity();
+    raiseHub(city);
+    const view = createCamera(RULE, EXTENT);
+    const inside: string[] = [];
+    for (let x = -14; x <= 14; x += 0.5) {
+      for (let z = -14; z <= 14; z += 0.5) {
+        if (inHub(x, 0, z)) continue; // he is never in there in the first place
+        for (let turn = 0; turn < 16; turn += 1) {
+          const ang = (turn * Math.PI) / 8;
+          settleCamera(view, city, playerAt(x, z, ang));
+          if (lensIsIn(view)) inside.push(`${x} ${z} ${ang}`);
+        }
+      }
+    }
+    expect(inside).toEqual([]);
+  });
+
+  it('stays out of them frame after frame, as he leaves the base', () => {
+    // Not only where it settles: the first seconds of a run, when he sets off
+    // down street one with the shed at his back and the town hall behind it.
+    // The camera trails over the two of them the whole way out. (spec 04-6, 04-18)
+    const city = flatCity();
+    raiseHub(city);
+    const player = playerAt(OPENS_AT, 0, 0);
+    const view = createCamera(RULE, EXTENT);
+    settleCamera(view, city, player);
+
+    const stride = 6 / 60; // the one pace, one step of the loop (spec 04-6, 10-21)
+    const inside: string[] = [];
+    let now = 0;
+    while (player.x < 20) {
+      player.xPrev = player.x;
+      player.x += stride;
+      now += 1000 / 60;
+      aimCamera(view, city, player, 1, now);
+      if (lensIsIn(view)) inside.push(player.x.toFixed(2));
+    }
+    expect(inside).toEqual([]);
+  });
+});
+
 describe('where a spot falls across the screen', () => {
   /** A camera straight behind a player standing at the middle, on a square screen. */
   function seated(): CameraView {
