@@ -17,6 +17,7 @@
  */
 import { stepPlayer } from './player';
 import type { Game, InputState } from './state';
+import { stepSword } from './sword';
 import { stepTownHall } from './townhall';
 import { stepWaves } from './waves';
 import { stepZombies } from './zombies';
@@ -26,7 +27,7 @@ export function step(game: Game, input: Readonly<InputState>): void {
   const seconds = 1 / game.balance.loop.hz; // spec 10-16, 10-21
   stepInput(game, input);
   stepPlayer(game, input, seconds);
-  stepSword(game);
+  stepSword(game, input, seconds);
   stepZombies(game, seconds);
   stepCannons(game);
   stepProjectiles(game);
@@ -43,9 +44,6 @@ export function step(game: Game, input: Readonly<InputState>): void {
  * (spec 10-30, 10-31)
  */
 function stepInput(_game: Game, _input: Readonly<InputState>): void {}
-
-/** Sweeps the sector in front of him, and knocks what it touches sideways. (spec 04-22) */
-function stepSword(_game: Game): void {}
 
 /** Aims the ball and the flame, each on its own. (spec 05-40) */
 function stepCannons(_game: Game): void {}

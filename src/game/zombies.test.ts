@@ -18,7 +18,15 @@ import {
   railX,
   railZ,
 } from './state';
-import { atTownHall, balanceOf, massZombie, spawnZombie, speedOf, stepZombies } from './zombies';
+import {
+  atTownHall,
+  balanceOf,
+  fellZombie,
+  massZombie,
+  spawnZombie,
+  speedOf,
+  stepZombies,
+} from './zombies';
 
 /** One step of the one loop, in seconds. (spec 10-21) */
 const SECONDS = 1 / 60;
@@ -402,5 +410,73 @@ describe('the escort of the colossus', () => {
     game.assault.fewFor = BALANCE.assault.rushAfter;
     expect(speedOf(game, bruiser)).toBe(4); // spec 03-39
     expect(speedOf(game, colossus)).toBe(0.8); // spec 03-40
+  });
+});
+
+describe('the fatal blow', () => {
+  it('takes the body out of the world and leaves nothing behind it', () => {
+    // spec 03-19, 03-21: the head goes off, the body comes apart in shards, and
+    // no corpse, no mark and no blood is left on the ground. Here that is one
+    // thing: the body leaves the pool, so there is no object for a floor to hold.
+    const game = createGame(BALANCE, 7);
+    const at = put(game, ZOMBIE.SPRINTER, 0, 30, 1);
+    const events = game.assault.events;
+    expect(game.assault.zombies.count).toBe(1);
+
+    fellZombie(game, at);
+    expect(game.assault.zombies.count).toBe(0);
+    expect(counted(events, EVENT.FATAL_BLOW)).toBe(1);
+    // The kind rides in the `value`, because the shards fly in its colour.
+    // (spec 07-30)
+    expect(events.value[events.count - 1]).toBe(ZOMBIE.SPRINTER);
+    expect(events.count).toBe(1); // and nothing else is said, and nothing dropped
+  });
+
+  it('carries the last of the pool into the slot that comes free, whole', () => {
+    // spec 10-13: the living are [0, count), and every column moves together —
+    // the two last steps included, or the drawing would cross two strangers.
+    // (spec 10-24)
+    const game = createGame(BALANCE, 8);
+    put(game, ZOMBIE.SHAMBLER, 0, 10, -1);
+    const middle = put(game, ZOMBIE.BRUISER, 1, 20, 0);
+    put(game, ZOMBIE.COLOSSUS, 2, 40, 1.5);
+    const pool = game.assault.zombies;
+    const last = pool.count - 1;
+    const was = {
+      type: pool.type[last],
+      street: pool.street[last],
+      progress: pool.progress[last],
+      offset: pool.offset[last],
+      hp: pool.hp[last],
+      x: pool.x[last],
+      xPrev: pool.xPrev[last],
+    };
+
+    fellZombie(game, middle);
+    expect(pool.count).toBe(2);
+    expect(pool.type[middle]).toBe(was.type);
+    expect(pool.street[middle]).toBe(was.street);
+    expect(pool.progress[middle]).toBe(was.progress);
+    expect(pool.offset[middle]).toBe(was.offset);
+    expect(pool.hp[middle]).toBe(was.hp);
+    expect(pool.x[middle]).toBe(was.x);
+    expect(pool.xPrev[middle]).toBe(was.xPrev);
+  });
+
+  it('carries the aim with that move, and drops it when it is the one that fell', () => {
+    // spec 04-31: the aim holds an index into the pool, and it is the only thing
+    // that does.
+    const game = createGame(BALANCE, 9);
+    put(game, ZOMBIE.SHAMBLER, 0, 10, 0);
+    const middle = put(game, ZOMBIE.SHAMBLER, 0, 20, 0);
+    const last = put(game, ZOMBIE.SHAMBLER, 0, 30, 0);
+
+    game.assault.sword.aimAt = last;
+    fellZombie(game, middle);
+    expect(game.assault.sword.aimAt).toBe(middle);
+
+    game.assault.sword.aimAt = middle;
+    fellZombie(game, middle);
+    expect(game.assault.sword.aimAt).toBe(-1);
   });
 });

@@ -38,6 +38,14 @@ export const SKIN = '#f4c79a';
 export const STEEL = '#f2f6f9';
 
 /**
+ * The colour of each kind, in the order the rules name them — pale green, bright
+ * saturated green, blue-violet, gold. They are what a body wears, and what its
+ * shards and its thrown head fly in when it falls. (spec 03-2, 07-30,
+ * 07 "La palette de ce qui se joue")
+ */
+export const KIND_COLOURS: readonly string[] = ['#7ec24a', '#b6ff3d', '#9b6bff', '#ffd24a'];
+
+/**
  * The blot, in the darkest colour the city owns — the roof of the town hall. It
  * is read off the palette rather than chosen, and it is neither the pure black
  * of what is picked up nor a shade of anything. (spec 07-13, 07-23,
@@ -107,16 +115,54 @@ export const SWORD: BodyBox = {
 /** How wide the blot lies, in blocks, under a body at a scale of one. */
 const BLOT_SIDE = 0.8;
 
+/**
+ * The head, which is the one box a fatal blow throws — it is the last of the
+ * fourteen above. Where its middle sits is also how high a body's own middle
+ * stands: a body at a scale of one is exactly one storey, so half of it is one
+ * block up. (spec 03-19, 07-18)
+ */
+const HEAD = BODY[BODY.length - 1];
+export const BODY_MIDDLE = 1;
+
+/**
+ * How fast a thrown head leaves the body, in blocks a second, and how fast it
+ * turns, in radians a second, about an axis tilted off the upright so it reads as
+ * a tumble rather than a spin. Both are the drawing's own: chapter 3 settles that
+ * the head is thrown and tumbles, and no measurement of it. It never falls back —
+ * it is gone with the shards, and **nothing is left on the ground**, which is a
+ * rule and not an omission. (spec 03-19, 03-21)
+ */
+const HEAD_UP = 4;
+const HEAD_SPIN = 8;
+
 /** What the bodies hand to the scene: one node, and the calls they cost a frame. */
 export interface CharacterView {
   /** Everything they draw, under one node the scene takes in one go. */
   readonly node: THREE.Group;
   /** One entry per call of a frame. (spec 10 "Le budget de rendu") */
   readonly draws: readonly THREE.InstancedMesh[];
-  /** All the boxes of all the bodies, and the sword. (spec 07-21) */
+  /** All the boxes of all the bodies, the sword, and the heads in the air. (spec 07-21) */
   readonly bodies: THREE.InstancedMesh;
   /** All the blots, and there is one mesh of them for the whole game. (spec 07-22) */
   readonly blots: THREE.InstancedMesh;
+
+  /**
+   * The heads a fatal blow has thrown, in structures of arrays like every pool of
+   * this game. They ride in the same mesh as every other box, so they cost no
+   * call of their own, and they carry no blot: nothing but a character does.
+   * (spec 07-21, 07-24, 10-11)
+   */
+  readonly headX: Float32Array;
+  readonly headY: Float32Array;
+  readonly headZ: Float32Array;
+  /** One of the four kinds, which is what says the colour it flies in. (spec 07-30) */
+  readonly headKind: Uint8Array;
+  readonly headScale: Float32Array;
+  /** The frame timestamp it was thrown at, in ms, and how long until it is gone. */
+  readonly headBorn: Float64Array;
+  readonly headSpan: Float32Array;
+  /** Heads in the air are `[0, count)`. */
+  headCount: number;
 }
 
 // The one set of scratch objects of this file, made once at load: a frame writes
@@ -128,6 +174,8 @@ const SIZE = new THREE.Vector3();
 const SEAT = new THREE.Matrix4();
 const PAINT = new THREE.Color();
 const UPRIGHT = new THREE.Vector3(0, 1, 0);
+/** Tilted off the upright, so a thrown head goes over and over rather than about. */
+const TUMBLE = new THREE.Vector3(0.6, 0.5, 0.62).normalize();
 
 /**
  * Builds the two meshes, once, at load — and again after a lost context, because
@@ -139,7 +187,9 @@ export function buildCharacters(holds: number): CharacterView {
   const bodies = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshLambertMaterial(),
-    holds * BOXES + 1, // the sword of the player, and it is the only one
+    // The sword of the player, which is the only one, and one thrown head per
+    // body the game can hold: no blow ever fells more than there are bodies.
+    holds * BOXES + 1 + holds,
   );
   bodies.name = 'bodies';
   bodies.count = 0;
@@ -161,7 +211,91 @@ export function buildCharacters(holds: number): CharacterView {
   const node = new THREE.Group();
   node.add(bodies);
   node.add(blots);
-  return { node, draws: [bodies, blots], bodies, blots };
+  return {
+    node,
+    draws: [bodies, blots],
+    bodies,
+    blots,
+    headX: new Float32Array(holds),
+    headY: new Float32Array(holds),
+    headZ: new Float32Array(holds),
+    headKind: new Uint8Array(holds),
+    headScale: new Float32Array(holds),
+    headBorn: new Float64Array(holds),
+    headSpan: new Float32Array(holds),
+    headCount: 0,
+  };
+}
+
+/**
+ * Throws the head of a body that has just fallen, from the spot its feet stood
+ * at. It goes up, turning over, in the colour of its kind, and it is gone when
+ * its span runs out — it never lands, and nothing is left where it stood.
+ * (spec 03-19, 03-21, 07-30)
+ *
+ * The pool holds one head per body the game can carry, so it never fills; should
+ * it ever, the head is let go rather than anything growing. (spec 10-14)
+ */
+export function flingHead(
+  view: CharacterView,
+  x: number,
+  y: number,
+  z: number,
+  scale: number,
+  kind: number,
+  span: number,
+  now: number,
+): void {
+  const at = view.headCount;
+  if (at >= view.headKind.length) return;
+  view.headX[at] = x;
+  view.headY[at] = y + HEAD.y * scale;
+  view.headZ[at] = z;
+  view.headKind[at] = kind;
+  view.headScale[at] = scale;
+  view.headBorn[at] = now;
+  view.headSpan[at] = span;
+  view.headCount = at + 1;
+}
+
+/** Moves one head, whole, from one slot to another. */
+function carryHead(view: CharacterView, from: number, to: number): void {
+  view.headX[to] = view.headX[from];
+  view.headY[to] = view.headY[from];
+  view.headZ[to] = view.headZ[from];
+  view.headKind[to] = view.headKind[from];
+  view.headScale[to] = view.headScale[from];
+  view.headBorn[to] = view.headBorn[from];
+  view.headSpan[to] = view.headSpan[from];
+}
+
+/**
+ * Seats the heads still in the air and hands back how many boxes they took. They
+ * go into the same mesh as every other box, one after the player's, so the cast
+ * of the game still costs two calls whatever falls. (spec 07-21)
+ */
+function seatHeads(view: CharacterView, at: number, now: number): number {
+  let put = at;
+  let live = 0;
+
+  for (let i = 0; i < view.headCount; i += 1) {
+    const span = view.headSpan[i];
+    if (!(span > 0) || now - view.headBorn[i] >= span) continue; // gone, and nothing is left
+    if (live !== i) carryHead(view, i, live);
+
+    const seconds = (now - view.headBorn[live]) / 1000;
+    const scale = view.headScale[live];
+    TURN.setFromAxisAngle(TUMBLE, seconds * HEAD_SPIN);
+    SPOT.set(view.headX[live], view.headY[live] + HEAD_UP * seconds, view.headZ[live]);
+    SIZE.set(HEAD.w * scale, HEAD.h * scale, HEAD.d * scale);
+    view.bodies.setMatrixAt(put, SEAT.compose(SPOT, TURN, SIZE));
+    view.bodies.setColorAt(put, PAINT.set(KIND_COLOURS[view.headKind[live]]));
+    put += 1;
+    live += 1;
+  }
+
+  view.headCount = live;
+  return put;
 }
 
 /** Where a frame sits between the two last steps. (spec 10-24) */
@@ -249,6 +383,7 @@ export function placeCharacters(
   view: CharacterView,
   player: Readonly<Player>,
   alpha: number,
+  now: number,
 ): void {
   const put = seatBody(
     view,
@@ -266,7 +401,11 @@ export function placeCharacters(
     player.climbLeft <= 0,
   );
 
-  view.bodies.count = put;
+  // The heads a fatal blow threw, going up and turning over. They run on the
+  // frame and not on the step: they are erased in fractions of a second, like the
+  // shards they fall apart with. (spec 03-19, 10-22)
+  view.bodies.count = seatHeads(view, put, now);
+  // A head carries no blot: nothing but a character does. (spec 07-24)
   view.blots.count = 1;
   view.bodies.instanceMatrix.needsUpdate = true;
   view.blots.instanceMatrix.needsUpdate = true;

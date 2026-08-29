@@ -10,7 +10,18 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { Player } from '../game/state';
-import { BLOT, BODY, BOXES, SKIN, STEEL, TUNIC, buildCharacters, placeCharacters } from './characters';
+import {
+  BLOT,
+  BODY,
+  BOXES,
+  KIND_COLOURS,
+  SKIN,
+  STEEL,
+  TUNIC,
+  buildCharacters,
+  flingHead,
+  placeCharacters,
+} from './characters';
 
 /** A body standing still, so a test only has to move what it is about. */
 function playerAt(x: number, y: number, z: number, ang = 0): Player {
@@ -111,7 +122,7 @@ describe('the fourteen boxes', () => {
   it('all ride in one mesh, and the sword makes a fifteenth box of the player', () => {
     // spec 04-2: the fourteen boxes of a zombie, plus the sword he holds.
     const view = buildCharacters(1);
-    placeCharacters(view, playerAt(3, 0, 4), 1);
+    placeCharacters(view, playerAt(3, 0, 4), 1, 0);
     expect(view.bodies.count).toBe(BOXES + 1);
     expect(view.blots.count).toBe(1);
   });
@@ -121,7 +132,7 @@ describe('the fourteen boxes', () => {
     const view = buildCharacters(1);
     const climbing = playerAt(0, 0, 0);
     climbing.climbLeft = 0.4;
-    placeCharacters(view, climbing, 1);
+    placeCharacters(view, climbing, 1, 0);
     expect(view.bodies.count).toBe(BOXES);
   });
 
@@ -129,7 +140,7 @@ describe('the fourteen boxes', () => {
     // spec 07-21: one InstancedMesh with a colour per instance.
     // spec 04-3: a blue tunic and light steel, the only cold colours a body wears.
     const view = buildCharacters(1);
-    placeCharacters(view, playerAt(0, 0, 0), 1);
+    placeCharacters(view, playerAt(0, 0, 0), 1, 0);
     expect(view.bodies.instanceColor).not.toBe(null);
     expect(TUNIC).toBe('#1f6fd8');
     expect(SKIN).toBe('#f4c79a');
@@ -150,7 +161,7 @@ describe('the blot', () => {
     // the sun nor on the height.
     const view = buildCharacters(1);
     for (const ang of [0, 1, -2.5, Math.PI]) {
-      placeCharacters(view, playerAt(2, 4, -3, ang), 1);
+      placeCharacters(view, playerAt(2, 4, -3, ang), 1, 0);
       seatOf(view.blots, 0).decompose(SPOT, TURN, SIZE);
       expect(TURN.angleTo(new THREE.Quaternion())).toBeCloseTo(0, 6);
       expect(SPOT.x).toBeCloseTo(2, 6);
@@ -179,7 +190,7 @@ describe('a frame', () => {
     const player = playerAt(0, 0, 0);
     player.xPrev = 0;
     player.x = 4;
-    placeCharacters(view, player, 0.5);
+    placeCharacters(view, player, 0.5, 0);
     seatOf(view.blots, 0).decompose(SPOT, TURN, SIZE);
     expect(SPOT.x).toBeCloseTo(2, 6);
   });
@@ -189,7 +200,7 @@ describe('a frame', () => {
     const player = playerAt(0, 0, 0);
     player.angPrev = Math.PI - 0.1;
     player.ang = -Math.PI + 0.1;
-    placeCharacters(view, player, 0.5);
+    placeCharacters(view, player, 0.5, 0);
     seatOf(view.bodies, 0).decompose(SPOT, TURN, SIZE);
     // Halfway across the wrap is due south, not a half turn the other way.
     const half = new THREE.Quaternion().setFromAxisAngle(
@@ -203,13 +214,68 @@ describe('a frame', () => {
     // spec 10-14: the loop allocates nothing.
     const view = buildCharacters(61);
     const player = playerAt(0, 0, 0);
-    placeCharacters(view, player, 0);
+    placeCharacters(view, player, 0, 0);
     const seats = view.bodies.instanceMatrix;
     const painted = view.bodies.instanceColor;
     const laid = view.blots.instanceMatrix;
-    for (let i = 0; i < 1000; i += 1) placeCharacters(view, player, i / 1000);
+    for (let i = 0; i < 1000; i += 1) placeCharacters(view, player, i / 1000, 0);
     expect(view.bodies.instanceMatrix).toBe(seats);
     expect(view.bodies.instanceColor).toBe(painted);
     expect(view.blots.instanceMatrix).toBe(laid);
+  });
+});
+
+describe('the head a fatal blow throws', () => {
+  it('goes up turning, in the colour of its kind, and never lands', () => {
+    // spec 03-19: the head is thrown spinning. spec 03-21: nothing is left on the
+    // ground — so it is gone while it is still in the air. spec 07-30: it flies
+    // in the colour of its kind.
+    const view = buildCharacters(4);
+    placeCharacters(view, playerAt(0, 0, 0), 1, 0);
+    const bare = view.bodies.count;
+
+    flingHead(view, 3, 0, -2, 1, 2, 600, 1000);
+    placeCharacters(view, playerAt(0, 0, 0), 1, 1000);
+    expect(view.bodies.count).toBe(bare + 1);
+
+    seatOf(view.bodies, bare).decompose(SPOT, TURN, SIZE);
+    const head = BODY[BODY.length - 1];
+    expect(head.id).toBe('head');
+    expect(SPOT.x).toBeCloseTo(3, 6);
+    expect(SPOT.z).toBeCloseTo(-2, 6);
+    expect(SPOT.y).toBeCloseTo(head.y, 6);
+
+    const paint = new THREE.Color();
+    view.bodies.getColorAt(bare, paint);
+    expect(`#${paint.getHexString()}`).toBe(KIND_COLOURS[2]);
+
+    // Halfway through, it stands higher and has turned. (spec 03-19)
+    placeCharacters(view, playerAt(0, 0, 0), 1, 1300);
+    seatOf(view.bodies, bare).decompose(SPOT, TURN, SIZE);
+    expect(SPOT.y).toBeGreaterThan(head.y);
+    expect(TURN.angleTo(new THREE.Quaternion())).toBeGreaterThan(0.1);
+
+    // And gone at the end of its span, with nothing put down where it stood.
+    placeCharacters(view, playerAt(0, 0, 0), 1, 1601);
+    expect(view.bodies.count).toBe(bare);
+    expect(view.blots.count).toBe(1); // and a head never carried a blot (spec 07-24)
+  });
+
+  it('wears the scale of its kind, and still costs no call of its own', () => {
+    // spec 07-21: every box of every body rides in the one mesh.
+    const view = buildCharacters(4);
+    flingHead(view, 0, 0, 0, 2.2, 3, 600, 0);
+    placeCharacters(view, playerAt(0, 0, 0), 1, 0);
+    expect(view.draws.length).toBe(2);
+    seatOf(view.bodies, view.bodies.count - 1).decompose(SPOT, TURN, SIZE);
+    const head = BODY[BODY.length - 1];
+    expect(SIZE.x).toBeCloseTo(head.w * 2.2, 6);
+    expect(SPOT.y).toBeCloseTo(head.y * 2.2, 6);
+  });
+
+  it('names one colour per kind, cold or saturated and never the orange of the city', () => {
+    // spec 03-2, 07 "La palette de ce qui se joue": pale green, bright saturated
+    // green, blue-violet, gold.
+    expect(KIND_COLOURS).toEqual(['#7ec24a', '#b6ff3d', '#9b6bff', '#ffd24a']);
   });
 });
