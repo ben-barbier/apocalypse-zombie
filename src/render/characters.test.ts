@@ -4,16 +4,17 @@
  * and the fourteen boxes become red errors rather than good intentions.
  * (spec 10-45)
  *
- * The body it places is written out here by hand, because `src/render/` takes
- * types from the rules and never their functions. (spec 10-2)
+ * The body it places and the pool it walks are written out here by hand, because
+ * `src/render/` takes types from the rules and never their functions. (spec 10-2)
  */
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import type { Player } from '../game/state';
+import type { Player, ZombiePool } from '../game/state';
 import {
   BLOT,
   BODY,
   BOXES,
+  type CharacterView,
   KIND_COLOURS,
   SKIN,
   STEEL,
@@ -22,7 +23,7 @@ import {
   flingHead,
   placeCharacters,
 } from './characters';
-import { FIRE, WHITE } from './effects';
+import { FIRE, STRUCK, WHITE, buildEffects, lightUp } from './effects';
 
 /** A body standing still, so a test only has to move what it is about. */
 function playerAt(x: number, y: number, z: number, ang = 0): Player {
@@ -47,6 +48,63 @@ function playerAt(x: number, y: number, z: number, ang = 0): Player {
     collapseLeft: 0,
     strikeLeft: 0,
   };
+}
+
+/**
+ * A pool of zombies standing still, one entry a kind, written out here for the
+ * same reason the body above is. What the drawing reads of one is where it
+ * stands, where it stood, which way it faces and its kind; the rest of the
+ * columns are the rules' and are left at nothing. (spec 03-7, 10-2, 10-11)
+ */
+function poolOf(...kinds: number[]): ZombiePool {
+  const size = Math.max(kinds.length, 1);
+  const pool: ZombiePool = {
+    count: kinds.length,
+    x: new Float32Array(size),
+    z: new Float32Array(size),
+    ang: new Float32Array(size),
+    xPrev: new Float32Array(size),
+    zPrev: new Float32Array(size),
+    angPrev: new Float32Array(size),
+    type: new Uint8Array(size),
+    hp: new Float32Array(size),
+    street: new Uint8Array(size),
+    progress: new Float32Array(size),
+    offset: new Float32Array(size),
+    escort: new Uint8Array(size),
+    knockedFor: new Float32Array(size),
+    stuckFor: new Float32Array(size),
+    blowLeft: new Float32Array(size),
+    struckBy: new Uint32Array(size),
+  };
+  for (let i = 0; i < kinds.length; i += 1) pool.type[i] = kinds[i];
+  return pool;
+}
+
+/**
+ * The scale of each of the four kinds, in the order chapter 3 names them, in
+ * hard figures off its table: a shambler at 1, a sprinter at 0,8, a bruiser at
+ * 1,4, a colossus at 2,2. The drawing is handed them, so a test hands them too.
+ * (spec 03-2, 03 "Les quatre types")
+ */
+const SCALES = [1, 0.8, 1.4, 2.2];
+
+/** An empty city, for the tests that are about the one body the child drives. */
+const NOBODY = poolOf();
+
+/** Nothing in it is ever lit, so a body wears the colour of its kind. (spec 07-36) */
+const UNLIT = buildEffects(8, 1);
+
+/** The one call, for a test that has no zombie of its own to walk in. */
+function place(
+  view: CharacterView,
+  player: Player,
+  alpha: number,
+  now: number,
+  white = false,
+  carried = 0,
+): void {
+  placeCharacters(view, UNLIT, player, NOBODY, SCALES, alpha, now, white, carried);
 }
 
 const SEAT = new THREE.Matrix4();
@@ -123,7 +181,7 @@ describe('the fourteen boxes', () => {
   it('all ride in one mesh, and the sword makes a fifteenth box of the player', () => {
     // spec 04-2: the fourteen boxes of a zombie, plus the sword he holds.
     const view = buildCharacters(1);
-    placeCharacters(view, playerAt(3, 0, 4), 1, 0);
+    place(view, playerAt(3, 0, 4), 1, 0);
     expect(view.bodies.count).toBe(BOXES + 1);
     expect(view.blots.count).toBe(1);
   });
@@ -133,7 +191,7 @@ describe('the fourteen boxes', () => {
     const view = buildCharacters(1);
     const climbing = playerAt(0, 0, 0);
     climbing.climbLeft = 0.4;
-    placeCharacters(view, climbing, 1, 0);
+    place(view, climbing, 1, 0);
     expect(view.bodies.count).toBe(BOXES);
   });
 
@@ -141,7 +199,7 @@ describe('the fourteen boxes', () => {
     // spec 07-21: one InstancedMesh with a colour per instance.
     // spec 04-3: a blue tunic and light steel, the only cold colours a body wears.
     const view = buildCharacters(1);
-    placeCharacters(view, playerAt(0, 0, 0), 1, 0);
+    place(view, playerAt(0, 0, 0), 1, 0);
     expect(view.bodies.instanceColor).not.toBe(null);
     expect(TUNIC).toBe('#1f6fd8');
     expect(SKIN).toBe('#f4c79a');
@@ -160,7 +218,7 @@ describe('the fourteen boxes', () => {
     // silhouette, sword included — a garment changing colour would read as a
     // second character, and the two states are told apart by the rhythm alone.
     const view = buildCharacters(1);
-    placeCharacters(view, playerAt(0, 0, 0), 1, 0, true);
+    place(view, playerAt(0, 0, 0), 1, 0, true);
     const worn = new Set<string>();
     const paint = new THREE.Color();
     for (let i = 0; i < view.bodies.count; i += 1) {
@@ -178,7 +236,7 @@ describe('the blot', () => {
     // the sun nor on the height.
     const view = buildCharacters(1);
     for (const ang of [0, 1, -2.5, Math.PI]) {
-      placeCharacters(view, playerAt(2, 4, -3, ang), 1, 0);
+      place(view, playerAt(2, 4, -3, ang), 1, 0);
       seatOf(view.blots, 0).decompose(SPOT, TURN, SIZE);
       expect(TURN.angleTo(new THREE.Quaternion())).toBeCloseTo(0, 6);
       expect(SPOT.x).toBeCloseTo(2, 6);
@@ -207,7 +265,7 @@ describe('a frame', () => {
     const player = playerAt(0, 0, 0);
     player.xPrev = 0;
     player.x = 4;
-    placeCharacters(view, player, 0.5, 0);
+    place(view, player, 0.5, 0);
     seatOf(view.blots, 0).decompose(SPOT, TURN, SIZE);
     expect(SPOT.x).toBeCloseTo(2, 6);
   });
@@ -217,7 +275,7 @@ describe('a frame', () => {
     const player = playerAt(0, 0, 0);
     player.angPrev = Math.PI - 0.1;
     player.ang = -Math.PI + 0.1;
-    placeCharacters(view, player, 0.5, 0);
+    place(view, player, 0.5, 0);
     seatOf(view.bodies, 0).decompose(SPOT, TURN, SIZE);
     // Halfway across the wrap is due south, not a half turn the other way.
     const half = new THREE.Quaternion().setFromAxisAngle(
@@ -231,11 +289,11 @@ describe('a frame', () => {
     // spec 10-14: the loop allocates nothing.
     const view = buildCharacters(61);
     const player = playerAt(0, 0, 0);
-    placeCharacters(view, player, 0, 0);
+    place(view, player, 0, 0);
     const seats = view.bodies.instanceMatrix;
     const painted = view.bodies.instanceColor;
     const laid = view.blots.instanceMatrix;
-    for (let i = 0; i < 1000; i += 1) placeCharacters(view, player, i / 1000, 0);
+    for (let i = 0; i < 1000; i += 1) place(view, player, i / 1000, 0);
     expect(view.bodies.instanceMatrix).toBe(seats);
     expect(view.bodies.instanceColor).toBe(painted);
     expect(view.blots.instanceMatrix).toBe(laid);
@@ -248,11 +306,11 @@ describe('the head a fatal blow throws', () => {
     // ground — so it is gone while it is still in the air. spec 07-30: it flies
     // in the colour of its kind.
     const view = buildCharacters(4);
-    placeCharacters(view, playerAt(0, 0, 0), 1, 0);
+    place(view, playerAt(0, 0, 0), 1, 0);
     const bare = view.bodies.count;
 
     flingHead(view, 3, 0, -2, 1, 2, 600, 1000);
-    placeCharacters(view, playerAt(0, 0, 0), 1, 1000);
+    place(view, playerAt(0, 0, 0), 1, 1000);
     expect(view.bodies.count).toBe(bare + 1);
 
     seatOf(view.bodies, bare).decompose(SPOT, TURN, SIZE);
@@ -267,13 +325,13 @@ describe('the head a fatal blow throws', () => {
     expect(`#${paint.getHexString()}`).toBe(KIND_COLOURS[2]);
 
     // Halfway through, it stands higher and has turned. (spec 03-19)
-    placeCharacters(view, playerAt(0, 0, 0), 1, 1300);
+    place(view, playerAt(0, 0, 0), 1, 1300);
     seatOf(view.bodies, bare).decompose(SPOT, TURN, SIZE);
     expect(SPOT.y).toBeGreaterThan(head.y);
     expect(TURN.angleTo(new THREE.Quaternion())).toBeGreaterThan(0.1);
 
     // And gone at the end of its span, with nothing put down where it stood.
-    placeCharacters(view, playerAt(0, 0, 0), 1, 1601);
+    place(view, playerAt(0, 0, 0), 1, 1601);
     expect(view.bodies.count).toBe(bare);
     expect(view.blots.count).toBe(1); // and a head never carried a blot (spec 07-24)
   });
@@ -282,7 +340,7 @@ describe('the head a fatal blow throws', () => {
     // spec 07-21: every box of every body rides in the one mesh.
     const view = buildCharacters(4);
     flingHead(view, 0, 0, 0, 2.2, 3, 600, 0);
-    placeCharacters(view, playerAt(0, 0, 0), 1, 0);
+    place(view, playerAt(0, 0, 0), 1, 0);
     expect(view.draws.length).toBe(2);
     seatOf(view.bodies, view.bodies.count - 1).decompose(SPOT, TURN, SIZE);
     const head = BODY[BODY.length - 1];
@@ -301,7 +359,7 @@ describe('the armful over his head', () => {
   /** How many boxes he takes carrying that many firebombs. */
   function boxes(carried: number): number {
     const view = buildCharacters(1, 3);
-    placeCharacters(view, playerAt(0, 0, 0), 1, 10_000, false, carried);
+    place(view, playerAt(0, 0, 0), 1, 10_000, false, carried);
     return view.bodies.count;
   }
 
@@ -316,7 +374,7 @@ describe('the armful over his head', () => {
     // spec 04-47, 08-4: over his head, in the world, and never in the hud —
     // there is no counter of firebombs anywhere.
     const view = buildCharacters(1, 3);
-    placeCharacters(view, playerAt(0, 0, 0), 1, 10_000, false, 3);
+    place(view, playerAt(0, 0, 0), 1, 10_000, false, 3);
 
     const head = BODY[BODY.length - 1];
     const top = head.y + head.h / 2;
@@ -330,7 +388,7 @@ describe('the armful over his head', () => {
     // spec 07-39: a firebomb is what the flame is made of, and the fire is
     // white-blue throughout.
     const view = buildCharacters(1, 3);
-    placeCharacters(view, playerAt(0, 0, 0), 1, 10_000, false, 3);
+    place(view, playerAt(0, 0, 0), 1, 10_000, false, 3);
 
     const paint = new THREE.Color();
     let fired = 0;
@@ -345,12 +403,145 @@ describe('the armful over his head', () => {
     // spec 04-48: a carried bomb never falls, and a contact says something
     // about him and nothing about what he carries. (spec 07-41)
     const view = buildCharacters(1, 3);
-    placeCharacters(view, playerAt(0, 0, 0), 1, 10_000, true, 3);
+    place(view, playerAt(0, 0, 0), 1, 10_000, true, 3);
 
     const paint = new THREE.Color();
     view.bodies.getColorAt(0, paint);
     expect(paint.getHex()).toBe(new THREE.Color(WHITE).getHex()); // he is white
     view.bodies.getColorAt(BOXES + 1, paint);
     expect(paint.getHex()).toBe(new THREE.Color(FIRE).getHex()); // they are not
+  });
+});
+
+describe('the zombies', () => {
+  /** A pool of that many shamblers, standing where the drawing puts them. */
+  function walkIn(many: number): ZombiePool {
+    const kinds: number[] = [];
+    for (let i = 0; i < many; i += 1) kinds.push(0);
+    return poolOf(...kinds);
+  }
+
+  it('are all seated, and the seats taken grow with the pool', () => {
+    // spec 07-18, 07-19: every zombie is the same fourteen boxes as him.
+    // spec 07-21: and every one of those boxes rides in the one mesh.
+    //
+    // This is the reading the whole thing turns on: a pool that fills while the
+    // count of the mesh stands still is a city with nothing walking down it.
+    const view = buildCharacters(61);
+    const seats = (many: number): number => {
+      placeCharacters(view, UNLIT, playerAt(0, 0, 0), walkIn(many), SCALES, 1, 0);
+      return view.bodies.count;
+    };
+    const him = BOXES + 1; // his fourteen, and his sword
+    expect(seats(0)).toBe(him);
+    expect(seats(1)).toBe(him + BOXES);
+    expect(seats(4)).toBe(him + 4 * BOXES);
+    expect(seats(60)).toBe(him + 60 * BOXES);
+  });
+
+  it('lay one blot each, his and theirs, and still in the one mesh', () => {
+    // spec 07-22, 07-24: one blot a character, all of them in one call, and
+    // nothing but a character carries one.
+    const view = buildCharacters(61);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), walkIn(0), SCALES, 1, 0);
+    expect(view.blots.count).toBe(1);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), poolOf(0, 1, 2, 3), SCALES, 1, 0);
+    expect(view.blots.count).toBe(5);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), walkIn(60), SCALES, 1, 0);
+    expect(view.blots.count).toBe(61);
+  });
+
+  it('cost no call at all, sixty of them no more than none', () => {
+    // spec 07-21, 07-22, 10 "Le budget de rendu": the whole cast is two calls,
+    // whatever it holds.
+    const view = buildCharacters(61);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), walkIn(0), SCALES, 1, 0);
+    expect(view.draws.length).toBe(2);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), walkIn(60), SCALES, 1, 0);
+    expect(view.draws.length).toBe(2);
+  });
+
+  it('wear the colour and the scale of their kind, and never a shape of their own', () => {
+    // spec 03-2, 07-19: colour, scale, pace and behaviour tell one kind from
+    // another — never the silhouette.
+    // spec 03 "Les quatre types": 1 for a shambler, 0,8 a sprinter, 1,4 a
+    // bruiser, 2,2 a colossus.
+    // spec 07 "La palette de ce qui se joue": pale green, bright saturated
+    // green, blue-violet, gold.
+    const view = buildCharacters(5);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), poolOf(0, 1, 2, 3), SCALES, 1, 0);
+    expect(SCALES).toEqual([1, 0.8, 1.4, 2.2]);
+
+    const torso = BODY.findIndex((box) => box.id === 'torso');
+    const paint = new THREE.Color();
+    for (let kind = 0; kind < 4; kind += 1) {
+      // The same box of the same body, whichever kind stands there.
+      const at = BOXES + 1 + kind * BOXES + torso;
+      view.bodies.getColorAt(at, paint);
+      expect(`#${paint.getHexString()}`).toBe(KIND_COLOURS[kind]);
+      seatOf(view.bodies, at).decompose(SPOT, TURN, SIZE);
+      expect(SIZE.x).toBeCloseTo(BODY[torso].w * SCALES[kind], 6);
+      expect(SIZE.y).toBeCloseTo(BODY[torso].h * SCALES[kind], 6);
+    }
+  });
+
+  it('stand between the two last steps, like everything else a frame draws', () => {
+    // spec 10-24: a frame interpolates between the two last steps.
+    const view = buildCharacters(2);
+    const pool = poolOf(0);
+    pool.xPrev[0] = 0;
+    pool.x[0] = 4;
+    pool.zPrev[0] = 10;
+    pool.z[0] = 10;
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), pool, SCALES, 0.25, 0);
+    seatOf(view.blots, 1).decompose(SPOT, TURN, SIZE);
+    expect(SPOT.x).toBeCloseTo(1, 6);
+    expect(SPOT.z).toBeCloseTo(10, 6);
+  });
+
+  it('go white all over for the eighty milliseconds after a blow, and only then', () => {
+    // spec 07-36: whatever takes a blow lights white for 80 ms — and the one
+    // beside it, which took none, keeps the colour of its kind.
+    const view = buildCharacters(3);
+    const effects = buildEffects(8, 1);
+    const pool = poolOf(0, 0);
+    const paint = new THREE.Color();
+    const worn = (which: number): string => {
+      view.bodies.getColorAt(BOXES + 1 + which * BOXES, paint);
+      return `#${paint.getHexString()}`;
+    };
+
+    lightUp(effects, STRUCK.ZOMBIE, 1, 1000);
+    placeCharacters(view, effects, playerAt(0, 0, 0), pool, SCALES, 1, 1000);
+    expect(worn(0)).toBe(KIND_COLOURS[0]);
+    expect(worn(1)).toBe(WHITE);
+
+    // And out again at eighty milliseconds, with nothing left of it. (spec 07-36)
+    placeCharacters(view, effects, playerAt(0, 0, 0), pool, SCALES, 1, 1080);
+    expect(worn(1)).toBe(KIND_COLOURS[0]);
+  });
+
+  it('replace nothing, however many walk in and fall out', () => {
+    // spec 10-14: nothing is allocated in the loop.
+    const view = buildCharacters(61);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), walkIn(0), SCALES, 1, 0);
+    const seats = view.bodies.instanceMatrix;
+    const painted = view.bodies.instanceColor;
+    const laid = view.blots.instanceMatrix;
+    for (let many = 0; many <= 60; many += 1) {
+      placeCharacters(view, UNLIT, playerAt(0, 0, 0), walkIn(many), SCALES, 1, many);
+    }
+    expect(view.bodies.instanceMatrix).toBe(seats);
+    expect(view.bodies.instanceColor).toBe(painted);
+    expect(view.blots.instanceMatrix).toBe(laid);
+  });
+
+  it('leave one unseated rather than grow, should a pool ever outrun the meshes', () => {
+    // spec 10-13, 10-14: the meshes are sized for the whole pool at load, so
+    // this never happens in a game; what it must never do is allocate.
+    const view = buildCharacters(3);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0), walkIn(9), SCALES, 1, 0);
+    expect(view.bodies.count).toBe(BOXES + 1 + 2 * BOXES);
+    expect(view.blots.count).toBe(3);
   });
 });

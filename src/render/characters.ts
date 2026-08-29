@@ -26,12 +26,18 @@
  * it is what stands in for one, and all the bodies of the game together cost a
  * single call for it. Nothing but a character carries one. (spec 07-22 to 07-24)
  *
+ * The **whole cast** goes through the one call below: the one body the child
+ * drives, and every zombie standing in the city. They are the same fourteen
+ * boxes and the same blot, told apart by the colour and the scale of their kind
+ * and by nothing else — so a zombie is not a second drawing, it is the same one
+ * seated again. (spec 03-2, 07-18, 07-19)
+ *
  * So the whole cast of the game is **two calls**, whatever it holds.
  * (spec 10 "Le budget de rendu")
  */
 import * as THREE from 'three';
-import type { Player } from '../game/state';
-import { FIRE, WHITE } from './effects';
+import type { Player, ZombiePool } from '../game/state';
+import { type Effects, FIRE, STRUCK, WHITE, isLit } from './effects';
 
 /** The fourteen, and there will never be a fifteenth. (spec 07-18) */
 export const BOXES = 14;
@@ -158,6 +164,8 @@ const HEAD_SPIN = 8;
 export interface CharacterView {
   /** Everything they draw, under one node the scene takes in one go. */
   readonly node: THREE.Group;
+  /** How many bodies the two meshes were sized for. (spec 10-13) */
+  readonly holds: number;
   /** One entry per call of a frame. (spec 10 "Le budget de rendu") */
   readonly draws: readonly THREE.InstancedMesh[];
   /** All the boxes of all the bodies, the sword, and the heads in the air. (spec 07-21) */
@@ -233,6 +241,7 @@ export function buildCharacters(holds: number, carries = 0): CharacterView {
   node.add(blots);
   return {
     node,
+    holds,
     draws: [bodies, blots],
     bodies,
     blots,
@@ -435,9 +444,72 @@ function seatBody(
 }
 
 /**
- * Places every body of the game for this frame, interpolating between the two
- * last steps. Nothing is allocated here, and the two counts are what say how
- * much of each mesh is drawn. (spec 10-14, 10-24)
+ * Seats every zombie standing in the city, and hands back how many boxes they
+ * took. They are the same fourteen boxes as the one body the child drives and
+ * they lie in the same mesh, one after him: a zombie costs no call at all, and
+ * sixty of them cost no more than one. (spec 03-2, 07-19, 07-21)
+ *
+ * What tells one kind from another is the colour of its line and the scale of
+ * its line, and nothing else — never the silhouette. The blot of each goes into
+ * the one mesh of blots, after his. (spec 03-2, 07-22)
+ *
+ * One that has **just taken a blow** is painted white all over for the 80 ms
+ * chapter 7 grants it: `isLit` is what says so, off the one buffer of events the
+ * frame has already been read, so nothing here compares two states.
+ * (spec 07-36, 10-19)
+ *
+ * They stand on the floor of their street, which is the ground: a zombie holds
+ * an advance along a rail and an offset across it, and no height at all.
+ * (spec 03-7, 03-9)
+ */
+function seatZombies(
+  view: CharacterView,
+  effects: Effects,
+  at: number,
+  zombies: Readonly<ZombiePool>,
+  scales: readonly number[],
+  walking: number,
+  alpha: number,
+  now: number,
+): number {
+  let put = at;
+  for (let i = 0; i < walking; i += 1) {
+    const kind = zombies.type[i];
+    // White all over while it is lit, exactly as he goes white all over: the
+    // whole silhouette flashes, and no box of it keeps a colour of its own.
+    // (spec 07-36, 07-41)
+    const worn = isLit(effects, STRUCK.ZOMBIE, i, now) ? WHITE : KIND_COLOURS[kind];
+    put = seatBody(
+      view,
+      put,
+      // His blot is the first one laid; theirs follow it. (spec 07-22)
+      i + 1,
+      between(zombies.xPrev[i], zombies.x[i], alpha),
+      0,
+      between(zombies.zPrev[i], zombies.z[i], alpha),
+      betweenTurns(zombies.angPrev[i], zombies.ang[i], alpha),
+      scales[kind],
+      worn,
+      worn,
+      worn,
+      // The sword is his and his alone, and it is not one of the fourteen.
+      // (spec 04-2)
+      false,
+    );
+  }
+  return put;
+}
+
+/**
+ * Places every body of the game for this frame — the one the child drives and
+ * every zombie standing — interpolating between the two last steps. Nothing is
+ * allocated here, and the two counts are what say how much of each mesh is
+ * drawn. (spec 10-14, 10-24)
+ *
+ * `scales` is the scale each of the four kinds stands at, in the order chapter 3
+ * names them. It is handed over by whoever names the balance, like every other
+ * constant of the drawing, because it is a figure of the rules and not of the
+ * picture. (spec 03-2, 03 "Les quatre types", 10-15)
  *
  * `white` is the blink of a body that has just been walked into: every box of
  * him goes white at once, sword included, so what reads is the whole silhouette
@@ -446,7 +518,10 @@ function seatBody(
  */
 export function placeCharacters(
   view: CharacterView,
+  effects: Effects,
   player: Readonly<Player>,
+  zombies: Readonly<ZombiePool>,
+  scales: readonly number[],
   alpha: number,
   now: number,
   white = false,
@@ -476,12 +551,19 @@ export function placeCharacters(
   // What he carries, over his head and nowhere else. (spec 04-47)
   put = seatArmful(view, put, x, y, z, ang, carried);
 
+  // And every zombie standing, in the same two meshes. The meshes were sized for
+  // the whole pool, so the cap never bites; should it ever, a body is left
+  // unseated rather than anything growing. (spec 10-13, 10-14)
+  const walking = Math.min(zombies.count, view.holds - 1);
+  put = seatZombies(view, effects, put, zombies, scales, walking, alpha, now);
+
   // The heads a fatal blow threw, going up and turning over. They run on the
   // frame and not on the step: they are erased in fractions of a second, like the
   // shards they fall apart with. (spec 03-19, 10-22)
   view.bodies.count = seatHeads(view, put, now);
-  // A head carries no blot: nothing but a character does. (spec 07-24)
-  view.blots.count = 1;
+  // One blot a character, his and theirs. A head carries none: nothing but a
+  // character does. (spec 07-22, 07-24)
+  view.blots.count = 1 + walking;
   view.bodies.instanceMatrix.needsUpdate = true;
   view.blots.instanceMatrix.needsUpdate = true;
   const painted = view.bodies.instanceColor;
