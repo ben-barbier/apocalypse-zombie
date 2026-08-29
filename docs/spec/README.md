@@ -26,7 +26,7 @@ Le vocabulaire, lui, est dans [`CONTEXT.md`](../../CONTEXT.md) : **le glossaire 
 | 8 | [`08-le-bandeau-et-le-sas.md`](08-le-bandeau-et-le-sas.md) | les cinq affichages, le refus de la carte, le Sas, l'interruption, l'Instantané, le stockage | [#15](https://github.com/ben-barbier/apocalypse-zombie/issues/15), [#17](https://github.com/ben-barbier/apocalypse-zombie/issues/17), [#42](https://github.com/ben-barbier/apocalypse-zombie/issues/42) |
 | 9 | [`09-les-bruitages.md`](09-les-bruitages.md) | les dix-sept bruitages, le pouls, et leurs paramètres de synthèse | [#30](https://github.com/ben-barbier/apocalypse-zombie/issues/30), [#22](https://github.com/ben-barbier/apocalypse-zombie/issues/22) |
 | 10 | [`10-l-architecture.md`](10-l-architecture.md) | la stack, les modules, l'objet `Game`, le tampon d'événements, le pas, les tests, la garde | [#13](https://github.com/ben-barbier/apocalypse-zombie/issues/13), [ADR-0001](../adr/0001-logique-de-jeu-sans-moteur-3d.md), [ADR-0002](../adr/0002-code-en-anglais-conception-en-francais.md) |
-| 11 | `11-le-banc.md` | les trois profils, les huit indicateurs, les seuils, les balayages, `reference.json` | [#41](https://github.com/ben-barbier/apocalypse-zombie/issues/41) |
+| 11 | [`11-le-banc.md`](11-le-banc.md) | les trois profils, les huit indicateurs, les seuils, les balayages, `reference.json` | [#41](https://github.com/ben-barbier/apocalypse-zombie/issues/41) |
 
 ## Les interdits
 
