@@ -25,6 +25,13 @@ const PURE = ['src/game', 'bench'];
 /** Where a snapshot may touch a disk, and nowhere else. (spec 10-7) */
 const STORAGE_FILE = 'src/app/storage.ts';
 
+/**
+ * Where a run is composed. Spec 10-15 forbids a module of rules to import the
+ * balance and writes the call that hands it over — `createGame(BALANCE)` — so
+ * that call has one home, and this is the list of the homes it may have.
+ */
+const ROOTS = ['src/app/main.ts'];
+
 const STORAGE_APIS = [
   'localStorage',
   'sessionStorage',
@@ -294,10 +301,11 @@ describe('the boundary', () => {
     expect(broken).toEqual([]);
   });
 
-  it('injects the balance instead of importing it', () => {
+  it('injects the balance instead of importing it, outside the roots of a run', () => {
     const broken: string[] = [];
     for (const source of SOURCES) {
       if (isTest(source.path) || source.path === 'src/game/balance.ts') continue;
+      if (ROOTS.includes(source.path)) continue;
       for (const imported of importsOf(source.text)) {
         const reachesBalance = /(^|\/)balance$/.test(imported.from);
         if (reachesBalance && !isTypeOnly(imported.statement)) {

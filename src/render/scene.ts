@@ -1,0 +1,96 @@
+/**
+ * The one scene, under the one hour of the game. It holds the light and the
+ * haze, and nothing else: the city, the bodies, the cannons and the effects
+ * arrive with their own chapters, each into this same scene.
+ *
+ * The whole lighting of the game is two objects — one directional sun, fixed at
+ * 60° above the horizon, and one violet ambient that fills the faces turned away
+ * from it. Nothing is ever cast by either, and nothing lights its neighbourhood:
+ * that is the largest performance gain of the project, and it is bought by a
+ * decision of art direction, not by a setting. (spec 07-2, 07-3, 07-4)
+ *
+ * The haze is orange, it thickens with the distance, and it is structural: it is
+ * what excuses the game from detailing what is not played. It stops exactly
+ * where the street stops, so the far end of a street — where the zombies walk in
+ * from — stays plain to read. (spec 07-6, 07-7)
+ */
+import * as THREE from 'three';
+
+/** What the haze needs of the city to know how far it must let one see. */
+export interface CityExtent {
+  /** The apothem of the hexagonal square, in blocks. (spec 02-6) */
+  readonly apothem: number;
+  /** How far the outskirts run past the end of a street, in blocks. (spec 02) */
+  readonly outskirts: number;
+  readonly street: {
+    /** Length clear of the square, in blocks. (spec 02-12) */
+    readonly length: number;
+  };
+}
+
+/** How high the sun stands, in degrees, and it never moves. (spec 07-2) */
+export const SUN_RISE = 60;
+
+/**
+ * Which way it comes from, in degrees off the first street. The spec fixes the
+ * height and says nothing of the bearing: this one is chosen so the three
+ * branches of the star are not lit alike.
+ */
+export const SUN_TURN = 45;
+
+/**
+ * The two strengths, read off the value rule rather than off a table: the top
+ * face lands on a neutral 1, the sides fall back to the violet alone, and
+ * nothing blows out — 0,75 × sin 60° + 0,35 = 1. (spec 07-5)
+ */
+export const SUN_STRENGTH = 0.75;
+export const AMBIENT_STRENGTH = 0.35;
+
+/**
+ * The three colours of the hour. Chapter 7 fixes the palette of the city and of
+ * what is played, and names these three without a code: a near-white sun so a
+ * tile keeps its own colour on the top face, the violet of the ambient, and the
+ * orange of the haze — lighter and less saturated than the highest roof, so the
+ * ramp of the roofs still reads against it. (spec 07-2, 07-6, 07-54)
+ */
+export const SUN_COLOUR = '#fff2dd';
+export const AMBIENT_COLOUR = '#6d5ac4';
+export const HAZE_COLOUR = '#d9955c';
+
+/** Where the haze starts: the far end of a street, which stays plain. (spec 07-6) */
+export function hazeNear(city: CityExtent): number {
+  return city.apothem + city.street.length;
+}
+
+/** Where it is total: the edge of the city, past the frontages. (spec 07-6) */
+export function hazeFar(city: CityExtent): number {
+  return hazeNear(city) + city.outskirts;
+}
+
+/**
+ * Builds the one scene. It is called again after a lost context, because the
+ * scene is a projection of the state and nothing of the game lives only on the
+ * GPU. (spec 10-37)
+ */
+export function createScene(city: CityExtent): THREE.Scene {
+  const scene = new THREE.Scene();
+  const haze = new THREE.Color(HAZE_COLOUR);
+
+  // The sky is the haze itself, so what the haze eats dissolves into it rather
+  // than into a second colour nobody chose. (spec 07-6)
+  scene.background = haze;
+  scene.fog = new THREE.Fog(haze, hazeNear(city), hazeFar(city));
+
+  const sun = new THREE.DirectionalLight(new THREE.Color(SUN_COLOUR), SUN_STRENGTH);
+  const rise = (SUN_RISE * Math.PI) / 180;
+  const turn = (SUN_TURN * Math.PI) / 180;
+  sun.position.set(Math.cos(rise) * Math.sin(turn), Math.sin(rise), Math.cos(rise) * Math.cos(turn));
+  // A direction of light, and nothing more: it never casts. (spec 07-3)
+  sun.castShadow = false;
+  scene.add(sun);
+
+  // The violet that fills what the sun does not reach. (spec 07-2)
+  scene.add(new THREE.AmbientLight(new THREE.Color(AMBIENT_COLOUR), AMBIENT_STRENGTH));
+
+  return scene;
+}
