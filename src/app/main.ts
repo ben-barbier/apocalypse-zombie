@@ -311,8 +311,14 @@ function fell(events: Readonly<EventBuffer>, at: number, now: number): void {
 const loop = createLoop(game, input, {
   // Once per step, never once a frame: a rising edge belongs to one step alone.
   // (spec 10-31)
+  // The heading the camera watches is what a stick is turned onto, and this is
+  // the one file that holds the pad and the camera at once. It is the reading
+  // the last frame left, which is a frame of lag on a view that swings at 2,4
+  // radians a second — a fortieth of a turn — and it is the only direction the
+  // picture ever runs in: nothing here aims the camera, and the entries the
+  // rules are handed carry no picture at all. (spec 04-16, 04-19, 10-29, 10-30)
   sample: () => {
-    sampleInput(input, pad, keys);
+    sampleInput(input, pad, keys, camera.ang);
   },
   // The one reading of the buffer, before anything is drawn. The audio and the
   // effects join it here, with their chapters. (spec 10-18, 10-19)

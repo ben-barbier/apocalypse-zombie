@@ -653,10 +653,11 @@ function createPlayer(): Player {
  * grid of 46 656 cells neither reads back nor compares, and goes stale at the
  * first retouch. (spec 02 "Pourquoi le plan est une règle et non une image")
  *
- * All of it comes down to a grid of heights, one cell per block, which says at
- * what height one walks and whether one has the right to be there: it is the one
- * collision structure of the game. A roof is therefore never a case of its own,
- * only a taller cell. (spec 04-8, 04-9)
+ * All of it comes down to a grid of heights, one cell per block, which says how
+ * high what stands in it goes and whether one has the right to be there: it is
+ * the one collision structure of the game. A roof is therefore never a case of
+ * its own, only a taller cell — and the town hall and the shed are cells taller
+ * still, with the right withheld. (spec 04-8, 04-9, 02-9)
  *
  * Chapter 10 lists no module for it, and its list is closed, so the plan is
  * engendered here beside the one object it belongs to.
@@ -732,7 +733,12 @@ export interface GatewayPool {
 export interface City {
   /** The side of the grid, in cells. (spec 02-1) */
   readonly side: number;
-  /** The height one walks at, in blocks, cell by cell. (spec 04-8) */
+  /**
+   * How high what stands in a cell goes, in blocks: the floor one walks at
+   * wherever one may be, and the top of the town hall or of the shed where one
+   * may not — the two builds nobody ever climbs, which a camera has to see all
+   * the same. (spec 02-9, 04-8, 04-18)
+   */
   readonly height: Uint8Array;
   /** 1 where one has the right to be, 0 everywhere else. (spec 02-4, 04-8) */
   readonly walkable: Uint8Array;
@@ -852,9 +858,13 @@ export function walkableAt(city: City, x: number, z: number): boolean {
 }
 
 /**
- * The height one walks at, in blocks: nought on the floor of a street or of the
- * square, the height of the building on a roof. Whether one has the right to be
- * there is the other half of a cell, and `walkableAt` answers it. (spec 04-8, 04-9)
+ * How high what stands in a cell goes, in blocks: nought on the floor of a
+ * street or of the square, the height of the building on a roof, and seven or
+ * three inside the town hall and the shed — which one never walks on, and which
+ * a line of sight has to stop against all the same. Whether one has the right to
+ * be there is the other half of a cell, and `walkableAt` answers it; the two are
+ * asked together wherever a body moves, and the height alone wherever a view is
+ * traced. (spec 02-9, 04-8, 04-9, 04-18)
  */
 export function heightAt(city: City, x: number, z: number): number {
   const at = cellAt(city, x, z);
@@ -1074,6 +1084,17 @@ export function createCity(balance: CityBalance): City {
     if (owner >= 0 && haloed(x, z)) buildings.haloed[owner] = 1;
   }
 
+  /**
+   * What stands in a cell nobody may be in: its height alone, and the right to
+   * be there withheld. It is the second half of a cell filled in and never a
+   * second telling — the grid says what a cell holds and whether one may stand
+   * on it, and here it holds seven blocks of town hall or three of shed and one
+   * may not. (spec 02-9, 04-8)
+   */
+  function stands(at: number, high: number): void {
+    height[at] = high;
+  }
+
   for (let i = 0; i < side; i += 1) {
     for (let j = 0; j < side; j += 1) {
       const x = i + 0.5 - half;
@@ -1104,8 +1125,16 @@ export function createCity(balance: CityBalance): City {
       if (hexAt(x, z) < balance.apothem) {
         // What is left of the hexagon is the floor of the square, less the town
         // hall and the shed of the base, whose roofs are never climbed and on
-        // which nothing is ever put down. (spec 02-6, 02-9)
-        if (Math.abs(x) < townHall && Math.abs(z) < townHall) continue;
+        // which nothing is ever put down. Neither is left blank, though: a cell
+        // carries how high what stands in it goes, and the two of them go seven
+        // and three. Nobody walks there — `stands` never opens the cell — but
+        // the line of sight of a camera reads that height, and a build left at
+        // nought is a build a camera walks straight through. (spec 02-6, 02-7,
+        // 02-8, 02-9, 04-18)
+        if (Math.abs(x) < townHall && Math.abs(z) < townHall) {
+          stands(at, balance.townHallHeight);
+          continue;
+        }
         const shedAlong = x * dirX(0) + z * dirZ(0);
         const shedAcross = -x * dirZ(0) + z * dirX(0);
         if (
@@ -1113,6 +1142,7 @@ export function createCity(balance: CityBalance): City {
           shedAlong < townHall + balance.baseWidth &&
           Math.abs(shedAcross) < balance.baseLength / 2
         ) {
+          stands(at, balance.baseHeight);
           continue;
         }
         walk(at, 0, -1, x, z);

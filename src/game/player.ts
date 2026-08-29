@@ -310,7 +310,12 @@ export function stepPlayer(game: Game, input: Readonly<InputState>, seconds: num
   // He fell where he stood, and he gets up in that same spot. (spec 04-42)
   if (player.collapseLeft > 0) return;
 
-  // The stick, held to a norm of at most one whatever hands it over. (spec 10-30)
+  // The stick, held to a norm of at most one whatever hands it over, and already
+  // a heading **of the world**: a pad pushes in the frame of the screen, and
+  // whoever holds the camera turns it before a step is ever run. These rules
+  // import nothing and know of no camera, so they could not do it and they do
+  // not try; a pilot with no screen writes the world straight in. (spec 10-30,
+  // 10-1, and `app/input.ts` for the seam itself)
   let dx = input.dx;
   let dz = input.dz;
   const push = Math.hypot(dx, dz);
@@ -318,6 +323,10 @@ export function stepPlayer(game: Game, input: Readonly<InputState>, seconds: num
     dx /= push;
     dz /= push;
   }
+  // He faces where he runs. `ang` is the heading of the vector `(cos, sin)` —
+  // the one the sword reads towards a zombie and the one the camera seats itself
+  // along — and not the turn a mesh is given, which is the drawing's own affair
+  // and is worked out where a body is seated. (spec 04-29)
   if (push > 0) player.ang = Math.atan2(dz, dx);
 
   const onFloor = grounded(city, player);

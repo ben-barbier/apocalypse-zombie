@@ -5,6 +5,12 @@
  * keyboard and the pilot of the bench all write the same one: nothing below the
  * app ever learns which of them is holding the stick. (spec 10-30)
  *
+ * What comes out of it is a heading **of the world**, and never of the screen: a
+ * pad and a keyboard push in the frame of the picture, so this file turns what
+ * they push onto the heading the camera watches before a step ever sees it — see
+ * `turnStick` for why that seam lies here and nowhere else. A pilot with no
+ * screen at all writes the world straight in.
+ *
  * It is sampled **at the step** and never on an event. A browser event is not
  * allowed to reach into a step, so what an event does is raise a flag — pressed
  * since the last reading — and the reading, one per step, hands that flag over
@@ -71,13 +77,52 @@ export function clampStick(input: InputState): void {
 }
 
 /**
+ * Turns the stick out of the frame of the screen and into the frame of the
+ * world, along the heading the camera watches: pushing up the screen sends him
+ * away from the camera whichever way it happens to be looking, and pushing
+ * sideways sends him across the picture. It is the tie chapter 4 leans on
+ * without ever writing it down — *a camera on notches breaks the tie between
+ * where the stick pushes and what one sees* — and it is what the child was shown
+ * and kept. (spec 04-16, and chapter 4 "Pourquoi la caméra est assistée")
+ *
+ * **It is here and not in the rules, and that is the whole of the decision.**
+ * `src/game/` imports nothing and knows of no camera, so it can never be the one
+ * to turn a stick; `src/app/` holds the pad, the keys and the camera all three,
+ * so it is the one floor of the house where both are in the same room. What
+ * crosses the boundary is therefore already a heading **of the world**, which is
+ * what `game/` has always read it as — and it is what the bench of chapter 11
+ * writes straight in, with no camera anywhere and no seventh field to fill. A
+ * run still replays from a seed and the entries it was handed, since the picture
+ * never reaches the step. (spec 10-1, 10-29, 10-30, ADR-0001)
+ *
+ * The two frames meet by their vectors alone. The camera sits at
+ * `(cos ang, sin ang)` behind him and watches along that, so up the screen is
+ * that vector and screen right is `(-sin ang, cos ang)`; and up the screen is
+ * `dz` below nought, which is what a stick pushed forward hands over and what
+ * the arrow keys write.
+ */
+export function turnStick(input: InputState, ang: number): void {
+  if (input.dx === 0 && input.dz === 0) return; // a stick at rest has no way to turn
+  const cos = Math.cos(ang);
+  const sin = Math.sin(ang);
+  const ahead = -input.dz;
+  const across = input.dx;
+  input.dx = ahead * cos - across * sin;
+  input.dz = ahead * sin + across * cos;
+}
+
+/**
  * One reading, for the step about to run. The sources add themselves to the same
  * emptied object, so a child holding the stick while someone leans on an arrow
- * key gets one body and not two, and the norm is settled once at the end.
+ * key gets one body and not two, and the norm is settled once at the end — then
+ * the whole of it is turned onto the heading handed over, which is the camera's.
+ * A turn keeps a norm, so the two orders would agree; the clamp comes first
+ * because it belongs to the stick and the turn to the world.
  */
-export function sampleInput(input: InputState, pad: Pad, keys: Keys): void {
+export function sampleInput(input: InputState, pad: Pad, keys: Keys, ang: number): void {
   clearInput(input);
   readPad(pad, pollPad(pad), input);
   readKeys(keys, input);
   clampStick(input);
+  turnStick(input, ang);
 }

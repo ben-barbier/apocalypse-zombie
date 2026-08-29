@@ -179,10 +179,16 @@ function betweenTurns(from: number, to: number, alpha: number): number {
 }
 
 /**
- * The floor of the cell a spot falls in, in blocks, and nought past the city.
- * It is the very reading `game/state.ts` does, written again here because
- * `src/render/` takes types from the rules and never their functions: the two
- * read the same one grid, so they cannot part. (spec 04-8, 10-2)
+ * How high what stands in the cell a spot falls in goes, in blocks, and nought
+ * past the city. It is the very reading `game/state.ts` does, written again here
+ * because `src/render/` takes types from the rules and never their functions:
+ * the two read the same one grid, so they cannot part. (spec 04-8, 10-2)
+ *
+ * It asks the height alone and never the right to be there, and that is the
+ * whole of why the town hall and the shed carry theirs: a view is stopped by
+ * what stands in the way, not by what one is allowed to walk on, and those two
+ * are precisely the builds one is never allowed to walk on at all. (spec 02-9,
+ * 04-18)
  */
 function floorAt(city: City, x: number, z: number): number {
   const half = city.side / 2;

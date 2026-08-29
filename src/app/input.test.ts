@@ -2,12 +2,17 @@
  * The one shape of the entries, and the one way it is filled: sampled at the
  * step, never on an event, with the rising edges held by a flag that the reading
  * clears. (spec 10-30, 10-31)
+ *
+ * And the seam this file carries alone — a stick pushes in the frame of the
+ * screen and the rules read the frame of the world, so the turn happens here,
+ * where the pad, the keys and the camera are all three in reach. (spec 04-16)
  */
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from '../game/balance';
+import { stepPlayer } from '../game/player';
 import { createGame, createInput } from '../game/state';
 import { createPad } from './gamepad';
-import { clampStick, createEdge, sampleInput, setEdge, takeEdge } from './input';
+import { clampStick, createEdge, sampleInput, setEdge, takeEdge, turnStick } from './input';
 import { createKeys, pressKey } from './keyboard';
 import { createLoop, frame } from './loop';
 
@@ -55,6 +60,78 @@ describe('the stick', () => {
   });
 });
 
+/**
+ * The eight headings a camera is read at: the four square ones and the four
+ * slants, which is where a stick turned in the frame of the world and a stick
+ * left in the frame of the picture part company the most.
+ */
+const HEADINGS = [0, Math.PI / 4, Math.PI / 2, (3 * Math.PI) / 4, Math.PI, -Math.PI / 2, -2, 2.4];
+
+describe('the stick in the frame of the camera', () => {
+  it('sends him to the back of the picture, whichever way the camera looks', () => {
+    // spec 04-16 and chapter 4 "Pourquoi la caméra est assistée": the tie between
+    // where the stick pushes and what one sees. The camera watches along
+    // (cos ang, sin ang) — it seats itself that far behind him — so up the
+    // screen is that very vector, whatever ang happens to be.
+    for (const ang of HEADINGS) {
+      const input = createInput();
+      input.dz = -1; // up the screen, which is what a stick pushed forward says
+      turnStick(input, ang);
+      expect(input.dx).toBeCloseTo(Math.cos(ang), 12);
+      expect(input.dz).toBeCloseTo(Math.sin(ang), 12);
+    }
+  });
+
+  it('sends him across the picture on a push sideways, and keeps the norm', () => {
+    // The right of a screen is (-sin ang, cos ang), the camera's own.
+    for (const ang of HEADINGS) {
+      const input = createInput();
+      input.dx = 1;
+      turnStick(input, ang);
+      expect(input.dx).toBeCloseTo(-Math.sin(ang), 12);
+      expect(input.dz).toBeCloseTo(Math.cos(ang), 12);
+      expect(Math.hypot(input.dx, input.dz)).toBeCloseTo(1, 12); // spec 10-30
+    }
+  });
+
+  it('leaves a stick at rest at rest', () => {
+    const input = createInput();
+    turnStick(input, 1.3);
+    expect(input.dx).toBe(0);
+    expect(input.dz).toBe(0);
+  });
+
+  it('walks him away from the camera whatever it is looking at', () => {
+    // The whole of the defect, read on the body itself and not on the entries:
+    // the same push, eight headings, and he covers one step of the one pace
+    // straight away from the camera every time. (spec 04-6, 04-16)
+    const stride = BALANCE.player.runSpeed / BALANCE.loop.hz; // spec 04-6, 10-21
+    for (const ang of HEADINGS) {
+      const game = createGame(BALANCE);
+      const player = game.assault.player;
+      // The middle of street one, well clear of both frontages and of every
+      // ladder: sixteen blocks of square, then thirty of street. (spec 02-12)
+      player.x = 30;
+      player.z = 0;
+      player.y = 0;
+      player.xPrev = 30;
+      player.zPrev = 0;
+
+      const input = createInput();
+      input.dz = -1;
+      turnStick(input, ang);
+      stepPlayer(game, input, 1 / BALANCE.loop.hz);
+
+      const wentX = player.x - 30;
+      const wentZ = player.z - 0;
+      // Along the way the camera watches: the whole of the stride, and nothing
+      // across it.
+      expect(wentX * Math.cos(ang) + wentZ * Math.sin(ang)).toBeCloseTo(stride, 9);
+      expect(-wentX * Math.sin(ang) + wentZ * Math.cos(ang)).toBeCloseTo(0, 9);
+    }
+  });
+});
+
 describe('one reading a step', () => {
   it('gathers both sources into the one object', () => {
     // spec 10-30: one InputState, written indifferently by either.
@@ -63,8 +140,10 @@ describe('one reading a step', () => {
     const keys = createKeys();
     pressKey(keys, 'ArrowRight');
     pressKey(keys, 'Space');
-    sampleInput(input, pad, keys);
-    expect(input.dx).toBe(1);
+    // A camera watching down the x of the world: its right is the z of it.
+    sampleInput(input, pad, keys, 0);
+    expect(input.dx).toBeCloseTo(0, 12);
+    expect(input.dz).toBeCloseTo(1, 12);
     expect(input.strike).toBe(true);
   });
 
@@ -74,7 +153,7 @@ describe('one reading a step', () => {
     const keys = createKeys();
     input.strike = true;
     input.dx = 1;
-    sampleInput(input, pad, keys);
+    sampleInput(input, pad, keys, 1.1);
     expect(input).toEqual(createInput());
   });
 
@@ -87,7 +166,7 @@ describe('one reading a step', () => {
     const jumps: boolean[] = [];
     const loop = createLoop(game, input, {
       sample: () => {
-        sampleInput(input, pad, keys);
+        sampleInput(input, pad, keys, 0);
         jumps.push(input.jump);
       },
       read: () => {},
