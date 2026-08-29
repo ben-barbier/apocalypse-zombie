@@ -85,3 +85,17 @@ Français, préfixe emoji suivi de deux-points, et un sujet qui dit **la décisi
 ## Piège connu
 
 Ne présumer **aucune** préférence technique à partir des autres dépôts de cette machine : le propriétaire a explicitement posé que la stack de ce projet n'a rien à voir. La stack est tranchée dans la spec ; ce qui ne l'est pas se décide à partir de faits, jamais par analogie.
+
+## Agent skills
+
+### Issue tracker
+
+Les tickets vivent en issues GitHub sur `ben-barbier/apocalypse-zombie`, par la CLI `gh` ; `--comments` est obligatoire, et un ticket ne donne jamais une valeur — seulement un motif. Voir `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Les cinq rôles canoniques, chacun sous son propre nom : `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix` — indépendants des `wayfinder:*`. Voir `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Dépôt **mono-contexte** : la spec `docs/spec/` pour les valeurs, `CONTEXT.md` pour le vocabulaire, `docs/adr/` et `docs/research/` pour le reste. Voir `docs/agents/domain.md`.
