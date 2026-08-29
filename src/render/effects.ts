@@ -68,6 +68,20 @@ export const BLACK = '#000000';
 export const COIN = '#ffd24a';
 
 /**
+ * The white-blue of the fire of this game, and the one colour it ever has: the
+ * cone a cannon burns with, the cell of a magazine a firebomb fills, and the
+ * cubes he carries over his head are all of them painted in it. **Its state is
+ * read off the length of the flame and never off its colour**, so there is
+ * deliberately no second shade anywhere to read one off. It is cold, which is
+ * what sets it against a city warm throughout, and it is emphatically not
+ * orange: the orange belongs to the decor. (spec 05-36, 07-9, 07-11, 07-39)
+ *
+ * It is not in the palette of chapter 7, which names no fire, so the code is the
+ * drawing's own — white blown towards blue, and nothing else it could be.
+ */
+export const FIRE = '#bfe3ff';
+
+/**
  * What is asked for first when the pool is full: a fatal blow, then the mark,
  * then a trail, then everything else. The higher gives way to nothing below it.
  * (spec 07-29)

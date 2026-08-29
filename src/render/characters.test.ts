@@ -22,7 +22,7 @@ import {
   flingHead,
   placeCharacters,
 } from './characters';
-import { WHITE } from './effects';
+import { FIRE, WHITE } from './effects';
 
 /** A body standing still, so a test only has to move what it is about. */
 function playerAt(x: number, y: number, z: number, ang = 0): Player {
@@ -294,5 +294,63 @@ describe('the head a fatal blow throws', () => {
     // spec 03-2, 07 "La palette de ce qui se joue": pale green, bright saturated
     // green, blue-violet, gold.
     expect(KIND_COLOURS).toEqual(['#7ec24a', '#b6ff3d', '#9b6bff', '#ffd24a']);
+  });
+});
+
+describe('the armful over his head', () => {
+  /** How many boxes he takes carrying that many firebombs. */
+  function boxes(carried: number): number {
+    const view = buildCharacters(1, 3);
+    placeCharacters(view, playerAt(0, 0, 0), 1, 10_000, false, carried);
+    return view.bodies.count;
+  }
+
+  it('shows one cube a bomb, and nothing at all when his arms are empty', () => {
+    // spec 04-47: the armful is read over his head, one cube a bomb.
+    expect(boxes(0)).toBe(BOXES + 1); // the fourteen and his sword
+    expect(boxes(1)).toBe(BOXES + 2);
+    expect(boxes(3)).toBe(BOXES + 4);
+  });
+
+  it('lays them over his head and nowhere near the hud', () => {
+    // spec 04-47, 08-4: over his head, in the world, and never in the hud —
+    // there is no counter of firebombs anywhere.
+    const view = buildCharacters(1, 3);
+    placeCharacters(view, playerAt(0, 0, 0), 1, 10_000, false, 3);
+
+    const head = BODY[BODY.length - 1];
+    const top = head.y + head.h / 2;
+    for (let i = BOXES + 1; i < view.bodies.count; i += 1) {
+      seatOf(view.bodies, i).decompose(SPOT, TURN, SIZE);
+      expect(SPOT.y).toBeGreaterThan(top);
+    }
+  });
+
+  it('paints them in the one colour the fire of this game has', () => {
+    // spec 07-39: a firebomb is what the flame is made of, and the fire is
+    // white-blue throughout.
+    const view = buildCharacters(1, 3);
+    placeCharacters(view, playerAt(0, 0, 0), 1, 10_000, false, 3);
+
+    const paint = new THREE.Color();
+    let fired = 0;
+    for (let i = 0; i < view.bodies.count; i += 1) {
+      view.bodies.getColorAt(i, paint);
+      if (paint.getHex() === new THREE.Color(FIRE).getHex()) fired += 1;
+    }
+    expect(fired).toBe(3);
+  });
+
+  it('keeps them out of the blink of a body that has been walked into', () => {
+    // spec 04-48: a carried bomb never falls, and a contact says something
+    // about him and nothing about what he carries. (spec 07-41)
+    const view = buildCharacters(1, 3);
+    placeCharacters(view, playerAt(0, 0, 0), 1, 10_000, true, 3);
+
+    const paint = new THREE.Color();
+    view.bodies.getColorAt(0, paint);
+    expect(paint.getHex()).toBe(new THREE.Color(WHITE).getHex()); // he is white
+    view.bodies.getColorAt(BOXES + 1, paint);
+    expect(paint.getHex()).toBe(new THREE.Color(FIRE).getHex()); // they are not
   });
 });

@@ -23,7 +23,14 @@ import { placePlayer } from '../game/player';
 import { DIAMOND, EVENT, type EventBuffer, createGame, createInput } from '../game/state';
 import { beginAssault } from '../game/waves';
 import { loadAtlas } from '../render/atlas';
-import { buildCannons, layDiamond, placeCannons, raiseCannon } from '../render/cannons';
+import {
+  buildCannons,
+  layDiamond,
+  placeCannons,
+  pourCells,
+  raiseCannon,
+  retractConveyor,
+} from '../render/cannons';
 import {
   aimCamera,
   createCamera,
@@ -93,10 +100,14 @@ listenKeys(keys);
 const sheet = loadAtlas();
 // Sized for every body the game can hold at once: the player and the pool of
 // zombies. (spec 10-13)
-const characters = buildCharacters(1 + BALANCE.pools.zombies);
+// The armful he carries rides over his head in that same mesh, and only he ever
+// carries one. (spec 04-47)
+const characters = buildCharacters(1 + BALANCE.pools.zombies, BALANCE.player.armful);
 // Sized for the pool of cannons, which is a technical bound and never a rule:
 // nothing here counts them either. (spec 05-52, 10-13)
-const cannons = buildCannons(BALANCE.pools.cannons);
+// The opening of the cone goes in here, where the balance is named, because it
+// rides in the geometry rather than in an instance. (spec 05-30, 07-38)
+const cannons = buildCannons(BALANCE.pools.cannons, BALANCE.cannon.flame.arc);
 // The six hundred shards, allocated at load and never again: the quality scale
 // lowers what they hold, and the simulation hears nothing of it. (spec 07-27, 10-39)
 // The balls in the air ride in the same mesh, since a ball has no call of its
@@ -201,6 +212,15 @@ const SPRAY_SPAN = 900;
  */
 const PLACE_SPAN = BALANCE.cannon.placeTime * 1000;
 
+/**
+ * How long an armful takes to go into a magazine, and how long a belt takes to
+ * pull back to the base, in ms. Both are chapter 4's, read here where the
+ * balance is named: the cells fill over the one, and the line home shortens over
+ * the other. (spec 04-49, 04-55)
+ */
+const POUR_SPAN = BALANCE.cannon.pourTime * 1000;
+const RETRACT_SPAN = BALANCE.cannon.conveyorRetract * 1000;
+
 function fell(events: Readonly<EventBuffer>, at: number, now: number): void {
   const kind = events.value[at];
   const scale = KINDS[kind].scale;
@@ -296,6 +316,17 @@ const loop = createLoop(game, input, {
       else if (kind === EVENT.CANNON_PLACED) {
         raiseCannon(cannons, events.x[i], events.z[i], PLACE_SPAN, now);
       }
+      // An armful going into a magazine: the cells that arrive come up over the
+      // 0,3 second of the gesture, off what it held before. (spec 04-49)
+      else if (kind === EVENT.ARMFUL_POURED) {
+        pourCells(cannons, events.x[i], events.z[i], events.value[i], POUR_SPAN, now);
+      }
+      // A cannon gone. A third tier had a belt, and the belt pulls back to the
+      // base over one second: it never goes on its own account, since nothing in
+      // this game can take one down. (spec 04-55, 05-50)
+      else if (kind === EVENT.CANNON_LOST && events.value[i] >= BALANCE.cannon.tiers) {
+        retractConveyor(cannons, events.x[i], events.y[i], events.z[i], RETRACT_SPAN, now);
+      }
       // The one body the child drives answers a blow with a rhythm rather than
       // with a flash: white at 2 Hz while he is staggered, then the same sped up
       // to 6 Hz while he is untouchable. He goes down with neither — being on
@@ -312,13 +343,32 @@ const loop = createLoop(game, input, {
       holdShards(effects, tierOf(quality).shards); // and, one tier on, the shards
     }
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
-    placeCharacters(characters, held.assault.player, alpha, now, isBlinking(effects, now));
+    placeCharacters(
+      characters,
+      held.assault.player,
+      alpha,
+      now,
+      isBlinking(effects, now),
+      // What he carries, one cube a bomb over his head and never in the hud.
+      // (spec 04-47)
+      held.snapshot.armful,
+    );
     // The cannons, and under his feet the question he is asking: wide and white
     // a cannon goes down, tight white and breathing the one within three blocks
     // moves up, wide and black there is nothing left to do here. The rules
     // settled which; the drawing takes the shape of the answer and never the
     // constant that names it. (spec 05-17, 05-18, 10-2)
-    placeCannons(cannons, held.snapshot.cannons, BALANCE.cannon, alpha, now);
+    placeCannons(
+      cannons,
+      held.snapshot.cannons,
+      BALANCE.cannon,
+      alpha,
+      now,
+      // Where every belt runs home to, which is the middle of the shed.
+      // (spec 02-8, 04-52)
+      held.assault.city.baseX,
+      held.assault.city.baseZ,
+    );
     const asking = held.assault.diamond;
     layDiamond(
       cannons,
@@ -327,7 +377,11 @@ const loop = createLoop(game, input, {
       asking.z,
       asking.reach,
       asking.shows !== DIAMOND.NONE,
-      asking.shows === DIAMOND.UPGRADE,
+      // Tight and breathing wherever a press acts on what stands here — pouring
+      // into a cannon, upgrading one, filling his arms at the shed — and wide
+      // only where a cannon goes down. Three readings, more senses than three.
+      // (spec 05-17, 06-30)
+      asking.shows !== DIAMOND.PLACE && asking.shows !== DIAMOND.NONE,
       BALANCE.cannon,
       now,
     );

@@ -117,6 +117,15 @@ export const EVENT = {
    * chacun")
    */
   CANNONBALL_HIT: 24,
+  /**
+   * An armful goes into a magazine, all at once. The `index` names the cannon and
+   * the `value` carries what the magazine held **before**, because the cells fill
+   * over the 0,3 second of the gesture and the drawing never compares two states
+   * to find out that they did. Chapter 9 gives the pouring no sound at all — the
+   * cells and the cubes over his head say it — so this fact is the drawing's
+   * alone. (spec 04-49, 05-5, 10-19, 10-20)
+   */
+  ARMFUL_POURED: 25,
 } as const;
 
 export type EventType = (typeof EVENT)[keyof typeof EVENT];
@@ -440,6 +449,23 @@ export interface CannonPool {
   readonly ballLeft: Float32Array;
   /** Seconds of fed flame left in the firebomb it is burning. (spec 05-35) */
   readonly burnLeft: Float32Array;
+  /**
+   * Where the cone is turned, which is **not** where the barrel is: the two arms
+   * aim by the same one sentence and aim apart, so the ball may be sent to the
+   * far end of a street while the cone burns what stands at the foot of the
+   * cannon. Hence a heading of its own, and its own `Prev` for the drawing.
+   * (spec 05-40, 10-24)
+   */
+  readonly flameAng: Float32Array;
+  readonly flameAngPrev: Float32Array;
+  /**
+   * 1 while a zombie stands in the cone, and that is the whole of what lights it:
+   * a lit flame says by itself that one is there, and it never lights over an
+   * empty cone. (spec 05-33)
+   */
+  readonly flameLit: Uint8Array;
+  /** Seconds before the conveyor of a third tier brings its next firebomb. (spec 04-54) */
+  readonly conveyorLeft: Float32Array;
 }
 
 function createCannonPool(size: number): CannonPool {
@@ -455,30 +481,58 @@ function createCannonPool(size: number): CannonPool {
     magazine: new Uint8Array(size),
     ballLeft: new Float32Array(size),
     burnLeft: new Float32Array(size),
+    flameAng: new Float32Array(size),
+    flameAngPrev: new Float32Array(size),
+    flameLit: new Uint8Array(size),
+    conveyorLeft: new Float32Array(size),
   };
 }
 
 // ----------------------------------------------------------------- the diamond
 
 /**
- * What the second button will do where he stands, and there are three answers
- * and no fourth. It is read off a mark laid on the floor under his feet: **wide
- * and white**, a cannon goes down; **tight, white and pulsing**, the one within
- * three blocks moves up a tier; **wide and black**, there is nothing left to do
- * here. No word, no figure. (spec 05-17, 05-18)
+ * What the second button will do where he stands. The mark laid on the floor
+ * under his feet has **three readings and no fourth** — **wide and white**, a
+ * cannon goes down; **tight, white and pulsing**, one acts on what stands here;
+ * **wide and black**, there is nothing left to do. No word, no figure.
+ * (spec 05-17, 05-18)
  *
- * The two first share **one** distance, which is what leaves no gap between
- * them: under three blocks one upgrades, at three blocks and over one puts down
- * a new one, and there is no reading at all in which a press does nothing where
- * something was possible. (spec 05-13)
+ * The button, though, has more senses than the mark has readings: taking
+ * firebombs, pouring them, putting a cannon down, upgrading one, reinforcing the
+ * town hall — **and never two at one spot**. That is why the constants below
+ * count more than three: the mark says *that* something happens here, and the
+ * picto of the action button says *which*. The tight, pulsing reading is
+ * already shared by two gestures in the spec itself — upgrading a cannon and
+ * reinforcing the town hall — so pouring and taking join it rather than asking
+ * for a fourth shape. (spec 04-60, 05-17, 06-30, 08-48)
+ *
+ * `PLACE` and `UPGRADE` share **one** distance, which is what leaves no gap
+ * between them: under three blocks one acts on the cannon there, at three blocks
+ * and over one puts down a new one, and there is no reading at all in which a
+ * press does nothing where something was possible. (spec 05-13)
+ *
+ * The numbers are an enumeration and never an order, and nothing persists one:
+ * this rides in the volatile branch, so no stored byte depends on them.
+ * (spec 05-20, 10-12)
  */
 export const DIAMOND = {
   /** Wide and white: a cannon goes down under his feet. (spec 05-7, 05-17) */
   PLACE: 0,
   /** Tight, white and pulsing: the one within three blocks moves up. (spec 05-13, 05-17) */
   UPGRADE: 1,
-  /** Wide and black: a third tier, or a second one out of the halo. (spec 05-18) */
+  /** Wide and black: a third tier, or a second one beyond the halo. (spec 05-18) */
   NONE: 2,
+  /**
+   * Tight, white and pulsing: the armful goes into the magazine of the cannon
+   * within three blocks. It comes **before** the upgrading at that same
+   * distance. (spec 04-49, 04-50, 05-15)
+   */
+  POUR: 3,
+  /**
+   * Tight, white and pulsing: at the contact of the shed, the armful fills.
+   * (spec 04-45, 04-46)
+   */
+  TAKE: 4,
 } as const;
 
 export type DiamondType = (typeof DIAMOND)[keyof typeof DIAMOND];
@@ -676,6 +730,15 @@ export interface City {
   readonly baseX: number;
   readonly baseZ: number;
   readonly halo: number;
+  /**
+   * The shed itself: the heading it faces — street one's, the one face of the
+   * town hall it is adossed to — and half its footprint along that heading and
+   * across it. It is what "at the contact of the shed" is measured against, and
+   * it is the one place firebombs are ever taken. (spec 02-8, 04-45)
+   */
+  readonly baseAng: number;
+  readonly baseAlong: number;
+  readonly baseAcross: number;
   readonly buildings: BuildingPool;
   readonly rails: RailPool;
   readonly gateways: GatewayPool;
@@ -695,6 +758,29 @@ function haloReaches(baseX: number, baseZ: number, halo: number, x: number, z: n
  */
 export function inHalo(city: City, x: number, z: number): boolean {
   return haloReaches(city.baseX, city.baseZ, city.halo, x, z);
+}
+
+/**
+ * Whether a spot stands within `reach` of the **shed** — not of the middle of
+ * the base, but of the box itself, so all three free faces of it answer alike
+ * and none is a case of its own. The fourth is against the town hall, and the
+ * shed is precisely the face of the town hall that never reinforces: firebombs
+ * there, the reinforcement on the other three. (spec 02-8, 04-45, 06-31)
+ *
+ * It is the whole of "at the contact of the hangar": the distance is taken to
+ * the nearest point of the footprint, which is nought for a body pressed
+ * against it and grows straight away as he walks off. (spec 04-45)
+ */
+export function atBase(city: City, x: number, z: number, reach: number): boolean {
+  const offX = x - city.baseX;
+  const offZ = z - city.baseZ;
+  const cos = Math.cos(city.baseAng);
+  const sin = Math.sin(city.baseAng);
+  const along = Math.abs(offX * cos + offZ * sin) - city.baseAlong;
+  const across = Math.abs(-offX * sin + offZ * cos) - city.baseAcross;
+  const outAlong = along > 0 ? along : 0;
+  const outAcross = across > 0 ? across : 0;
+  return outAlong * outAlong + outAcross * outAcross < reach * reach;
 }
 
 /** The cell a spot falls in, or -1 past the city. */
@@ -839,6 +925,7 @@ export function createCity(balance: CityBalance): City {
   // The middle of the base, two blocks of shed out from the face of the town hall
   // that watches street one; the halo is measured from there. (spec 02-8, 02-31)
   const baseAt = townHall + balance.baseWidth / 2;
+  const baseAng = Math.atan2(dirZ(0), dirX(0)); // the heading of street one (spec 02-8, 02-29)
   const baseX = dirX(0) * baseAt;
   const baseZ = dirZ(0) * baseAt;
 
@@ -1029,6 +1116,11 @@ export function createCity(balance: CityBalance): City {
     baseX,
     baseZ,
     halo: balance.halo,
+    // The shed reaches from the face of the town hall out along street one, and
+    // it is six blocks across it. (spec 02-8)
+    baseAng,
+    baseAlong: balance.baseWidth / 2,
+    baseAcross: balance.baseLength / 2,
     buildings,
     rails,
     gateways,
