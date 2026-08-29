@@ -191,7 +191,7 @@ Le gradient est celui du [chapitre 2](02-la-ville.md), lu ici comme un coût : a
 
 | Moment | Retour |
 |---|---|
-| Chaque coup, touché ou non | l'arc blanc de la fauchée, tracé en éclats, effacé en 150 ms |
+| Chaque coup, touché ou non | l'arc blanc de la fauchée, déposé le long de la lame en 25 éclats, chacun effacé 150 ms après sa pose |
 | Touche sans tuer | éclair blanc de 80 ms sur les boîtes du zombie, « tchac » sec, secousse de caméra minime |
 | Coup fatal | figeage de l'image 60 ms, tête éjectée en vrille, « bloup », pièce aspirée |
 | Coup dans le vide | l'arc se trace quand même, souffle sourd, aucune pénalité |

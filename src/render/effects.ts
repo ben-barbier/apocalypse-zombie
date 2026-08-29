@@ -346,6 +346,28 @@ export interface Effects {
   blinkFastFor: number;
 
   /**
+   * The one arc being laid: where the blow left from, the heading it opened
+   * about, how wide and how far it reaches, when it went out, and how many of
+   * its shards are down. An arc is not thrown whole — it is written along the
+   * blade over the 150 ms of the gesture — so what it needs between two frames
+   * is these seven numbers and a count. (spec 07-31, 07-65, 07-66)
+   *
+   * There is one such arc and there will never be two at once: 0,4 second
+   * separates two blows and an arc is written in 150 ms, so the one before is
+   * always finished. Should a blow ever arrive early, it takes the seat and what
+   * was left of the arc before goes unwritten. (spec 04-24)
+   */
+  sweepFrom: number;
+  sweepX: number;
+  sweepY: number;
+  sweepZ: number;
+  sweepAng: number;
+  sweepOpen: number;
+  sweepRange: number;
+  /** How many of the arc's shards are down, and it stops at `ARC`. */
+  sweepLaid: number;
+
+  /**
    * The coins on their way to him, in structures of arrays like every pool of
    * this game. They ride in the same two meshes as the ones still lying, so they
    * cost no call of their own, and no rule of the game knows of them: a coin is
@@ -469,6 +491,15 @@ export function buildEffects(holds: number, coins: number, balls = 0): Effects {
     blinkFrom: 0,
     blinkSlowFor: 0,
     blinkFastFor: 0,
+    sweepFrom: 0,
+    sweepX: 0,
+    sweepY: 0,
+    sweepZ: 0,
+    sweepAng: 0,
+    sweepOpen: 0,
+    sweepRange: 0,
+    // Nothing left to write, so the first frame writes no arc at all.
+    sweepLaid: ARC,
     takenX: new Float32Array(coins),
     takenY: new Float32Array(coins),
     takenZ: new Float32Array(coins),
@@ -639,21 +670,46 @@ export function isLit(effects: Effects, what: Struck, index: number, now: number
 
 /**
  * The arc of a sweep: white shards laid along the sector in front of him, at the
- * range of the blow, erased in 150 ms. It is drawn at every blow, whether it
- * touched anything or not. (spec 04-22, 07-31)
+ * range of the blow. It is drawn at every blow, whether it touched anything or
+ * not. (spec 04-22, 07-31)
  *
  * It adds no primitive of its own — it is `scatter` called one shard at a time
  * along the arc, which is the whole of "an arc of shards" and the reason the
  * pool never sees anything new. They are laid still rather than thrown: what
- * reads as a stroke is the shape they hold for those 150 ms.
+ * reads as a stroke is the shape they hold.
  *
- * How many, and how high he holds the sword, are the drawing's own: no rule of
- * the game reads either.
+ * **The arc follows the blade.** They do not all go down together: one is laid
+ * after another, evenly over the 150 ms the gesture runs, so that a third of the
+ * way through the gesture a third of the sector is white and no more. What the
+ * eye is given is a stroke that grows by its leading edge and goes out by its
+ * root — the one channel left once the white is taken, which is the movement of
+ * 07-14: white is the colour of "it has just happened" and may be nothing else,
+ * and a puff opening is already the word for a blow taken.
+ * (spec 07-13, 07-14, 07-36, 07-65, 07-66)
+ *
+ * **Twenty-five** is read off the sector rather than chosen: its outer edge
+ * measures 6,28 blocks — 3 blocks over 120° — and a shard is a quarter of one,
+ * so twenty-five of them lie end to end, 0,262 block apart, and what shows is a
+ * continuous stroke. Never more than twenty-five are alive at once, and the arc
+ * is the last served of the four ranks: at saturation it gives way before a
+ * fatal blow, a mark or a trail. (spec 04-22, 07-25, 07-29, 07 "Le geste de la
+ * fauchée")
+ *
+ * Each shard is erased 150 ms after it goes down, so the whole of it is gone
+ * 300 ms after the blow — a hundred short of the 0,4 second between two blows,
+ * and two arcs are never on screen together. (spec 04-24, 07-31)
+ *
+ * How high he holds the sword is the drawing's own: no rule of the game reads it.
  */
-export const ARC = 9;
+export const ARC = 25;
 export const ARC_SPAN = 150;
 const ARC_AT = 1.2;
 
+/**
+ * Arms one arc, at the spot and the heading the blow left on, and lays its head
+ * at once: a blow is never a frame late. What follows it is `layArc`, once a
+ * frame. (spec 04-32, 07-66)
+ */
 export function sweepArc(
   effects: Effects,
   x: number,
@@ -664,21 +720,56 @@ export function sweepArc(
   range: number,
   now: number,
 ): void {
-  const half = arc / 2;
-  for (let i = 0; i < ARC; i += 1) {
-    const turn = ang - half + (arc * i) / (ARC - 1);
+  effects.sweepFrom = now;
+  effects.sweepX = x;
+  effects.sweepY = y;
+  effects.sweepZ = z;
+  effects.sweepAng = ang;
+  effects.sweepOpen = arc;
+  effects.sweepRange = range;
+  effects.sweepLaid = 0;
+  layArc(effects, now);
+}
+
+/**
+ * Lays whatever of the arc this frame owes, and nothing when there is none left.
+ * It runs on the frame like everything erased in ms, and the count it lays is
+ * read off the clock and never off the rate of the display: a whole arc is
+ * twenty-five shards at 30 frames a second as at 144, laid in fewer batches or
+ * in more. (spec 07-66, 10-22, 10-39)
+ *
+ * It comes before the shards are placed, because a shard laid after that would
+ * wait a frame for its seat.
+ */
+export function layArc(effects: Effects, now: number): void {
+  if (effects.sweepLaid >= ARC) return;
+  const gone = (now - effects.sweepFrom) / ARC_SPAN;
+  if (!(gone >= 0)) return;
+
+  // How far along the opening the blade has written, and how many shards that
+  // owes: evenly with the gesture, and the whole of it once the gesture is home.
+  const written = gone > 1 ? 1 : gone;
+  const owed = Math.floor(written * (ARC - 1)) + 1;
+  const half = effects.sweepOpen / 2;
+
+  while (effects.sweepLaid < owed) {
+    const turn = effects.sweepAng - half + (effects.sweepOpen * effects.sweepLaid) / (ARC - 1);
     scatter(
       effects,
       PRIORITY.PLAIN,
       1,
-      x + Math.cos(turn) * range,
-      y + ARC_AT,
-      z + Math.sin(turn) * range,
+      effects.sweepX + Math.cos(turn) * effects.sweepRange,
+      effects.sweepY + ARC_AT,
+      effects.sweepZ + Math.sin(turn) * effects.sweepRange,
       WHITE,
       0,
       ARC_SPAN,
       now,
     );
+    // A shard the pool turns down is still one the arc has walked past: the arc
+    // is a schedule and not a queue, so a full pool costs it a hole and never a
+    // stall. (spec 07-29)
+    effects.sweepLaid += 1;
   }
 }
 
