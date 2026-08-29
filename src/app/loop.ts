@@ -98,8 +98,12 @@ export interface LoopHooks {
    * (spec 10-30, 10-31)
    */
   sample?(): void;
-  /** Reads the buffer, once, before the drawing. (spec 10-18, 10-19) */
-  read(game: Readonly<Game>): void;
+  /**
+   * Reads the buffer, once, before the drawing. It is handed the one clock of
+   * the game, because what it starts — an effect that lasts a fraction of a
+   * second — runs on the frame and not on the step. (spec 10-18, 10-19, 10-22)
+   */
+  read(game: Readonly<Game>, now: number): void;
   /** Draws, interpolating between the two last steps. (spec 10-24) */
   draw(game: Readonly<Game>, alpha: number, now: number): void;
 }
@@ -147,7 +151,7 @@ export function frame(loop: Loop, now: number): void {
   }
 
   takeFreeze(clock, events, game.balance.loop.fatalBlowFreeze); // spec 10-26
-  loop.hooks.read(game); // read once, before the drawing (spec 10-18)
+  loop.hooks.read(game, now); // read once, before the drawing (spec 10-18)
   loop.hooks.draw(game, clock.alpha, now); // spec 10-24
 }
 

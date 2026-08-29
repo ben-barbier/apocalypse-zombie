@@ -5,15 +5,22 @@
  * `InputState`, and gives the loop to the frames. Everything it wires is decided
  * elsewhere; nothing is decided here. (spec 10-15)
  *
- * The scene it opens holds the one hour, the city under it and the bodies that
- * walk it; the cannons and the effects each arrive with their own chapter, into
- * this same scene. The camera that watches all of it is handed its constants
- * here and then left entirely alone: nothing in this file, and nothing the child
- * can press, ever aims it. (spec 04-19, 04-20)
+ * The scene it opens holds the one hour, the city under it, the bodies that walk
+ * it and the shards every effect of the game is made of; the cannons arrive with
+ * their own chapter, into this same scene.
+ *
+ * The one reading of the buffer of events lives here, and it deals out what it
+ * finds: the drawing takes types from the rules and never their constants, so
+ * the enumeration is named in this file and nowhere under `src/render/`.
+ * (spec 10-2, 10-18, 10-19)
+ *
+ * The camera that watches all of it is handed its constants here and then left
+ * entirely alone: nothing in this file, and nothing the child can press, ever
+ * aims it. (spec 04-19, 04-20)
  */
 import { BALANCE } from '../game/balance';
 import { placePlayer } from '../game/player';
-import { EVENT, createGame, createInput } from '../game/state';
+import { EVENT, type EventBuffer, createGame, createInput } from '../game/state';
 import { loadAtlas } from '../render/atlas';
 import {
   aimCamera,
@@ -25,6 +32,14 @@ import {
 import { buildCharacters, placeCharacters } from '../render/characters';
 import { buildCity } from '../render/city';
 import { createContext, resize } from '../render/context';
+import {
+  STRUCK,
+  type Struck,
+  buildEffects,
+  holdShards,
+  placeShards,
+  strike,
+} from '../render/effects';
 import { createScene } from '../render/scene';
 import { createQuality, mayDraw, senseQuality, tierOf } from '../render/quality';
 import { createPad } from './gamepad';
@@ -56,13 +71,18 @@ const sheet = loadAtlas();
 // Sized for every body the game can hold at once: the player and the pool of
 // zombies. (spec 10-13)
 const characters = buildCharacters(1 + BALANCE.pools.zombies);
+// The six hundred shards, allocated at load and never again: the quality scale
+// lowers what they hold, and the simulation hears nothing of it. (spec 07-27, 10-39)
+const effects = buildEffects(BALANCE.pools.shards);
+holdShards(effects, tierOf(quality).shards);
 let scene = createScene(BALANCE.city);
 raise();
 
-/** Puts the city and the bodies into the scene, from the grid the rules engender. */
+/** Puts the city, the bodies and the shards into the scene, from the grid the rules engender. */
 function raise(): void {
   scene.add(buildCity(game.assault.city, BALANCE.city, sheet).node);
   scene.add(characters.node);
+  scene.add(effects.node);
 }
 
 /**
@@ -91,6 +111,14 @@ function fit(): void {
   fitCamera(camera, width, height);
 }
 
+/**
+ * One blow taken, at the spot the buffer names for it. The three kinds of blow
+ * differ by what lights white, and by nothing else. (spec 07-36)
+ */
+function blow(events: Readonly<EventBuffer>, what: Struck, at: number, now: number): void {
+  strike(effects, what, events.index[at], events.x[at], events.y[at], events.z[at], now);
+}
+
 const loop = createLoop(game, input, {
   // Once per step, never once a frame: a rising edge belongs to one step alone.
   // (spec 10-31)
@@ -99,7 +127,7 @@ const loop = createLoop(game, input, {
   },
   // The one reading of the buffer, before anything is drawn. The audio and the
   // effects join it here, with their chapters. (spec 10-18, 10-19)
-  read: (held) => {
+  read: (held, now) => {
     const events = held.assault.events;
     for (let i = 0; i < events.count; i += 1) {
       // A blow of his sword, whether it touches or not, freezes the recentring
@@ -107,12 +135,25 @@ const loop = createLoop(game, input, {
       // names whatever landed it, a cannon included. (spec 04-17)
       const kind = events.type[i];
       if (kind === EVENT.SWORD_HIT || kind === EVENT.SWORD_MISS) freezeRecentring(camera);
+
+      // Whatever takes a blow — a zombie, a block of the town hall, a cannon —
+      // throws a puff of white shards and lights white for 80 ms. The same call
+      // for the three of them, and no special case anywhere. (spec 07-36)
+      if (kind === EVENT.SWORD_HIT) blow(events, STRUCK.ZOMBIE, i, now);
+      else if (kind === EVENT.TOWN_HALL_HIT) blow(events, STRUCK.TOWN_HALL, i, now);
+      else if (kind === EVENT.CANNON_HIT) blow(events, STRUCK.CANNON, i, now);
     }
   },
   draw: (held, alpha, now) => {
-    if (senseQuality(quality, now)) fit(); // a tier that moves moves the resolution
+    if (senseQuality(quality, now)) {
+      fit(); // a tier that moves moves the resolution
+      holdShards(effects, tierOf(quality).shards); // and, one tier on, the shards
+    }
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
     placeCharacters(characters, held.assault.player, alpha);
+    // The shards run on the frame, not on the step: they are erased in ms.
+    // (spec 07-28, 10-22)
+    placeShards(effects, now);
     aimCamera(camera, held.assault.city, held.assault.player, alpha, now);
     context.renderer.render(scene, camera.lens);
   },
