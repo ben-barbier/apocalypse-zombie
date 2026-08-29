@@ -69,6 +69,7 @@ import {
   flyCoin,
   holdShards,
   isBlinking,
+  layArc,
   placeBalls,
   placeCoins,
   placeShards,
@@ -508,6 +509,10 @@ const loop = createLoop(game, input, {
     );
     // The coins lying in the city, and the ones on their way to him. (spec 06-8, 07-35)
     placeCoins(effects, held.assault.coins, held.assault.player, alpha, now);
+    // Whatever of the arc of a sweep this frame owes: it is written along the
+    // blade over the 150 ms of the gesture rather than laid whole, so a frame
+    // of it comes before the shards are placed. (spec 07-31, 07-66)
+    layArc(effects, now);
     // The shards run on the frame, not on the step: they are erased in ms.
     // (spec 07-28, 10-22)
     placeShards(effects, now);

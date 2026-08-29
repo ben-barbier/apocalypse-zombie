@@ -45,7 +45,7 @@ Ce chapitre décide comment le jeu se voit : l'heure orange et sa lumière uniqu
 28. Un éclat **s'efface en s'éclaircissant vers le blanc**, jamais en se dissolvant.
 29. En cas de saturation du pool, la priorité est **mort > mire > traînée > décoratif**.
 30. La **mort d'un zombie** éjecte la tête en tournoyant et disperse le corps en une dizaine d'éclats **à la couleur du type**, effacés en **0,6 s** ([chapitre 3](03-les-zombies.md)).
-31. La **fauchée** est un **arc blanc** d'éclats opaques, effacé en **150 ms** ([chapitre 4](04-le-joueur.md)).
+31. La **fauchée** est un **arc blanc** d'éclats opaques **déposé le long de la lame**, jamais posé d'un seul bloc : **25 éclats**, chacun effacé **150 ms** après sa pose ([chapitre 4](04-le-joueur.md)).
 32. Le **boulet est un éclat noir** — la seule chose noire en vol : il n'a ni géométrie propre, ni appel d'affichage propre ([chapitre 5](05-les-canons.md)).
 33. Sa **traînée** est faite de **4 éclats noirs** qui s'espacent derrière lui.
 34. La **mire** est faite de **4 éclats noirs** posés à plat aux quatre coins du point de chute, qui **se resserrent** pendant la descente : c'est elle, et non le projectile, qui rend la cloche lisible.
@@ -95,6 +95,7 @@ Ce chapitre décide comment le jeu se voit : l'heure orange et sa lumière uniqu
 63. Les corps s'animent sur la **distance parcourue**, jamais sur le temps : jambes et bras se balancent en opposition autour de la **hanche** et de l'**épaule**, la tête suit autour du **cou** à sa propre période, et le corps **s'abaisse quand les jambes s'écartent**. C'est **un seul calcul pour tout le monde** — le joueur et les quatre types —, l'allure décidant seule à quelle vitesse la foulée défile ; un corps qui n'avance plus **ne balance plus**, et un corps qui n'a pas avancé se tient exactement où la règle 18 pose ses quatorze boîtes.
 64. La démarche est **entièrement du dessin** : aucune règle ne la lit, elle ne touche pas à l'état de jeu, et le banc du [chapitre 11](11-le-banc.md) joue une partie entière sans elle.
 65. Le **coup d'épée se voit** : un balancement de plus, ajouté au **seul bras qui porte l'épée**, qui part de la démarche et y revient. Il **ne retient rien** — ni la cadence, ni le déplacement, ni le coup suivant ([chapitre 4](04-le-joueur.md)) — et il ne coûte **aucune boîte de plus**.
+66. L'**arc suit la lame** : ses vingt-cinq éclats se posent **un à un et régulièrement sur les 150 ms du geste** — au tiers du geste, un tiers de l'ouverture est blanc et pas davantage —, chacun s'efface **150 ms après sa pose**, et le bras, en demi-sinusoïde, devance la traînée de **66° au plus** avant que les deux se rejoignent quand il rentre.
 
 ## Les chiffres
 
@@ -214,7 +215,7 @@ Aucun rouge n'y figure, et il n'en existe pas ailleurs.
 |---|---:|
 | Taille d'un éclat | **¼ de bloc** |
 | Pool, alloué au chargement | **600** |
-| Pic calculé à la vague 10 | ≈ **370** |
+| Pic calculé à la vague 10 | ≈ **386** |
 | Priorité en cas de saturation | mort > mire > traînée > décoratif |
 | Objets translucides | **0** |
 | Systèmes instanciés d'effet | **2** — les éclats, les flammes |
@@ -224,7 +225,7 @@ Aucun rouge n'y figure, et il n'en existe pas ailleurs.
 | Effet | Éclats | Ce qui l'efface |
 |---|---|---|
 | Mort d'un zombie | ≈ 10, plus la tête éjectée | 0,6 s |
-| Fauchée | l'arc | 150 ms |
+| Fauchée | **25** — l'arc, posé un éclat à la fois | 150 ms par éclat posé |
 | Boulet en vol | 1 | l'impact, après 0,6 s de vol |
 | Traînée du boulet | 4 | l'impact |
 | Mire au sol | 4 | l'impact |
@@ -232,6 +233,8 @@ Aucun rouge n'y figure, et il n'en existe pas ailleurs.
 | Coup encaissé | une bouffée | 80 ms |
 | Versement de fin d'assaut | une gerbe | — |
 | **Jet de feu** | **aucun** — c'est un cône instancié | l'extinction |
+
+L'arc est le seul effet qui **s'étale dans le temps** : ses 25 éclats se posent sur les 150 ms du geste, il n'en vit **jamais plus de 25 à la fois**, et le dernier est effacé **300 ms après le coup** — soit 100 ms avant que le suivant puisse partir ([04-24](04-le-joueur.md)). Il pèse donc **25** sur le pic de la vague 10, et il reste le **dernier servi** : à saturation il cède devant une mort, une mire et une traînée (07-29).
 
 ### Les signaux blancs
 
@@ -281,6 +284,11 @@ La démarche n'ajoute **aucune boîte et aucun appel d'affichage** : ce sont les
 | Membre | le **seul bras** qui porte l'épée | — |
 | Forme | **demi-sinusoïde** sur la durée | il part de la démarche et y revient sans rupture |
 | Part de l'intervalle entre deux coups | **37,5 %** — 150 sur 400 ms | la cadence de [04-24](04-le-joueur.md) |
+| Éclats de l'arc | **25** | l'arête extérieure de la fauchée fait 6,28 blocs — 3 × 2,094 rad — et un éclat en fait ¼ (07-25) |
+| Entraxe de deux éclats | **0,262 bloc** — 6,28 ÷ 24 | pour un éclat de 0,25 : un trait continu, jamais un pointillé |
+| Pose de l'arc | **régulière sur les 150 ms** | l'arc suit la lame : au tiers du geste, un tiers de l'ouverture |
+| Avance du bras sur l'arc | **66° au plus, vers 60 ms** — 60° à mi-geste | la demi-sinusoïde du bras contre la pose régulière de l'arc |
+| Vie d'un éclat de l'arc | **150 ms après sa pose** | 07-31 ; l'arc entier est éteint 300 ms après le coup |
 
 Le geste **s'ajoute** à la démarche au lieu de la remplacer : un corps qui court et un corps à l'arrêt frappent le même coup, et le bras rend la foulée exactement où il l'a prise.
 
@@ -353,9 +361,9 @@ L'enrichissement des personnages n'en prend **aucun** ; la tache en prend **un**
 
 **Pourquoi la démarche ne touche pas à l'état de jeu.** Elle est du dessin de bout en bout : aucune règle ne la lit, l'Instantané ne la porte pas, et le banc du [chapitre 11](11-le-banc.md) joue une partie entière sans un seul de ces angles. Elle n'a d'ailleurs eu besoin d'aucun chiffre neuf dans `Game` : un zombie tire sa foulée de son **avancement sur son rail**, qui existe déjà et ne décroît jamais ([chapitre 3](03-les-zombies.md)) ; le joueur, qui n'a pas de rail, tire la sienne du sol que le dessin lui voit couvrir d'une image à l'autre. Deux lectures, un seul calcul.
 
-**Pourquoi le geste de la fauchée dure 150 ms et ouvre 120°.** La spec ne chiffrait pas le geste, elle chiffrait le coup — et les trois nombres qu'il fallait étaient déjà écrits. La **cadence** ([04-24](04-le-joueur.md)) donne 0,4 seconde entre deux coups, bouton maintenu : le geste doit tenir *entièrement* dedans, sans quoi un appui continu le couperait en deux et l'enfant verrait un bras qui bégaie au lieu d'un bras qui frappe — et comme la même règle interdit toute animation bloquante, allonger l'intervalle pour loger le geste était exclu. La **fenêtre de grâce** ([04-25](04-le-joueur.md)) donne 150 ms : c'est le temps pendant lequel le coup touche encore ce qui entre dans la fauchée, donc le temps pendant lequel le coup **existe**. L'**arc blanc** (07-31) est effacé en 150 ms : la même durée, déjà retenue pour dire à l'œil « ça vient de se passer ». Le geste dure donc **150 ms** — la seule durée que le jeu accorde déjà à un coup —, il tient 2,67 fois dans l'intervalle de la cadence, et le bras est retombé bien avant que le coup suivant puisse partir. L'**amplitude** se lit de la même façon : la fauchée ouvre 120° ([04-22](04-le-joueur.md)), et le bras parcourt exactement cette ouverture ; le jeu ne crée pas une constante quand il en a une. Les 120° du coup se mesurent au sol et disent **où il porte**, ceux du bras dans le plan de côté et disent **ce que l'œil en voit** : c'est le même nombre, lu deux fois. Reste la **forme** : une demi-sinusoïde vaut zéro à ses deux bouts, donc le geste s'ajoute à la démarche et lui rend le bras sans le moindre saut, et il n'a besoin ni d'un état de départ, ni d'un état d'arrivée, ni d'une transition.
+**Pourquoi le geste de la fauchée dure 150 ms et ouvre 120°.** La spec ne chiffrait pas le geste, elle chiffrait le coup — et les trois nombres qu'il fallait étaient déjà écrits. La **cadence** ([04-24](04-le-joueur.md)) donne 0,4 seconde entre deux coups, bouton maintenu : le geste doit tenir *entièrement* dedans, sans quoi un appui continu le couperait en deux et l'enfant verrait un bras qui bégaie au lieu d'un bras qui frappe — et comme la même règle interdit toute animation bloquante, allonger l'intervalle pour loger le geste était exclu. La **fenêtre de grâce** ([04-25](04-le-joueur.md)) donne 150 ms : c'est le temps pendant lequel le coup touche encore ce qui entre dans la fauchée, donc le temps pendant lequel le coup **existe**. Chaque éclat de l'**arc blanc** (07-31) est effacé en 150 ms : la même durée, déjà retenue pour dire à l'œil « ça vient de se passer ». Le geste dure donc **150 ms** — la seule durée que le jeu accorde déjà à un coup —, il tient 2,67 fois dans l'intervalle de la cadence, et le bras est retombé bien avant que le coup suivant puisse partir. L'**amplitude** se lit de la même façon : la fauchée ouvre 120° ([04-22](04-le-joueur.md)), et le bras parcourt exactement cette ouverture ; le jeu ne crée pas une constante quand il en a une. Les 120° du coup se mesurent au sol et disent **où il porte**, ceux du bras dans le plan de côté et disent **ce que l'œil en voit** : c'est le même nombre, lu deux fois. Reste la **forme** : une demi-sinusoïde vaut zéro à ses deux bouts, donc le geste s'ajoute à la démarche et lui rend le bras sans le moindre saut, et il n'a besoin ni d'un état de départ, ni d'un état d'arrivée, ni d'une transition.
 
-**Pourquoi le geste était le vrai correctif, et pas l'arc.** L'arc blanc était bien émis, et il était quasi invisible : neuf éclats blancs de ¼ de bloc, à 1,2 bloc du sol, sur une place beige clair. Le blanc ne se négociait pas — c'est la couleur de « ça vient de se passer » (07-13) —, et disperser l'arc pour l'agiter ne se pouvait pas davantage : une bouffée blanche qui s'ouvre est déjà le mot du **coup encaissé** (07-36), et un arc qui la copierait dirait deux choses à la fois. Ce qui fait l'arc est la **forme** qu'il tient 150 ms. Le canal qui restait est donc celui que 07-14 nomme : **le mouvement**. Un arc blanc isolé au milieu d'une place est une tache ; le même arc au bout d'une lame d'acier clair qui vient de parcourir 120° en 75 millisecondes est la **fin d'un geste que l'œil suivait déjà**. C'est la raison pour laquelle ce chapitre chiffre le geste et ne retouche pas l'arc.
+**Pourquoi l'arc suit la lame.** Un arc blanc posé d'un seul bloc — quelques éclats de ¼ de bloc à 1,2 bloc du sol, sur une place beige clair — est quasi invisible : une tache qui s'allume et s'éteint, au moment précis où le geste central du jeu doit se lire. Le blanc ne se négocie pas — c'est la couleur de « ça vient de se passer » (07-13) —, et disperser l'arc pour l'agiter ne se peut pas davantage : une bouffée blanche qui s'ouvre est déjà le mot du **coup encaissé** (07-36), et un arc qui la copierait dirait deux choses à la fois. Le canal qui reste est donc celui que 07-14 nomme : **le mouvement**. Le même arc **écrit à mesure que le bras balaie**, qui grandit par son bord d'attaque et s'éteint par sa racine, est la fin d'un geste que l'œil suivait déjà. Les deux moitiés ne valent qu'ensemble : le **geste** (07-65) donne à l'œil une lame à suivre, la **pose progressive** (07-66) met le blanc au bout de cette lame. La densité vient avec, et elle se lit sur la fauchée plutôt qu'elle ne se choisit : l'arête extérieure du secteur fait 6,28 blocs, un éclat en fait ¼, donc **vingt-cinq** la couvrent bout à bout. Le prix est de seize éclats sur un pool de 600, et l'arc reste le dernier servi (07-29) : il ne peut affamer ni une mort, ni une mire, ni une traînée.
 
 **Pourquoi la tache, seul enrichissement non-personnage retenu.** Sans ombre portée, un corps à quatorze boîtes **flotte**. La tache est retenue parce qu'elle appartient au personnage, pas au décor : elle coûte **un** appel d'affichage pour tous, elle ne s'oriente pas, elle ne dépend ni du soleil ni de la hauteur. Ce n'est pas une ombre — c'est ce qui la remplace, et rien d'autre qu'un personnage n'en porte, faute de quoi elle redeviendrait un système d'ombres à budgéter.
 

@@ -194,9 +194,10 @@ const BOB = 0.05;
 
 /**
  * The blow of his sword, which is a swing of its own added to the arm that holds
- * it. It runs **150 ms**, the span the white arc holds for and the very window a
- * blow goes on touching in, and it opens the whole of the sector a blow sweeps —
- * 120°. Half a sine over that span, so it leaves the gait and comes back to it
+ * it. It runs **150 ms**, the span the white arc is written over and the very
+ * window a blow goes on touching in, and it opens the whole of the sector a blow
+ * sweeps — 120°. The arc follows this blade rather than lighting whole: it is
+ * laid one shard after another over exactly this span. (spec 07-66) Half a sine over that span, so it leaves the gait and comes back to it
  * with no break at either end, and so that a body walking and a body standing
  * still both strike the same blow. (spec 04-22, 04-24, 04-25, 07-31, 07-65)
  *

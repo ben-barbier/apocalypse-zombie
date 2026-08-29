@@ -36,6 +36,7 @@ import {
   holdShards,
   isBlinking,
   isLit,
+  layArc,
   lightUp,
   placeBalls,
   placeCoins,
@@ -373,20 +374,47 @@ describe('a frame', () => {
 });
 
 describe('the arc of a sweep', () => {
+  /** The sector of a blow: 120° on 3 blocks. (spec 04-22) */
+  const OPEN = (120 * Math.PI) / 180;
+  const REACH = 3;
+  /** One frame at 60 Hz, and one at 30. (spec 10-21, 10 "L'échelle de qualité") */
+  const FRAME = 1000 / 60;
+  /** The 0,4 second between two blows, button held. (spec 04-24) */
+  const CADENCE = 400;
+
+  /** How wide an opening the shards alive cover, in radians, about a heading. */
+  function coveredBy(effects: Effects, x: number, z: number, ang: number): number {
+    let least = Infinity;
+    let most = -Infinity;
+    for (let i = 0; i < effects.count; i += 1) {
+      let turn = Math.atan2(effects.z[i] - z, effects.x[i] - x) - ang;
+      while (turn > Math.PI) turn -= 2 * Math.PI;
+      while (turn < -Math.PI) turn += 2 * Math.PI;
+      if (turn < least) least = turn;
+      if (turn > most) most = turn;
+    }
+    return effects.count === 0 ? 0 : most - least;
+  }
+
+  /** Runs the frames of one whole gesture, at whatever rate is asked. */
+  function writeArc(effects: Effects, from: number, frame: number): void {
+    for (let now = from; now <= from + ARC_SPAN + frame; now += frame) layArc(effects, now);
+  }
+
   it('lays white shards along the sector, at the range of the blow', () => {
-    // spec 07-31: the sweep is a white arc of opaque shards, erased in 150 ms.
-    // spec 04-22: a sector of 120° on 3 blocks.
+    // spec 07-31: the sweep is a white arc of opaque shards, one shard after
+    // another along the blade. spec 04-22: a sector of 120° on 3 blocks.
     const effects = buildEffects(POOL, COINS);
-    const arc = (120 * Math.PI) / 180;
-    sweepArc(effects, 10, 0, -4, 0, arc, 3, 1000);
+    sweepArc(effects, 10, 0, -4, 0, OPEN, REACH, 1000);
+    writeArc(effects, 1000, FRAME);
     expect(effects.count).toBe(ARC);
 
     for (let i = 0; i < effects.count; i += 1) {
       // Every one of them at the range of the blow, from where it left.
-      expect(Math.hypot(effects.x[i] - 10, effects.z[i] + 4)).toBeCloseTo(3, 6);
+      expect(Math.hypot(effects.x[i] - 10, effects.z[i] + 4)).toBeCloseTo(REACH, 6);
       // Inside the sector, and never behind it.
       const turn = Math.atan2(effects.z[i] + 4, effects.x[i] - 10);
-      expect(Math.abs(turn)).toBeLessThanOrEqual(arc / 2 + 1e-6);
+      expect(Math.abs(turn)).toBeLessThanOrEqual(OPEN / 2 + 1e-6);
       expect(effects.span[i]).toBe(ARC_SPAN);
       // Laid still: what reads as a stroke is the shape they hold. (spec 07-31)
       expect(effects.dx[i]).toBeCloseTo(0, 12);
@@ -400,25 +428,122 @@ describe('the arc of a sweep', () => {
     expect(effects.blue[0]).toBeCloseTo(PAINT.b, 6);
   });
 
-  it('opens the arc about the heading it was thrown on', () => {
-    // spec 04-32: the blow leaves where it was launched.
+  it('is twenty-five shards, laid end to end along the outer edge', () => {
+    // spec 07-31, 07 "Le geste de la fauchée": twenty-five, because the outer
+    // edge of the sector measures 3 × 2,094 = 6,28 blocks and a shard is a
+    // quarter of a block — 0,262 apart, which leaves no gap the eye can read.
+    expect(ARC).toBe(25);
+    const edge = REACH * OPEN;
+    expect(edge).toBeCloseTo(6.283, 3);
+    expect(edge / (ARC - 1)).toBeCloseTo(0.262, 3);
+    expect(edge / (ARC - 1)).toBeLessThan(SHARD_SIDE * 1.06);
+  });
+
+  it('writes the arc along the blade instead of laying it whole', () => {
+    // spec 07-66: a third of the way through the gesture, a third of the
+    // opening is white and no more. The whole point of the correction: the eye
+    // is given a stroke that grows, and never a blotch that lights at once.
     const effects = buildEffects(POOL, COINS);
-    const arc = (120 * Math.PI) / 180;
-    sweepArc(effects, 0, 0, 0, Math.PI / 2, arc, 3, 0);
+    sweepArc(effects, 0, 0, 0, 0, OPEN, REACH, 0);
+    // Its head goes down on the very frame of the blow, and its head only.
+    expect(effects.count).toBe(1);
+
+    layArc(effects, ARC_SPAN / 3);
+    expect(effects.count).toBeLessThan(ARC);
+    expect(coveredBy(effects, 0, 0, 0)).toBeCloseTo(OPEN / 3, 6);
+    // And nothing at all past that third: the far edge is still untouched.
     for (let i = 0; i < effects.count; i += 1) {
-      const turn = Math.atan2(effects.z[i], effects.x[i]);
-      expect(Math.abs(turn - Math.PI / 2)).toBeLessThanOrEqual(arc / 2 + 1e-6);
+      expect(Math.atan2(effects.z[i], effects.x[i])).toBeLessThan(-OPEN / 2 + OPEN / 3 + 1e-6);
+    }
+
+    layArc(effects, (2 * ARC_SPAN) / 3);
+    expect(coveredBy(effects, 0, 0, 0)).toBeCloseTo((2 * OPEN) / 3, 6);
+
+    // Home at the end of the gesture, and the whole opening is white.
+    layArc(effects, ARC_SPAN);
+    expect(effects.count).toBe(ARC);
+    expect(coveredBy(effects, 0, 0, 0)).toBeCloseTo(OPEN, 6);
+  });
+
+  it('costs twenty-five shards a blow, at any rate of the display', () => {
+    // spec 07 "Ce que chaque effet consomme": 25 for one arc, and 25 whether the
+    // display runs at 30 frames a second or at 144. (spec 10-22)
+    for (const frame of [1000 / 144, FRAME, 1000 / 30]) {
+      const effects = buildEffects(POOL, COINS);
+      sweepArc(effects, 0, 0, 0, 0, OPEN, REACH, 0);
+      writeArc(effects, 0, frame);
+      expect(effects.sweepLaid).toBe(ARC);
+      expect(effects.count).toBe(ARC);
+      // And it lays no more, however long the frames go on.
+      writeArc(effects, ARC_SPAN, frame);
+      expect(effects.count).toBe(ARC);
     }
   });
 
-  it('is gone in 150 ms, and gives its slots back', () => {
-    // spec 07-31: erased in 150 ms.
+  it('opens the arc about the heading it was thrown on', () => {
+    // spec 04-32: the blow leaves where it was launched.
     const effects = buildEffects(POOL, COINS);
-    sweepArc(effects, 0, 0, 0, 0, (120 * Math.PI) / 180, 3, 0);
-    placeShards(effects, 149);
-    expect(effects.count).toBe(ARC);
-    placeShards(effects, 151);
+    sweepArc(effects, 0, 0, 0, Math.PI / 2, OPEN, REACH, 0);
+    writeArc(effects, 0, FRAME);
+    for (let i = 0; i < effects.count; i += 1) {
+      const turn = Math.atan2(effects.z[i], effects.x[i]);
+      expect(Math.abs(turn - Math.PI / 2)).toBeLessThanOrEqual(OPEN / 2 + 1e-6);
+    }
+  });
+
+  it('goes out by its root, and is gone 300 ms after the blow', () => {
+    // spec 07-31: every shard erased 150 ms after it goes down, so the whole of
+    // it is gone 300 ms after the blow — a hundred short of the next one.
+    const effects = buildEffects(POOL, COINS);
+    sweepArc(effects, 0, 0, 0, 0, OPEN, REACH, 0);
+    writeArc(effects, 0, FRAME);
+    // The root is erased while the head is still white: the stroke slides on.
+    placeShards(effects, 160);
+    expect(effects.count).toBeGreaterThan(0);
+    expect(effects.count).toBeLessThan(ARC);
+    placeShards(effects, ARC_SPAN * 2 + 1);
     expect(effects.count).toBe(0);
+    expect(ARC_SPAN * 2).toBeLessThan(CADENCE);
+  });
+
+  it('leaves at every blow of a series held down', () => {
+    // spec 04-24: the button held strikes in a loop, one blow every 0,4 second,
+    // and every blow draws its arc whether it touched anything or not
+    // (spec 04 "Ce qu'on voit"). Ten seconds of it: twenty-five blows,
+    // twenty-five whole arcs.
+    const effects = buildEffects(POOL, COINS);
+    const written: number[] = [];
+    let blows = 0;
+    let nextBlow = 0;
+    for (let f = 0; f < 600; f += 1) {
+      const now = f * FRAME;
+      if (now >= nextBlow) {
+        if (blows > 0) written.push(effects.sweepLaid);
+        sweepArc(effects, 0, 0, 0, 0, OPEN, REACH, now);
+        blows += 1;
+        nextBlow += CADENCE;
+      } else layArc(effects, now);
+      placeShards(effects, now);
+    }
+    written.push(effects.sweepLaid);
+    expect(blows).toBe(25);
+    expect(written).toHaveLength(25);
+    expect(written.every((laid) => laid === ARC)).toBe(true);
+  });
+
+  it('gives way before a fatal blow when the pool is full', () => {
+    // spec 07-29: the arc is the last served of the four ranks, so twenty-five
+    // shards a blow can never starve what a body felled throws.
+    const effects = buildEffects(POOL, COINS);
+    sweepArc(effects, 0, 0, 0, 0, OPEN, REACH, 0);
+    writeArc(effects, 0, FRAME);
+    holdShards(effects, ARC);
+    scatter(effects, PRIORITY.FATAL, 10, 9, 1, 9, WHITE, 3, 600, 10);
+    let fatal = 0;
+    for (let i = 0; i < effects.count; i += 1) {
+      if (effects.priority[i] === PRIORITY.FATAL) fatal += 1;
+    }
+    expect(fatal).toBe(10);
   });
 });
 
