@@ -40,10 +40,18 @@ export const SUN_TURN = 45;
 /**
  * The two strengths, read off the value rule rather than off a table: the top
  * face lands on a neutral 1, the sides fall back to the violet alone, and
- * nothing blows out — 0,75 × sin 60° + 0,35 = 1. (spec 07-5)
+ * nothing blows out — 0,577 × sin 60° + 0,5 = 1.
+ *
+ * The ambient carries half of that on its own, because a vertical face has
+ * nothing else at all: with no cast light and no lamp anywhere, whatever the sun
+ * does not strike is lit by the violet and by nothing more, and any less of it
+ * takes a green body in a street down to near black. What the directional is
+ * worth is then settled and not chosen — it is what tops the ambient up to one
+ * at 60° — and it is cut short rather than up, so the top face never goes over
+ * one and nothing burns. (spec 07-2, 07-3, 07-4, 07-5, 07 "La lumière et la brume")
  */
-export const SUN_STRENGTH = 0.75;
-export const AMBIENT_STRENGTH = 0.35;
+export const SUN_STRENGTH = 0.577;
+export const AMBIENT_STRENGTH = 0.5;
 
 /**
  * The three colours of the hour, read off chapter 7 and nowhere else: a

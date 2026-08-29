@@ -33,7 +33,7 @@ Ce chapitre décide le cadre : ce qu'est *Apocalypse Zombie*, sur quoi il se jou
 
 **La première vague**
 
-22. Le joueur apparaît **devant la mairie, l'épée en main**, et l'assaut de la vague 1 a déjà commencé : quatre Traînards descendent la rue 1, debout au lever de rideau.
+22. Le joueur apparaît **à la base, l'épée en main, tourné vers le portique de la rue 1** — un demi-bloc devant la face du hangar et au bord de cette face, soit **8,5 blocs sur l'axe de la rue 1 et 3 blocs de côté** ([chapitre 2](02-la-ville.md)) : ainsi posé et ainsi tourné, la caméra qui se place 6,5 blocs derrière lui tombe sur la place, **hors de l'emprise de la mairie comme de celle du hangar**, et ouvre à sa hauteur nominale sans avoir à grimper ([chapitre 4](04-le-joueur.md)) — c'est le premier écran d'une partie neuve, et l'enfant doit y voir son personnage ; l'assaut de la vague 1 a déjà commencé, quatre Traînards descendent la rue 1, debout au lever de rideau.
 23. Le premier coup d'épée tombe vers la **quatrième seconde**, la première pièce dans les **quinze premières secondes** : frapper, voir le zombie se désintégrer, ramasser une pièce enseigne le jeu entier en un geste.
 24. Il n'y a **aucun tutoriel, aucun texte d'accueil, aucune séquence scriptée** : la vague 1 est le tutoriel, et c'est une vague comme les autres.
 
@@ -82,6 +82,7 @@ Ce chapitre décide le cadre : ce qu'est *Apocalypse Zombie*, sur quoi il se jou
 
 | Repère | Valeur |
 |---|---:|
+| Position d'ouverture, sur l'axe de la rue 1 puis de côté | 8,5 et 3 blocs |
 | Traînards debout dans la rue 1 au lever de rideau | 4 |
 | Premier coup d'épée | ≈ 4e seconde |
 | Première pièce | < 15 s |
@@ -128,7 +129,7 @@ La composition par type, la cadence d'entrée et les fenêtres sont au chapitre 
 
 **Pourquoi la durée n'est pas garantie, et pourquoi on accepte 15 minutes.** Depuis la boucle en deux temps, la durée appartient au rythme du joueur : elle ne peut plus être une promesse. Le compte complet — rails de 92 blocs, filet du dernier zombie à 4 blocs par seconde, Colosse à 115 secondes — donne environ 15,2 minutes bien jouée et 19 au pire. On l'accepte tel quel, sans compenser ailleurs : ce n'est pas la difficulté qui s'est allongée, c'est le trajet. Les trois leviers d'équilibrage — la table, les prix, la portée — resteraient tous à côté du sujet.
 
-**Pourquoi la première vague est un tutoriel déguisé.** Rien n'apparaît au lever de rideau : quatre Traînards descendent déjà la rue, le joueur a l'épée en main devant la mairie, et la seule chose qu'il puisse faire est de frapper. Le zombie se désintègre, une pièce tombe, elle est aimantée : la boucle entière du jeu — frapper, gagner, acheter — est enseignée en un geste, sans une ligne de texte et sans qu'on ait rien scripté.
+**Pourquoi la première vague est un tutoriel déguisé.** Rien n'apparaît au lever de rideau : quatre Traînards descendent déjà la rue, le joueur a l'épée en main à la base, la caméra ouvre dégagée derrière lui et le portique de la rue 1 est devant, et la seule chose qu'il puisse faire est de frapper. Le zombie se désintègre, une pièce tombe, elle est aimantée : la boucle entière du jeu — frapper, gagner, acheter — est enseignée en un geste, sans une ligne de texte et sans qu'on ait rien scripté.
 
 **Pourquoi la difficulté ne monte jamais par les statistiques.** L'épée est l'unité de dégâts du jeu et elle ne s'améliore jamais (chapitre 4). Tout le barème se lit en coups d'épée : gonfler les points de vie d'un type revient à casser l'unité de mesure sous les pieds du joueur, qui ne dira pas « ce zombie est plus fort » mais « mon épée ne marche plus ». Le nombre, les types et les rues suffisent — ils sont, eux, visibles.
 

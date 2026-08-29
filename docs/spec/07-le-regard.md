@@ -10,7 +10,7 @@ Ce chapitre décide comment le jeu se voit : l'heure orange et sa lumière uniqu
 2. Il n'existe qu'**une seule lumière directionnelle** — le soleil, fixe à **60° au-dessus de l'horizon** — doublée d'**une seule ambiante**, violette, qui remplit les faces à contre-jour.
 3. **Aucune ombre portée n'existe** : le soleil n'est qu'une direction d'éclairement, et rien, jamais, ne projette d'ombre.
 4. **Aucune lumière ponctuelle n'existe** : rien n'éclaire son voisinage — ni le jet de feu, ni un éclat, ni une pièce, ni un portique.
-5. Le relief se lit donc à la **valeur des faces** : la face du dessus est neutre, les latérales s'assombrissent, et rien ne crame.
+5. Le relief se lit donc à la **valeur des faces** : la directionnelle vaut **0,577** et l'ambiante **0,5**, de sorte que la face du dessus reçoive exactement **1** — `0,577 × sin 60° + 0,5 = 1` —, que les latérales retombent sur la seule ambiante sans jamais tomber au noir, et que **rien ne crame**.
 6. La **brume** est orange, épaissit avec la distance et efface l'extérieur au-delà des fronts bâtis — mais elle **laisse voir le fond d'une rue**, d'où sortent les zombies ([chapitre 3](03-les-zombies.md)).
 7. Elle est **structurelle et non décorative** : c'est elle qui dispense de détailler ce qu'on ne joue pas.
 8. **Les effets ne prennent pas la brume** : un canon lointain qui tire doit se voir tirer.
@@ -155,12 +155,16 @@ C'est une **information de jeu** : sans ombre portée, rien d'autre que la tuile
 | Rôle | Valeur |
 |---|---|
 | Soleil (directionnelle) | `#fff2dd` |
+| Force de la directionnelle | **0,577** |
 | Ambiante violette | `#6d5ac4` |
+| Force de l'ambiante | **0,5** |
 | Brume | `#d9955c` |
 | Hauteur du soleil | **60°** *(déjà en 07-2)* |
 | Azimut du soleil | **45°** |
 | Début de la brume | **96 blocs** — apothème + longueur de rue (chapitre 2) |
 | Fin de la brume | **108 blocs** — 96 + l'extérieur (chapitre 2) |
+
+Les deux forces tiennent l'égalité de la règle 5 — `0,577 × sin 60° + 0,5 = 1` —, et la directionnelle est **arrondie par le bas** : la somme n'excède jamais 1, donc la face du dessus ne crame pas. L'ambiante porte la moitié de la lumière parce qu'une face verticale n'a qu'elle : sans ombre portée et sans lumière ponctuelle, tout ce que le soleil ne frappe pas est éclairé par le violet et par rien d'autre, et plus bas un corps vert dans la rue sort presque noir.
 
 Les deux distances de brume sont **dérivées** du [chapitre 2](02-la-ville.md), et non choisies : 16 blocs d'apothème plus 80 blocs de rue font les 96 où la brume commence, et les 12 blocs d'extérieur font les 108 où elle est totale. Elles se recalculent depuis la ville ; elles ne se règlent pas à l'œil.
 

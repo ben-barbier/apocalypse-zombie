@@ -58,12 +58,18 @@ describe('the light of the one hour', () => {
   });
 
   it('lands the top face on a neutral one, and nothing blows out', () => {
-    // spec 07-5: the top face is neutral, the sides darken, and nothing burns.
+    // spec 07-5, 07 "La lumière et la brume": 0,577 × sin 60° + 0,5 = 1. The two
+    // are written out here from the chapter, because it is the sum that is the
+    // rule and either one alone would pass any test of its own.
+    expect(SUN_STRENGTH).toBe(0.577);
+    expect(AMBIENT_STRENGTH).toBe(0.5);
     const top = SUN_STRENGTH * Math.sin((SUN_RISE * Math.PI) / 180) + AMBIENT_STRENGTH;
-    expect(top).toBeCloseTo(1, 2);
+    expect(top).toBeCloseTo(1, 3);
+    // Cut short rather than up: the top face never goes over one, so it never burns.
     expect(top).toBeLessThanOrEqual(1);
-    // A face turned away keeps the violet alone, and it is far from black.
-    expect(AMBIENT_STRENGTH).toBeGreaterThan(0);
+    // A face turned away keeps the violet alone, and it carries half the light,
+    // which is what a green body in a street is read by. (spec 07-2, 07-3, 07-4)
+    expect(AMBIENT_STRENGTH).toBeCloseTo(top / 2, 3);
   });
 });
 
