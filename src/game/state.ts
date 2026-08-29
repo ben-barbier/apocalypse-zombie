@@ -216,6 +216,8 @@ export interface ZombiePool {
   readonly progress: Float32Array;
   /** How far off the rail, in blocks, either way. (spec 03-7) */
   readonly offset: Float32Array;
+  /** 1 for the six bruisers held to the pace of the colossus. (spec 03-34) */
+  readonly escort: Uint8Array;
   /** Seconds of halted progress left after a sword blow. (spec 04-35) */
   readonly knockedFor: Float32Array;
   /** Seconds its progress has not moved, which pushes it along at three. (spec 03-11) */
@@ -238,6 +240,7 @@ function createZombiePool(size: number): ZombiePool {
     street: new Uint8Array(size),
     progress: new Float32Array(size),
     offset: new Float32Array(size),
+    escort: new Uint8Array(size),
     knockedFor: new Float32Array(size),
     stuckFor: new Float32Array(size),
     blowLeft: new Float32Array(size),
@@ -878,6 +881,11 @@ export interface Assault {
   prepLeft: number;
   /** Zombies of this wave that have not walked in yet. (spec 08-39) */
   toEnter: number;
+  /** Packs each street has already walked in this wave. (spec 03-22) */
+  readonly sent: Uint8Array;
+  /** Seconds before the next pack of each street, staggered at the start of an
+   * assault so the streets carrying a wave open one after the other. (spec 03-25) */
+  readonly enterLeft: Float32Array;
   /** Seconds spent at three left or fewer, which sends the last ones at four
    * blocks a second once it reaches fifteen. (spec 03-38, 03-39) */
   fewFor: number;
@@ -933,6 +941,8 @@ export function createGame(balance: Balance, seed = 0): Game {
       phase: PHASE.ASSAULT,
       prepLeft: 0,
       toEnter: 0,
+      sent: new Uint8Array(STREETS),
+      enterLeft: new Float32Array(STREETS),
       fewFor: 0,
       city: createCity(balance.city),
       zombies: createZombiePool(balance.pools.zombies),

@@ -21,6 +21,7 @@
 import { BALANCE } from '../game/balance';
 import { placePlayer } from '../game/player';
 import { EVENT, type EventBuffer, createGame, createInput } from '../game/state';
+import { beginAssault } from '../game/waves';
 import { loadAtlas } from '../render/atlas';
 import {
   aimCamera,
@@ -49,8 +50,8 @@ import { createLoop, startLoop } from './loop';
 
 const canvas = document.getElementById('view') as HTMLCanvasElement;
 
-// The seed of a real run arrives with the chapter that opens a game; nothing
-// draws on the generator yet. (spec 10-27)
+// The seed of a real run arrives with the chapter that opens a game; until then
+// every run draws the same offsets off the same stream. (spec 10-27)
 const game = createGame(BALANCE);
 const input = createInput();
 const quality = createQuality();
@@ -58,6 +59,11 @@ const quality = createQuality();
 // He stands at the base, in front of the town hall, which is where a game opens
 // and where a resumed one picks up. (spec 01-22, 08-71)
 placePlayer(game);
+
+// A game opens on the assault of wave one, with its four shamblers already
+// standing twenty blocks up street one: nothing at all comes before it, and
+// nothing pops into being in plain view. (spec 01-16, 03-31)
+beginAssault(game);
 
 // The two entries that write the one `InputState`: the gamepad the game is
 // designed for, and the keyboard that is only a shortcut for testing. The touch
