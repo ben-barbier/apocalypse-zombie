@@ -6,8 +6,8 @@
  * elsewhere; nothing is decided here. (spec 10-15)
  *
  * The scene it opens holds the one hour, the city under it, the bodies that walk
- * it and the shards every effect of the game is made of; the cannons arrive with
- * their own chapter, into this same scene.
+ * it, the cannons they walk past and the shards every effect of the game is made
+ * of.
  *
  * The one reading of the buffer of events lives here, and it deals out what it
  * finds: the drawing takes types from the rules and never their constants, so
@@ -20,9 +20,10 @@
  */
 import { BALANCE } from '../game/balance';
 import { placePlayer } from '../game/player';
-import { EVENT, type EventBuffer, createGame, createInput } from '../game/state';
+import { DIAMOND, EVENT, type EventBuffer, createGame, createInput } from '../game/state';
 import { beginAssault } from '../game/waves';
 import { loadAtlas } from '../render/atlas';
+import { buildCannons, layDiamond, placeCannons, raiseCannon } from '../render/cannons';
 import {
   aimCamera,
   createCamera,
@@ -92,6 +93,9 @@ const sheet = loadAtlas();
 // Sized for every body the game can hold at once: the player and the pool of
 // zombies. (spec 10-13)
 const characters = buildCharacters(1 + BALANCE.pools.zombies);
+// Sized for the pool of cannons, which is a technical bound and never a rule:
+// nothing here counts them either. (spec 05-52, 10-13)
+const cannons = buildCannons(BALANCE.pools.cannons);
 // The six hundred shards, allocated at load and never again: the quality scale
 // lowers what they hold, and the simulation hears nothing of it. (spec 07-27, 10-39)
 const effects = buildEffects(BALANCE.pools.shards, BALANCE.pools.coins);
@@ -103,6 +107,7 @@ raise();
 function raise(): void {
   scene.add(buildCity(game.assault.city, BALANCE.city, sheet).node);
   scene.add(characters.node);
+  scene.add(cannons.node);
   scene.add(effects.node);
 }
 
@@ -181,6 +186,13 @@ const RISEN_BLINK = BALANCE.player.riseInvulnerable * 1000;
 const SPRAY = 24;
 const SPRAY_SPEED = 6;
 const SPRAY_SPAN = 900;
+
+/**
+ * How long a cannon takes to go down, in ms. It is chapter 5's 0,3 second, read
+ * here where the balance is named, and it is the whole of what the placing costs:
+ * a cannon comes up out of the ground over it. (spec 05-7)
+ */
+const PLACE_SPAN = BALANCE.cannon.placeTime * 1000;
 
 function fell(events: Readonly<EventBuffer>, at: number, now: number): void {
   const kind = events.value[at];
@@ -266,6 +278,12 @@ const loop = createLoop(game, input, {
           now,
         );
       }
+      // A cannon going down, which takes 0,3 second and comes up out of the
+      // ground over it. What it looks like once it is up is read off the pool,
+      // never off a comparison of two states. (spec 05-7, 10-19)
+      else if (kind === EVENT.CANNON_PLACED) {
+        raiseCannon(cannons, events.x[i], events.z[i], PLACE_SPAN, now);
+      }
       // The one body the child drives answers a blow with a rhythm rather than
       // with a flash: white at 2 Hz while he is staggered, then the same sped up
       // to 6 Hz while he is untouchable. He goes down with neither — being on
@@ -283,6 +301,24 @@ const loop = createLoop(game, input, {
     }
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
     placeCharacters(characters, held.assault.player, alpha, now, isBlinking(effects, now));
+    // The cannons, and under his feet the question he is asking: wide and white
+    // a cannon goes down, tight white and breathing the one within three blocks
+    // moves up, wide and black there is nothing left to do here. The rules
+    // settled which; the drawing takes the shape of the answer and never the
+    // constant that names it. (spec 05-17, 05-18, 10-2)
+    placeCannons(cannons, held.snapshot.cannons, BALANCE.cannon, alpha, now);
+    const asking = held.assault.diamond;
+    layDiamond(
+      cannons,
+      asking.x,
+      asking.y,
+      asking.z,
+      asking.reach,
+      asking.shows !== DIAMOND.NONE,
+      asking.shows === DIAMOND.UPGRADE,
+      BALANCE.cannon,
+      now,
+    );
     // The coins lying in the city, and the ones on their way to him. (spec 06-8, 07-35)
     placeCoins(effects, held.assault.coins, held.assault.player, alpha, now);
     // The shards run on the frame, not on the step: they are erased in ms.
