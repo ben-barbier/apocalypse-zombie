@@ -86,10 +86,12 @@ import {
   type Game,
   type InputState,
   atBase,
+  atFreeFace,
   heightAt,
   inHalo,
   pushEvent,
 } from './state';
+import { reinforceTownHall, reinforcementPrice } from './townhall';
 import { BODY_SIDE, fellZombie } from './zombies';
 
 /**
@@ -106,6 +108,14 @@ export const FLAME_TIER = 2;
  * second box, so nothing new is settled here. (spec 03-14, 04-45)
  */
 const SHED_CONTACT = BODY_SIDE / 2;
+
+/**
+ * How close he stands to a free face of the town hall for a press to reinforce.
+ * It is **the same** reading, written as the same reading rather than as a
+ * second number: the two builds at the middle of the city are asked for a
+ * contact alike, and neither is a case of its own. (spec 04-45, 06-31)
+ */
+const HALL_CONTACT = SHED_CONTACT;
 
 /** The shortest turn from one heading to another, in radians. */
 function turnBetween(from: number, to: number): number {
@@ -669,12 +679,29 @@ function burnFlames(game: Game, seconds: number): void {
  *      be unreachable and the child could never carry a bomb. Full arms leave
  *      the question to the ones below rather than spending a press on nothing.
  *      (spec 04-45, 04-46, 04-60);
- *   2. **within three blocks of a cannon, the pouring comes before the
+ *   2. **at the contact of one of the three free faces of the town hall, he
+ *      reinforces.** It goes here, above every question a cannon asks, and the
+ *      argument is the one that put the shed first, word for word: the
+ *      reinforcement happens at those three faces *and nowhere else*, while a
+ *      cannon goes down anywhere at all — so the named place wins over the place
+ *      that is everywhere, or the named place stops existing. It is not a matter
+ *      of taste either. The reinforcement is the **valve**, and 06 "Pourquoi la
+ *      spirale ne peut pas exister" turns on its being payable at the very
+ *      moment it becomes needed; a cannon put down against the wall of the town
+ *      hall would bury it exactly then, in the thick of an assault, which is
+ *      when 06-30 says it is bought. It sits **below** the shed because 06-31
+ *      settles the one place the two could ever meet: the face the shed holds
+ *      never reinforces — there, one takes bombs — and `atFreeFace` refuses that
+ *      whole face on its own, so the order and the reading agree twice over.
+ *      It is never black: there is no notch at which there is nothing left to
+ *      do, since the buy-back runs indefinitely. (spec 06-28, 06-30, 06-31,
+ *      06-32);
+ *   3. **within three blocks of a cannon, the pouring comes before the
  *      upgrading**, and that is written in as many words: one does not carry
  *      bombs up a street to walk off with them again. (spec 04-49, 04-50,
  *      05-15);
- *   3. then the **upgrading**, while a tier is left to reach (spec 05-13);
- *   4. **black** when none is — a third tier, or a second one beyond the halo.
+ *   4. then the **upgrading**, while a tier is left to reach (spec 05-13);
+ *   5. **black** when none is — a third tier, or a second one beyond the halo.
  *      This is 05-18, and it lands *here*, after the pouring has been asked:
  *      its own words are "there is nothing left to improve", so it answers for
  *      the upgrade and never for the armful. Put above the pouring instead, the
@@ -682,10 +709,11 @@ function burnFlames(game: Game, seconds: number): void {
  *      worse than the dead zone the chapter already forbids. That reading is
  *      what this file settles, and it bends neither rule. (spec 05-15, 05-17,
  *      05-18);
- *   5. otherwise a cannon **goes down** where he stands (spec 05-7).
+ *   6. otherwise a cannon **goes down** where he stands (spec 05-7).
  *
- * The reinforcement of the town hall is the sense this file does not carry, and
- * it arrives with chapter 6. (spec 06-30, 06-31)
+ * Those are the five senses of the button and the three places that tell them
+ * apart, which is the whole of why there will never be a second build: no place
+ * is left for one. (spec 05-1, 05 "Pourquoi le canon est la seule construction")
  */
 export function askDiamond(game: Game): void {
   const player = game.assault.player;
@@ -703,6 +731,16 @@ export function askDiamond(game: Game): void {
   if (game.snapshot.armful < rule.magazine && atBase(game.assault.city, x, z, SHED_CONTACT)) {
     diamond.at = -1; // the shed is not a cannon, and it names none
     diamond.shows = DIAMOND.TAKE;
+    return;
+  }
+
+  // The three free faces, and never the fourth. Nothing is read here of what the
+  // town hall has taken: the mark is the same at a full bar and at a quarter of
+  // one, because the price is the same and only the yield differs — which is the
+  // arbitration itself. (spec 06-30, 06-31, 06-32)
+  if (atFreeFace(game.assault.city, x, z, HALL_CONTACT)) {
+    diamond.at = -1; // the town hall is not a cannon either
+    diamond.shows = DIAMOND.REINFORCE;
     return;
   }
 
@@ -753,6 +791,18 @@ function pressAction(game: Game): void {
     return;
   }
 
+  // The valve. The price is asked of the notch alone and of nothing else — never
+  // of what the bar has left — and what those coins buy back is therefore worth
+  // 2 hp on a full town hall and 5 on one at a quarter. That is the decision, and
+  // there is no refund below and no part price. (spec 06-25, 06-32)
+  if (diamond.shows === DIAMOND.REINFORCE) {
+    const owed = reinforcementPrice(game);
+    if (game.snapshot.coins < owed) return;
+    game.snapshot.coins -= owed;
+    reinforceTownHall(game);
+    return;
+  }
+
   if (diamond.shows === DIAMOND.PLACE) {
     if (game.snapshot.coins < prices.cannon) return;
     const at = placeCannon(
@@ -783,8 +833,8 @@ function pressAction(game: Game): void {
  *   - the ones at nought go, so the question below never names one that is no
  *     longer there (spec 05-50);
  *   - the question is settled from where he stands (spec 05-17);
- *   - the button does what the question said — taking, pouring, putting one
- *     down or upgrading it (spec 04-46, 04-50, 05-13, 05-15);
+ *   - the button does what the question said — taking, reinforcing, pouring,
+ *     putting one down or upgrading it (spec 04-46, 04-50, 05-13, 05-15, 06-30);
  *   - the belts of the third tier bring what they bring, before the cones burn,
  *     so a firebomb that lands this step is alight this step (spec 04-54);
  *   - the cones burn what stands in them (spec 05-32);

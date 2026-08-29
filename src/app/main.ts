@@ -21,6 +21,7 @@
 import { BALANCE } from '../game/balance';
 import { placePlayer } from '../game/player';
 import { DIAMOND, EVENT, type EventBuffer, createGame, createInput } from '../game/state';
+import { reinforcementNotch } from '../game/townhall';
 import { beginAssault } from '../game/waves';
 import { loadAtlas } from '../render/atlas';
 import {
@@ -45,7 +46,7 @@ import {
   flingHead,
   placeCharacters,
 } from '../render/characters';
-import { buildCity } from '../render/city';
+import { buildCity, buildCrown, showCrown } from '../render/city';
 import { createContext, resize } from '../render/context';
 import {
   COIN,
@@ -118,12 +119,20 @@ const effects = buildEffects(
   BALANCE.pools.projectiles,
 );
 holdShards(effects, tierOf(quality).shards);
+// What a reinforcement builds on the town hall, sized at load for the widest
+// notch it will ever hold: putting one up seats blocks and allocates nothing.
+// The notch is read off the stuff it wears and never off a figure. (spec 06-37)
+const crown = buildCrown(BALANCE.city, sheet);
 let scene = createScene(BALANCE.city);
 raise();
 
 /** Puts the city, the bodies and the shards into the scene, from the grid the rules engender. */
 function raise(): void {
   scene.add(buildCity(game.assault.city, BALANCE.city, sheet).node);
+  // The scene is a projection of the state, so the town hall comes back wearing
+  // the notch it stands at, whatever asked for the scene. (spec 10-37)
+  scene.add(crown.node);
+  showCrown(crown, reinforcementNotch(game));
   scene.add(characters.node);
   scene.add(cannons.node);
   scene.add(effects.node);
@@ -310,6 +319,11 @@ const loop = createLoop(game, input, {
           now,
         );
       }
+      // A reinforcement paid for: the whole of what it builds goes up in one
+      // movement, at the notch the fact carries, and that is the one thing that
+      // brings back what has come off the town hall. Nothing anywhere draws a
+      // figure of it. (spec 06-36, 06-37)
+      else if (kind === EVENT.REINFORCEMENT_BOUGHT) showCrown(crown, events.value[i]);
       // A cannon going down, which takes 0,3 second and comes up out of the
       // ground over it. What it looks like once it is up is read off the pool,
       // never off a comparison of two states. (spec 05-7, 10-19)
@@ -378,9 +392,10 @@ const loop = createLoop(game, input, {
       asking.reach,
       asking.shows !== DIAMOND.NONE,
       // Tight and breathing wherever a press acts on what stands here — pouring
-      // into a cannon, upgrading one, filling his arms at the shed — and wide
-      // only where a cannon goes down. Three readings, more senses than three.
-      // (spec 05-17, 06-30)
+      // into a cannon, upgrading one, filling his arms at the shed, reinforcing
+      // the town hall at one of its three free faces — and wide only where a
+      // cannon goes down. Three readings, more senses than three.
+      // (spec 05-17, 06-30, 06-31)
       asking.shows !== DIAMOND.PLACE && asking.shows !== DIAMOND.NONE,
       BALANCE.cannon,
       now,

@@ -85,7 +85,13 @@ export const EVENT = {
    * whole payment rather than the ten alone. (spec 06-13, 06-14)
    */
   ASSAULT_BONUS: 16,
-  /** A reinforcement is paid for. (spec 06-25) */
+  /**
+   * A reinforcement is paid for, which is two things in one movement: the town
+   * hall whole again and its ceiling moved up. The `value` carries the **notch**
+   * it now stands at, because that is what says the stuff it is built of — and
+   * the drawing rebuilds the whole of it off this one fact rather than off two
+   * states compared. (spec 06-25, 06-36, 06-37, 10-19)
+   */
   REINFORCEMENT_BOUGHT: 17,
   /** The armful fills at the base. (spec 04-45) */
   ARMFUL_TAKEN: 18,
@@ -533,6 +539,14 @@ export const DIAMOND = {
    * (spec 04-45, 04-46)
    */
   TAKE: 4,
+  /**
+   * Tight, white and pulsing: at the contact of one of the three free faces of
+   * the town hall, the reinforcement — whole again and the ceiling up, bought in
+   * the thick of an assault exactly as a cannon goes down. It is never black and
+   * there is no notch at which it stops, since the buy-back runs indefinitely.
+   * (spec 06-28, 06-30, 06-31)
+   */
+  REINFORCE: 5,
 } as const;
 
 export type DiamondType = (typeof DIAMOND)[keyof typeof DIAMOND];
@@ -739,6 +753,12 @@ export interface City {
   readonly baseAng: number;
   readonly baseAlong: number;
   readonly baseAcross: number;
+  /**
+   * Half the side of the town hall, which stands eight by eight at the exact
+   * middle. It is what the contact of a face is measured against, and the shed
+   * is adossed to one of the four. (spec 02-7, 02-8)
+   */
+  readonly townHallHalf: number;
   readonly buildings: BuildingPool;
   readonly rails: RailPool;
   readonly gateways: GatewayPool;
@@ -780,6 +800,39 @@ export function atBase(city: City, x: number, z: number, reach: number): boolean
   const across = Math.abs(-offX * sin + offZ * cos) - city.baseAcross;
   const outAlong = along > 0 ? along : 0;
   const outAcross = across > 0 ? across : 0;
+  return outAlong * outAlong + outAcross * outAcross < reach * reach;
+}
+
+/**
+ * Whether a spot stands at the contact of one of the **three free faces** of the
+ * town hall — the three that reinforce. The fourth is the one the shed of the
+ * base is adossed to, and it **never** reinforces: there, one takes firebombs.
+ * (spec 02-8, 06-31)
+ *
+ * Which of the four faces one stands at is settled by the two diagonals of the
+ * square, in the frame the shed gives: past them on the shed's heading one is at
+ * the shed's face and nowhere else, whatever the reach — so the corners belong
+ * to it and not to its neighbours, and a press there can never reinforce. The
+ * whole face is refused and not merely the width the shed covers, because 06-31
+ * speaks of a **face** and the two blocks it leaves at either end are the same
+ * face.
+ *
+ * Past that, it is the one reading of a contact this game has, the same
+ * `atBase` takes: the distance to the nearest point of the footprint, nought for
+ * a body pressed against it and growing as he walks off. (spec 03-14, 04-45)
+ */
+export function atFreeFace(city: City, x: number, z: number, reach: number): boolean {
+  const cos = Math.cos(city.baseAng);
+  const sin = Math.sin(city.baseAng);
+  const along = x * cos + z * sin;
+  const across = -x * sin + z * cos;
+  if (along >= Math.abs(across)) return false; // the face the shed holds (spec 06-31)
+
+  const half = city.townHallHalf;
+  const offAlong = Math.abs(along) - half;
+  const offAcross = Math.abs(across) - half;
+  const outAlong = offAlong > 0 ? offAlong : 0;
+  const outAcross = offAcross > 0 ? offAcross : 0;
   return outAlong * outAlong + outAcross * outAcross < reach * reach;
 }
 
@@ -1121,6 +1174,7 @@ export function createCity(balance: CityBalance): City {
     baseAng,
     baseAlong: balance.baseWidth / 2,
     baseAcross: balance.baseLength / 2,
+    townHallHalf: townHall,
     buildings,
     rails,
     gateways,

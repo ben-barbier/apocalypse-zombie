@@ -58,6 +58,7 @@ function flatCity(): City {
     baseAng: 0,
     baseAlong: 2, // half the four blocks the shed runs out from the town hall
     baseAcross: 3, // half the six it is wide (spec 02-8)
+    townHallHalf: 4, // half the eight of the town hall (spec 02-7)
     buildings: {
       count: 0,
       x: new Float32Array(0),

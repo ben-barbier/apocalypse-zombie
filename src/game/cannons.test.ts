@@ -46,6 +46,7 @@ import {
   inHalo,
 } from './state';
 import { step } from './step';
+import { reinforcementNotch, strikeTownHall } from './townhall';
 import { spawnZombie, stepZombies } from './zombies';
 
 /** One step of the one loop, in seconds. (spec 10-21) */
@@ -77,6 +78,26 @@ const AT_SHED = { x: 8.4, y: 0, z: 0 };
 
 /** Deep in the halo, and further out in it: fourteen blocks from the base. (spec 02-31) */
 const FAR_IN_HALO = { x: 20, y: 0, z: 0 };
+
+/**
+ * The three free faces of the town hall, which stands eight by eight at the
+ * exact middle: street one heads along `+x`, so the shed holds that face and the
+ * other three are at `-x`, `+z` and `-z`. A fifth of a block off a face at four
+ * is at the contact of it, and the paving there is walkable.
+ * (spec 02-7, 02-8, 06-31)
+ */
+const AT_HALL = { x: -4.2, y: 0, z: 0 };
+const FREE_FACES = [
+  { x: -4.2, y: 0, z: 0 },
+  { x: 0, y: 0, z: 4.2 },
+  { x: 0, y: 0, z: -4.2 },
+];
+
+/**
+ * The face the shed is adossed to, at the two blocks of it the shed leaves free
+ * at either end: it is the same face, and it never reinforces. (spec 06-31)
+ */
+const HALL_SHED_FACE = { x: 4.2, y: 0, z: 3.5 };
 
 /** Where a body stands on the rail of street one at a given `x`. (spec 02-12, 03-6) */
 const progressAt = (x: number): number => 96 - x;
@@ -1150,5 +1171,161 @@ describe('the conveyor', () => {
       told = true;
     }
     expect(told).toBe(true);
+  });
+});
+
+describe('reinforcing the town hall', () => {
+  it('is what the mark says at each of the three free faces', () => {
+    // spec 06-30, 06-31: tight, white and pulsing at the contact of one of the
+    // three free faces, and the second button reinforces.
+    for (const face of FREE_FACES) {
+      const game = rich();
+      stand(game, face.x, face.y, face.z);
+      askDiamond(game);
+      expect(game.assault.diamond.shows).toBe(DIAMOND.REINFORCE);
+      expect(game.assault.diamond.at).toBe(-1); // the town hall is not a cannon
+    }
+  });
+
+  it('never says it at the face the shed holds, at any point of that face', () => {
+    // spec 06-31: the face the shed of the base occupies never reinforces —
+    // there, one takes bombs. Walked along the whole of that face, corner to
+    // corner, the two blocks the shed leaves free at either end included.
+    const game = rich();
+    for (let z = -4; z <= 4; z += 0.2) {
+      stand(game, 4.2, 0, z);
+      askDiamond(game);
+      expect(game.assault.diamond.shows).not.toBe(DIAMOND.REINFORCE);
+    }
+
+    // And at the ends of it, where the shed reaches no further either, the press
+    // is not dead: a cannon goes down. (spec 05-7)
+    stand(game, HALL_SHED_FACE.x, HALL_SHED_FACE.y, HALL_SHED_FACE.z);
+    askDiamond(game);
+    expect(game.assault.diamond.shows).toBe(DIAMOND.PLACE);
+  });
+
+  it('leaves the shed the sense it already had', () => {
+    // spec 04-45, 06-31: at the contact of the shed one fills one's arms, and
+    // that question is asked before this one.
+    const game = rich();
+    stand(game, AT_SHED.x, AT_SHED.y, AT_SHED.z);
+    askDiamond(game);
+    expect(game.assault.diamond.shows).toBe(DIAMOND.TAKE);
+  });
+
+  it('wins over putting a cannon down, so the valve is never shut', () => {
+    // spec 06-30, 06-31: the reinforcement happens at those three faces and
+    // nowhere else, while a cannon goes down anywhere at all — so the named
+    // place wins, or it stops existing.
+    const game = rich();
+    stand(game, AT_HALL.x, AT_HALL.y, AT_HALL.z);
+    press(game);
+    expect(game.snapshot.cannons.count).toBe(0);
+    expect(reinforcementNotch(game)).toBe(1);
+  });
+
+  it('wins over a cannon standing against the wall, whatever that cannon wants', () => {
+    // spec 06-30, and 06 "Pourquoi la spirale ne peut pas exister": the valve
+    // has to be payable at the very moment it is needed. A cannon put down
+    // against the town hall must not bury it — not to pour into, not to upgrade.
+    const near = { x: AT_HALL.x - 0.5, y: 0, z: 0 };
+    const game = rich();
+    game.snapshot.armful = 3;
+    put(game, near);
+    stand(game, AT_HALL.x, AT_HALL.y, AT_HALL.z);
+    askDiamond(game);
+    expect(nearestCannon(game, AT_HALL.x, 0, AT_HALL.z)).toBe(0); // one is right there
+    expect(mayPour(game, 0)).toBe(true); // and it would take an armful
+    expect(game.assault.diamond.shows).toBe(DIAMOND.REINFORCE);
+
+    press(game);
+    expect(game.snapshot.armful).toBe(3); // nothing was poured
+    expect(game.snapshot.cannons.tier[0]).toBe(1); // and nothing was upgraded
+    expect(reinforcementNotch(game)).toBe(1);
+  });
+
+  it('pays 50, then 80, then 120, and 120 for ever after', () => {
+    // spec 06-18, 06-27, 06-28: the three notches and the buy-back, paid out of
+    // the one purse.
+    const game = rich();
+    game.snapshot.coins = 50 + 80 + 120 + 120;
+    stand(game, AT_HALL.x, AT_HALL.y, AT_HALL.z);
+    for (let n = 0; n < 4; n += 1) press(game);
+    expect(game.snapshot.coins).toBe(0);
+    expect(game.snapshot.townHall.cap).toBe(500);
+    expect(game.snapshot.townHall.hp).toBe(500);
+  });
+
+  it('buys what one can pay for, and nothing at all when one cannot', () => {
+    // spec 06-21: no credit, no reservation, no part payment. The mark answers
+    // "may I here?", the badge answers "may I pay?". (spec 08-28)
+    const game = rich();
+    game.snapshot.coins = 49;
+    for (let i = 0; i < 60; i += 1) strikeTownHall(game, 1, 0, 0, 0, 0);
+    stand(game, AT_HALL.x, AT_HALL.y, AT_HALL.z);
+    askDiamond(game);
+    expect(game.assault.diamond.shows).toBe(DIAMOND.REINFORCE); // the mark says yes
+    press(game);
+    expect(game.snapshot.coins).toBe(49); // and the purse says no
+    expect(game.snapshot.townHall.hp).toBe(140);
+    expect(reinforcementNotch(game)).toBe(0);
+  });
+
+  it('never reads what the bar has left, at the mark or at the price', () => {
+    // spec 06-32: never a price in proportion to the harm taken. A full town
+    // hall and one at a quarter get the same mark and the same bill — and what
+    // the coins buy differs, which is the arbitration itself.
+    const full = rich();
+    stand(full, AT_HALL.x, AT_HALL.y, AT_HALL.z);
+    askDiamond(full);
+    expect(full.assault.diamond.shows).toBe(DIAMOND.REINFORCE);
+    press(full);
+    expect(full.snapshot.coins).toBe(10_000 - 50);
+    expect(full.snapshot.townHall.hp).toBe(300); // 100 bought, 2 the coin
+
+    const worn = rich();
+    for (let i = 0; i < 150; i += 1) strikeTownHall(worn, 1, 0, 0, 0, 0);
+    stand(worn, AT_HALL.x, AT_HALL.y, AT_HALL.z);
+    askDiamond(worn);
+    expect(worn.assault.diamond.shows).toBe(DIAMOND.REINFORCE);
+    press(worn);
+    expect(worn.snapshot.coins).toBe(10_000 - 50); // the same bill
+    expect(worn.snapshot.townHall.hp).toBe(300); // 250 bought, 5 the coin
+  });
+
+  it('is bought in the thick of an assault exactly as a cannon goes down', () => {
+    // spec 06-30, 05-9: no state of the game holds it back, and it never waits
+    // for a preparation. (spec 06 "Les interdits")
+    for (const phase of [PHASE.ASSAULT, PHASE.PREP]) {
+      const game = rich();
+      game.assault.phase = phase;
+      walkIn(game, ZOMBIE.BRUISER, 90); // one hammering at the face of it
+      stand(game, AT_HALL.x, AT_HALL.y, AT_HALL.z);
+      press(game);
+      expect(reinforcementNotch(game)).toBe(1);
+    }
+  });
+
+  it('is never black: there is always something left to do at a face', () => {
+    // spec 06-28: the buy-back runs indefinitely, so no notch ever leaves a
+    // press with nothing to do — and there is no dead zone. (spec 05-13)
+    const game = rich();
+    stand(game, AT_HALL.x, AT_HALL.y, AT_HALL.z);
+    for (let n = 0; n < 12; n += 1) {
+      askDiamond(game);
+      expect(game.assault.diamond.shows).toBe(DIAMOND.REINFORCE);
+      press(game);
+    }
+    expect(reinforcementNotch(game)).toBe(3); // and never a fourth
+    expect(game.snapshot.townHall.cap).toBe(500);
+  });
+
+  it('follows the feet: one step back from the face and it is gone', () => {
+    // spec 05-20: it is the question one is asking, never the state of anything.
+    const game = rich();
+    stand(game, AT_HALL.x - 1, 0, AT_HALL.z);
+    askDiamond(game);
+    expect(game.assault.diamond.shows).toBe(DIAMOND.PLACE);
   });
 });

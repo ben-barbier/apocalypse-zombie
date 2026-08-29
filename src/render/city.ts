@@ -265,6 +265,41 @@ function quadOf(id: TileId): THREE.PlaneGeometry {
   return quad;
 }
 
+/**
+ * The scratch the seating of a face borrows: allocated once, at load, and
+ * written over ever after — nothing here is ever built a second time.
+ * (spec 10-14)
+ */
+const SPOT = new THREE.Vector3();
+const TURN = new THREE.Quaternion();
+const SCALE = new THREE.Vector3(1, 1, 1);
+const SEAT = new THREE.Matrix4();
+
+/**
+ * Seats one face of one block in a mesh: a face one walks on lies flat, a face of
+ * a side stands half a block out and looks away from what it clothes. It is the
+ * one place that matrix is composed, so the city and what a reinforcement builds
+ * on it can never come to disagree about which way a block looks. (spec 07-17)
+ */
+function seatFace(
+  mesh: THREE.InstancedMesh,
+  n: number,
+  x: number,
+  y: number,
+  z: number,
+  way: number,
+): void {
+  if (way === TOP) {
+    SPOT.set(x, y, z);
+    TURN.setFromAxisAngle(SIDEWAYS, -Math.PI / 2);
+  } else {
+    const face = SIDES[way];
+    SPOT.set(x + face.x / 2, y + 0.5, z + face.z / 2);
+    TURN.setFromAxisAngle(UPRIGHT, face.turn);
+  }
+  mesh.setMatrixAt(n, SEAT.compose(SPOT, TURN, SCALE));
+}
+
 /** What the city hands to the scene: one node, and the calls it costs a frame. */
 export interface CityView {
   /** Everything the city draws, under one node the scene takes in one go. */
@@ -298,25 +333,12 @@ export function buildCity(city: City, plan: CityPlan, sheet: THREE.Texture): Cit
     draws.push(mesh);
   }
 
-  const spot = new THREE.Vector3();
-  const turn = new THREE.Quaternion();
-  const scale = new THREE.Vector3(1, 1, 1);
-  const seat = new THREE.Matrix4();
   const filled = new Map<TileId, number>();
-
   eachFace(city, plan, (tile, x, y, z, way) => {
     const mesh = meshes.get(tile);
     if (mesh === undefined) return;
     const n = filled.get(tile) ?? 0;
-    if (way === TOP) {
-      spot.set(x, y, z);
-      turn.setFromAxisAngle(SIDEWAYS, -Math.PI / 2);
-    } else {
-      const face = SIDES[way];
-      spot.set(x + face.x / 2, y + 0.5, z + face.z / 2);
-      turn.setFromAxisAngle(UPRIGHT, face.turn);
-    }
-    mesh.setMatrixAt(n, seat.compose(spot, turn, scale));
+    seatFace(mesh, n, x, y, z, way);
     filled.set(tile, n + 1);
   });
 
@@ -375,4 +397,184 @@ function gatewaysOf(city: City, plan: CityPlan): THREE.InstancedMesh {
   }
 
   return mesh;
+}
+
+/**
+ * The crown of the town hall: what a reinforcement builds on it, and the one
+ * thing in this game that says which **notch** it stands at.
+ *
+ * **It is read off the stuff it is made of, and never off a figure.** 06-37
+ * writes the four looks in order and this is them, one for one: nothing at all
+ * on a town hall nobody has reinforced — it is wood and pale stone already —,
+ * then boards of wood, then a wall of stone, then that wall two blocks thick
+ * with one merlon out of two standing over it. No number is drawn anywhere near
+ * it, and none ever will be. (spec 06-37)
+ *
+ * **It stands on the roof and nowhere else, and that is not a matter of taste.**
+ * This file draws what the grid the rules engender says, and a block laid on
+ * walkable paving would be a wall the child walks straight through — the one
+ * mistake this whole file is written to make impossible. The roof of the town
+ * hall is climbed by nobody and carries nothing, so it is the one ground in the
+ * middle of the city that a build may take. (spec 02-9, 04-8)
+ *
+ * It runs the four edges and not three: 06-31 names three faces to say where the
+ * child **presses**, while 06-37 says what the building **wears**, and a
+ * building wears one thing all over. What the shed hides of it, the shed hides.
+ *
+ * **The reinforcement rebuilds the whole of it in one movement**, which is
+ * literally what `showCrown` is: every block of a notch seated in one call, off
+ * the one fact the rules wrote. Nothing is faded in and nothing grows; and past
+ * the third notch the buy-back moves none of it, since there is no fourth.
+ * (spec 06-28, 06-36)
+ */
+export const NOTCHES = 3;
+
+/** How thick the crown stands, in blocks: thick stone at the third. (spec 06-37) */
+function ringOf(notch: number): number {
+  return notch >= NOTCHES ? 2 : 1;
+}
+
+/** How tall it stands: boards are low, a wall of stone stands. (spec 06-37) */
+function tallOf(notch: number): number {
+  return notch >= 2 ? 2 : 1;
+}
+
+/**
+ * Which tile clothes it: the wood of the shed at the first notch, the pale stone
+ * of the town hall from the second on. Both are of the thirteen — there is no
+ * fourteenth, and none is wanted: the whole reading is wood against stone, thin
+ * against thick. (spec 06-37, 07-44)
+ */
+function wearsOf(notch: number, way: number): TileId {
+  if (notch <= 1) return 'base';
+  return way === TOP ? 'townHallRoof' : 'townHall';
+}
+
+/**
+ * Whether a merlon stands over that cell: one block out of two along the outer
+ * course, which is the whole of the crenellations of the third notch. The two
+ * cell numbers taken together alternate along every edge at once, so no edge and
+ * no corner is a case of its own. (spec 06-37)
+ */
+function merlonAt(plan: CityPlan, x: number, z: number): boolean {
+  const half = plan.townHallSide / 2;
+  return (Math.floor(x + half) + Math.floor(z + half)) % 2 === 0;
+}
+
+/**
+ * Whether a block of the crown of that notch fills that cell, `up` counting
+ * blocks over the roof of the town hall. It is the one shape of the thing, and
+ * both passes below read it.
+ */
+function inCrown(plan: CityPlan, notch: number, x: number, z: number, up: number): boolean {
+  if (notch <= 0 || up < 0) return false;
+  const half = plan.townHallSide / 2;
+  const out = Math.max(Math.abs(x), Math.abs(z));
+  if (out > half || out < half - ringOf(notch)) return false;
+  if (up < tallOf(notch)) return true;
+  // Over the wall, only the merlons of the third, and only on the outer course.
+  if (notch < NOTCHES || up > tallOf(notch)) return false;
+  return out > half - 1 && merlonAt(plan, x, z);
+}
+
+/**
+ * Names every face the crown of a notch draws. As in the city itself, a face is
+ * drawn only where the block beside it is not one of ours, so nothing is ever
+ * seated inside the build; the underside is never drawn, since it sits on the
+ * roof.
+ */
+export function eachCrownFace(plan: CityPlan, notch: number, look: FaceVisit): void {
+  const half = plan.townHallSide / 2;
+  const roof = plan.townHallHeight;
+  const over = tallOf(NOTCHES) + 1; // as high as any notch ever goes
+
+  for (let i = -half; i < half; i += 1) {
+    for (let j = -half; j < half; j += 1) {
+      const x = i + 0.5;
+      const z = j + 0.5;
+      for (let up = 0; up < over; up += 1) {
+        if (!inCrown(plan, notch, x, z, up)) continue;
+        const y = roof + up;
+        for (let s = 0; s < SIDES.length; s += 1) {
+          const face = SIDES[s];
+          if (inCrown(plan, notch, x + face.x, z + face.z, up)) continue;
+          look(wearsOf(notch, s), x, y, z, s);
+        }
+        if (!inCrown(plan, notch, x, z, up + 1)) look(wearsOf(notch, TOP), x, y + 1, z, TOP);
+      }
+    }
+  }
+}
+
+/** What the crown hands to the scene: one node, and the calls it costs a frame. */
+export interface CrownView {
+  /** Everything it draws, under one node the scene takes in one go. */
+  readonly node: THREE.Group;
+  /** One entry per call of a frame. (spec 10 "Le budget de rendu") */
+  readonly draws: readonly THREE.InstancedMesh[];
+  readonly plan: CityPlan;
+  readonly meshes: ReadonlyMap<TileId, THREE.InstancedMesh>;
+}
+
+/**
+ * Allocates the crown, once, at load: every mesh is sized for the widest notch
+ * it will ever have to hold, so putting one up allocates nothing at all — and
+ * neither does taking one back down after a lost context. (spec 10-14, 10-37)
+ *
+ * It opens on nought, which is a town hall nobody has reinforced yet: three
+ * meshes seating nothing.
+ */
+export function buildCrown(plan: CityPlan, sheet: THREE.Texture): CrownView {
+  const owed = new Map<TileId, number>();
+  for (let notch = 1; notch <= NOTCHES; notch += 1) {
+    const wanted = new Map<TileId, number>();
+    eachCrownFace(plan, notch, (tile) => wanted.set(tile, (wanted.get(tile) ?? 0) + 1));
+    for (const [tile, count] of wanted) {
+      if (count > (owed.get(tile) ?? 0)) owed.set(tile, count);
+    }
+  }
+
+  const node = new THREE.Group();
+  const draws: THREE.InstancedMesh[] = [];
+  const meshes = new Map<TileId, THREE.InstancedMesh>();
+  // The one sheet, shared with the city under it. (spec 07-43)
+  const paint = new THREE.MeshLambertMaterial({ map: sheet });
+
+  for (const tile of TILES) {
+    const count = owed.get(tile.id) ?? 0;
+    if (count === 0) continue;
+    const mesh = new THREE.InstancedMesh(quadOf(tile.id), paint, count);
+    mesh.name = `crown:${tile.id}`;
+    meshes.set(tile.id, mesh);
+    node.add(mesh);
+    draws.push(mesh);
+  }
+
+  const crown: CrownView = { node, draws, plan, meshes };
+  showCrown(crown, 0);
+  return crown;
+}
+
+/**
+ * Rebuilds the whole crown at a notch, in **one movement** — which is 06-36 read
+ * literally: every block of it is seated again in this one call, and it is the
+ * one thing that brings back what has come off the town hall. It runs when the
+ * rules say a reinforcement was paid for, and when a lost context asks for the
+ * scene again, and at no other time. (spec 06-36, 10-19, 10-37)
+ */
+export function showCrown(crown: CrownView, notch: number): void {
+  const filled = new Map<TileId, number>();
+  eachCrownFace(crown.plan, notch, (tile, x, y, z, way) => {
+    const mesh = crown.meshes.get(tile);
+    if (mesh === undefined) return;
+    const n = filled.get(tile) ?? 0;
+    if (n >= mesh.instanceMatrix.count) return;
+    seatFace(mesh, n, x, y, z, way);
+    filled.set(tile, n + 1);
+  });
+
+  for (const [tile, mesh] of crown.meshes) {
+    mesh.count = filled.get(tile) ?? 0;
+    mesh.instanceMatrix.needsUpdate = true;
+  }
 }
