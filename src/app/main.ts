@@ -224,6 +224,14 @@ function blow(events: Readonly<EventBuffer>, what: Struck, at: number, now: numb
 /** The four lines of the balance, in the order the rules name the kinds. (spec 03-2) */
 const KINDS = [BALANCE.shambler, BALANCE.sprinter, BALANCE.bruiser, BALANCE.colossus];
 
+/**
+ * The scale each of the four kinds stands at — 1, 0,8, 1,4 and 2,2 — read off
+ * those same four lines once, at load, and handed to the drawing every frame. It
+ * is a figure of the rules, so it is named here and nowhere under `src/render/`,
+ * exactly as every other constant of the balance is. (spec 03-2, 10-14, 10-15)
+ */
+const KIND_SCALES = KINDS.map((kind) => kind.scale);
+
 /** The sector of a blow in radians: the balance writes it in degrees. (spec 04-22, 10-16) */
 const SWEEP_ARC = (BALANCE.sword.arc * Math.PI) / 180;
 
@@ -435,9 +443,18 @@ const loop = createLoop(game, input, {
     writeHud(hud, held, held.assault.phase === PHASE.PREP, across);
 
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
+    // The whole cast in one call: the one body the child drives, and every
+    // zombie standing in the city — the same fourteen boxes, told apart by the
+    // colour and the scale of their kind. The white flash of 80 ms on whichever
+    // of them has just taken a blow is read off the lights the buffer armed a
+    // moment ago, so nothing here compares two states.
+    // (spec 03-2, 07-19, 07-21, 07-36, 10-19)
     placeCharacters(
       characters,
+      effects,
       held.assault.player,
+      held.assault.zombies,
+      KIND_SCALES,
       alpha,
       now,
       isBlinking(effects, now),
