@@ -38,6 +38,7 @@
 import * as THREE from 'three';
 import type { Player, ZombiePool } from '../game/state';
 import { ARC_SPAN, type Effects, FIRE, STRUCK, WHITE, isLit } from './effects';
+import { alwaysDrawn } from './scene';
 
 /** The fourteen, and there will never be a fifteenth. (spec 07-18) */
 export const BOXES = 14;
@@ -337,6 +338,9 @@ export function buildCharacters(holds: number, carries = 0): CharacterView {
     holds * BOXES + 1 + holds + carries,
   );
   bodies.name = 'bodies';
+  // A body walks where the game takes it, and the count of the mesh is written
+  // by a frame: nothing measured around it at load says where it will be.
+  alwaysDrawn(bodies);
   bodies.count = 0;
 
   // Laid flat once in the geometry, so an instance carries a spot and a size and
@@ -351,6 +355,7 @@ export function buildCharacters(holds: number, carries = 0): CharacterView {
     holds,
   );
   blots.name = 'blots';
+  alwaysDrawn(blots);
   blots.count = 0;
 
   const node = new THREE.Group();

@@ -1,7 +1,9 @@
 /**
  * The one scene, under the one hour of the game. It holds the light and the
- * haze, and nothing else: the city, the bodies, the cannons and the effects
- * arrive with their own chapters, each into this same scene.
+ * haze: the city, the bodies, the cannons and the effects arrive with their own
+ * chapters, each into this same scene. The one thing the four of them share —
+ * that a mesh of this game is never eliminated from the view — is settled here
+ * as well, in `alwaysDrawn`, and settled once.
  *
  * The whole lighting of the game is two objects — one directional sun, fixed at
  * 60° above the horizon, and one violet ambient that fills the faces turned away
@@ -107,4 +109,39 @@ export function createScene(city: CityExtent): THREE.Scene {
   scene.add(new THREE.AmbientLight(new THREE.Color(AMBIENT_COLOUR), AMBIENT_STRENGTH));
 
   return scene;
+}
+
+/**
+ * Takes one mesh out of the culling of the view, for good — and it is the whole
+ * of what this file has to say about what is seen.
+ *
+ * Three.js measures a sphere around an `InstancedMesh` **once**, the first frame
+ * it has to ask whether the mesh falls in the view, and never measures it again.
+ * A mesh seating nothing at that instant keeps an empty sphere at the middle of
+ * the world for the rest of the run, and is thrown away by every frame that does
+ * not look at the middle of the world — which is how every effect of this game
+ * came to be drawn six hundred at a time and seen by nobody. Every mesh whose
+ * instances move, or whose count is written by a frame rather than at load, is
+ * in that case; the ones that were seen were seen by luck, off a sphere frozen
+ * on the first frame that happened to be wide enough.
+ *
+ * There were two ways out and this is the one taken. The sphere could be
+ * measured again every frame instead — but a mesh of this game covers the city
+ * in the general case, the shards falling in the three streets and the bodies
+ * walking them, so a sphere kept true measures out half the city and eliminates
+ * very nearly nothing. Measuring it is a pass over six hundred seats a frame;
+ * one test of the view costs a tenth of a microsecond. The paying test is the
+ * one that is dropped.
+ *
+ * What a frame draws does not move either: Three.js draws nothing at all of a
+ * mesh whose count is nought, so a mesh that seats nothing still costs no call,
+ * and the calls of a frame stay the ones chapter 10 budgets.
+ * (spec 10-14, 10 "Le budget de rendu")
+ *
+ * The city keeps its culling, and is the one thing that does: every face of it
+ * is seated at load and none of them ever moves again, so its sphere is right
+ * the first time it is measured and right for the rest of the game.
+ */
+export function alwaysDrawn(mesh: THREE.Object3D): void {
+  mesh.frustumCulled = false;
 }

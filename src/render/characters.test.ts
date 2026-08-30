@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { Player, ZombiePool } from '../game/state';
+import { FIELD, NEAR } from './camera';
 import {
   BLOT,
   BODY,
@@ -812,5 +813,71 @@ describe('the blow of his sword', () => {
     place(view, playerAt(0, 0, 0, SOUTH), 1, 1075);
     expect(view.bodies.count).toBe(drawn);
     expect(view.draws.length).toBe(2);
+  });
+});
+
+// --------------------------------------------- what a frame keeps in the view
+
+/**
+ * The view of the one camera, and the very line `WebGLRenderer` reads it with
+ * before it draws an object at all. It is written out here rather than asserted
+ * as a flag, because what it stands against was a mesh that carried every right
+ * flag, held its instances, said it was drawing them — and was thrown out of
+ * every frame all the same.
+ */
+const VIEW = new THREE.Frustum();
+const SEEN = new THREE.Matrix4();
+const MIDDLE = new THREE.Vector3(0, 0, 0);
+
+function watch(lens: THREE.PerspectiveCamera): void {
+  lens.updateMatrixWorld(true);
+  VIEW.setFromProjectionMatrix(
+    SEEN.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse),
+  );
+}
+
+const kept = (mesh: THREE.Object3D): boolean =>
+  !mesh.frustumCulled || VIEW.intersectsObject(mesh as THREE.Mesh);
+
+/**
+ * A camera standing sixty blocks out in street one and looking further out
+ * still, so that the middle of the world falls behind it. That is the whole of
+ * what this view is for: a mesh that measured its sphere around nothing keeps an
+ * empty one at that middle, and this camera cannot hold it. (spec 02-12)
+ */
+const OUT = 60;
+
+function lookingOut(): THREE.PerspectiveCamera {
+  const lens = new THREE.PerspectiveCamera(FIELD, 16 / 9, NEAR, 200);
+  lens.position.set(OUT - 6, 4, 0);
+  lens.lookAt(OUT, 1, 0);
+  return lens;
+}
+
+describe('what a frame keeps in the view', () => {
+  it('draws every body and every blot, wherever in the city they walk', () => {
+    // spec 07-21, 07-22: one mesh for every box of every body, one for the
+    // blots. Their count is written by a frame and their boxes move with the
+    // bodies, so the sphere measured around them on the first frame — him alone
+    // on the square, and the four shamblers of wave one — was stale by the
+    // second, and stayed the sphere the whole run was culled against.
+    const view = buildCharacters(4);
+    view.node.updateMatrixWorld(true);
+    // The first frame of a game, and it is the whole of the defect: at that
+    // instant these meshes seat nothing at all, and it is then that Three.js
+    // measures the sphere it will cull them by for the rest of the run. Which
+    // camera asks makes no difference — that one asks at all is the whole of it.
+    watch(lookingOut());
+    for (const mesh of view.draws) kept(mesh);
+
+    place(view, playerAt(OUT, 0, 0), 1, 0);
+    view.node.updateMatrixWorld(true);
+
+    const lens = lookingOut();
+    watch(lens);
+    expect(VIEW.containsPoint(MIDDLE)).toBe(false);
+    expect(view.bodies.count).toBeGreaterThan(0);
+    expect(view.blots.count).toBeGreaterThan(0);
+    for (const mesh of view.draws) expect([mesh.name, kept(mesh)]).toEqual([mesh.name, true]);
   });
 });

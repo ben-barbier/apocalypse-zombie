@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { City } from '../game/state';
 import { ATLAS_SIZE, TILE, TILES, type TileId, tileUv } from './atlas';
+import { FIELD, NEAR } from './camera';
 import {
   GATEWAY_COLOURS,
   NOTCHES,
@@ -523,5 +524,75 @@ describe('what a reinforcement builds on the town hall', () => {
     });
     expect(cast).toBe(0);
     expect(clear).toBe(0);
+  });
+});
+
+// --------------------------------------------- what a frame keeps in the view
+
+/**
+ * The view of the one camera, and the very line `WebGLRenderer` reads it with
+ * before it draws an object at all. It is written out here rather than asserted
+ * as a flag, because what it stands against was a mesh that carried every right
+ * flag, held its instances, said it was drawing them — and was thrown out of
+ * every frame all the same.
+ */
+const VIEW = new THREE.Frustum();
+const SEEN = new THREE.Matrix4();
+const MIDDLE = new THREE.Vector3(0, 0, 0);
+
+function watch(lens: THREE.PerspectiveCamera): void {
+  lens.updateMatrixWorld(true);
+  VIEW.setFromProjectionMatrix(
+    SEEN.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse),
+  );
+}
+
+const kept = (mesh: THREE.Object3D): boolean =>
+  !mesh.frustumCulled || VIEW.intersectsObject(mesh as THREE.Mesh);
+
+/**
+ * The crown stands on the roof of the town hall, which is the middle of the
+ * city, so no camera of this game ever leaves it far behind. This one stands on
+ * the square beside the town hall and looks up at its roof: the paving at the
+ * foot of the wall — the middle of the world, where an empty sphere sits —
+ * falls under the view, and the crown fills it. (spec 02-7, 06-37)
+ */
+function lookingUp(plan: CityPlan): THREE.PerspectiveCamera {
+  const lens = new THREE.PerspectiveCamera(FIELD, 16 / 9, NEAR, 200);
+  lens.position.set(10, 2, 0);
+  lens.lookAt(0, plan.townHallHeight + 2, 0);
+  return lens;
+}
+
+describe('what a frame keeps in the view', () => {
+  it('draws the crown at whatever notch it stands, and the middle of the world is not in it', () => {
+    // spec 06-36, 06-37: every block of it is seated again at every notch, and
+    // it opens on nought — three meshes seating nothing. The sphere measured
+    // around that nothing is what a whole game was then culled against, and the
+    // crown only ever showed because the town hall it stands on happens to sit
+    // at the middle of the world.
+    const crown = buildCrown(PLAN, standIn());
+    crown.node.updateMatrixWorld(true);
+    // The first frame of a game, and it is the whole of the defect: the crown
+    // opens on nought, so at that instant its three meshes seat nothing, and it
+    // is then that Three.js measures the sphere it will cull them by for the
+    // rest of the run.
+    watch(lookingUp(PLAN));
+    for (const mesh of crown.draws) kept(mesh);
+
+    showCrown(crown, NOTCHES);
+
+    const lens = lookingUp(PLAN);
+    watch(lens);
+    expect(VIEW.containsPoint(MIDDLE)).toBe(false);
+    expect(VIEW.containsPoint(new THREE.Vector3(0, PLAN.townHallHeight + 2, 0))).toBe(true);
+
+    let seated = 0;
+    for (const mesh of crown.draws) {
+      if (mesh.count === 0) continue;
+      seated += 1;
+      expect([mesh.name, kept(mesh)]).toEqual([mesh.name, true]);
+    }
+    expect(seated).toBeGreaterThan(0);
   });
 });
