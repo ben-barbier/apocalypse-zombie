@@ -24,7 +24,7 @@ import {
   raiseCannon,
   retractConveyor,
 } from './cannons';
-import { BLACK, FIRE, WHITE } from './effects';
+import { BLACK, FIRE, SHARD_SIDE, WHITE } from './effects';
 
 /** Chapter 5's figures, written out here from the spec and from nowhere else. */
 const RULE: CannonBalance = {
@@ -324,6 +324,117 @@ describe('the mark and the circle it draws', () => {
       expect((view.circle.material as THREE.MeshBasicMaterial).color.getHex()).toBe(
         new THREE.Color(white ? WHITE : BLACK).getHex(),
       );
+    }
+  });
+
+  /**
+   * How far the mark reaches from the middle to a flat side, and how far its
+   * hollow does — both in blocks, read off the corners the mesh actually holds
+   * and off what it is drawn at. A diamond's flat side sits at its corner over
+   * the root of two. (spec 05-17, 05-54)
+   */
+  function edgesOf(view: ReturnType<typeof buildCannons>): { outer: number; inner: number } {
+    const spots = view.markSpots;
+    let nearest = Number.POSITIVE_INFINITY;
+    let furthest = 0;
+    for (let i = 0; i < spots.count; i += 1) {
+      const away = Math.hypot(spots.getX(i), spots.getZ(i)) * view.mark.scale.x;
+      if (away < nearest) nearest = away;
+      if (away > furthest) furthest = away;
+    }
+    return { outer: furthest / Math.SQRT2, inner: nearest / Math.SQRT2 };
+  }
+
+  const DOWN = new THREE.Vector3(0, -1, 0);
+  const FROM = new THREE.Vector3();
+  const RAY = new THREE.Raycaster();
+
+  /**
+   * Whether the mark paints that spot of the floor: a ray dropped straight down
+   * on it, against the triangles the mesh really carries. It is the one way to
+   * ask "is this filled in?" of the geometry rather than of an intention.
+   */
+  function covers(view: ReturnType<typeof buildCannons>, x: number, z: number): boolean {
+    view.node.updateMatrixWorld(true);
+    RAY.set(FROM.set(x, 50, z), DOWN);
+    return RAY.intersectObject(view.mark, false).length > 0;
+  }
+
+  /** The three the child tells apart at a glance. (spec 05-17, 05-18) */
+  const STATES: [string, boolean, boolean][] = [
+    ['wide and white, a cannon goes down', true, false],
+    ['tight, white and breathing, one moves up', true, true],
+    ['black and widened, there is nothing to do', false, false],
+  ];
+
+  it('is an outline, and never a plate: it leaves its own middle unpainted', () => {
+    // spec 05-54: the mark says what it says with its edge, and the floor it
+    // stands on stays the floor — which is what lets the white arc of a sweep
+    // be read across it. (spec 07-31)
+    for (const [what, white, tight] of STATES) {
+      const view = buildCannons(HOLDS, RULE.flame.arc);
+      layDiamond(view, 0, 0, 0, 12, white, tight, RULE, 0);
+      const edge = edgesOf(view);
+
+      expect(edge.inner).toBeGreaterThan(0); // there is a hollow at all
+      expect(covers(view, 0, 0)).toBe(false); // and he stands in it
+      // A spot half way into the hollow, on the axis a corner reaches along.
+      expect(covers(view, edge.inner * Math.SQRT2 * 0.5, 0)).toBe(false);
+      // A spot in the middle of the stroke, on that same axis.
+      expect(covers(view, ((edge.inner + edge.outer) / 2) * Math.SQRT2, 0)).toBe(true);
+      // And nothing at all beyond its edge.
+      expect(covers(view, edge.outer * Math.SQRT2 * 1.2, 0)).toBe(false);
+      expect(what).toBeTruthy();
+    }
+  });
+
+  it('holds one stroke, a shard wide, in the three states alike', () => {
+    // spec 05-55, 07-25: the same thickness in blocks whatever the state asks,
+    // so a tight mark is a smaller mark and never a fainter one — and it is
+    // never thinner than the smallest thing the eye is already given.
+    const seen: number[] = [];
+    for (const [, white, tight] of STATES) {
+      for (const ms of [0, 90, 180, 270, 360]) {
+        const view = buildCannons(HOLDS, RULE.flame.arc);
+        layDiamond(view, 0, 0, 0, 12, white, tight, RULE, ms);
+        const edge = edgesOf(view);
+        expect(edge.outer - edge.inner).toBeCloseTo(SHARD_SIDE, 6);
+        seen.push(edge.outer);
+      }
+    }
+    expect(SHARD_SIDE).toBe(0.25); // a quarter of a block (spec 07-25)
+    // The wide one is the spacing across, the tight one half of it: they are
+    // told apart by their size, which the one stroke leaves untouched.
+    expect(Math.max(...seen) * 2).toBeCloseTo(RULE.spacing, 6);
+    expect(Math.min(...seen) * 2).toBeLessThan(RULE.spacing * 0.6);
+  });
+
+  it('costs no call more than a plate did, and allocates nothing to breathe', () => {
+    // spec 10-14, 10 "Le budget de rendu": the hollow is written into a buffer
+    // made at load, so a frame that breathes writes over the same four corners.
+    const view = buildCannons(HOLDS, RULE.flame.arc);
+    expect(view.draws.length).toBe(4);
+    layDiamond(view, 0, 0, 0, 12, true, true, RULE, 0);
+    const spots = view.markSpots;
+    const held = spots.array;
+    const shape = view.mark.geometry;
+    for (let ms = 0; ms < 2_000; ms += 7) layDiamond(view, ms, 0, -ms, 12, true, true, RULE, ms);
+    expect(view.draws.length).toBe(4);
+    expect(view.markSpots).toBe(spots);
+    expect(view.markSpots.array).toBe(held);
+    expect(view.mark.geometry).toBe(shape);
+    expect(held.length).toBe(4 * 2 * 3); // four corners in, four out, and no more
+  });
+
+  it('is opaque, mark and circle alike: the hollow is the shape and not an alpha', () => {
+    // spec 07-17: everything in this game is opaque, and the depth buffer is
+    // what ranges the scene — so an outline is made by leaving geometry out.
+    const view = buildCannons(HOLDS, RULE.flame.arc);
+    for (const mesh of [view.mark, view.circle]) {
+      const paint = mesh.material as THREE.MeshBasicMaterial;
+      expect(paint.transparent).toBe(false);
+      expect(paint.opacity).toBe(1);
+      expect(paint.alphaMap).toBe(null);
     }
   });
 
