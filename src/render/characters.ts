@@ -210,6 +210,14 @@ const BOB = 0.05;
 const SWING_SPAN = ARC_SPAN;
 const SWING_ARC = (120 * Math.PI) / 180;
 
+/**
+ * Where he sits among the bodies: the one the child drives is laid first and the
+ * zombies of the pool follow him, in the order the pool holds them. It is the
+ * order the blots already went down in, and the gestures are read in it too.
+ * (spec 07-22)
+ */
+const PLAYER = 0;
+
 /** How wide the blot lies, in blocks, under a body at a scale of one. */
 const BLOT_SIDE = 0.8;
 
@@ -291,12 +299,18 @@ export interface CharacterView {
   /** Whether a frame has drawn him at all: the first one measures nothing. */
   seated: boolean;
   /**
-   * When his last blow went out, in ms of the frame clock. The gesture is read
-   * off that one instant, exactly as the white arc is: nothing here compares two
-   * states, and a blow the buffer never announced is a blow that is never drawn.
-   * (spec 07-65, 10-19)
+   * When the last blow of each body went out, in ms of the frame clock — his at
+   * nought, then one entry a zombie of the pool, in the order they are seated.
+   * The gesture is read off that one instant, exactly as the white arc is:
+   * nothing here compares two states, and a blow the buffer never announced is a
+   * blow that is never drawn. (spec 07-65, 07-67, 10-19)
+   *
+   * A zombie carries an index into the pool and the rules fill the hole a fallen
+   * one leaves, so a slot may change hands mid-gesture — exactly as the white of
+   * a blow taken does, which is read the same way. What it costs is 150 ms of
+   * arm on the wrong body, and what it buys is that nothing has to be tracked.
    */
-  swungAt: number;
+  readonly swungAt: Float64Array;
 }
 
 // The one set of scratch objects of this file, made once at load: a frame writes
@@ -380,7 +394,7 @@ export function buildCharacters(holds: number, carries = 0): CharacterView {
     wasZ: 0,
     seated: false,
     // Long enough ago that the first frame draws no gesture at all.
-    swungAt: Number.NEGATIVE_INFINITY,
+    swungAt: new Float64Array(holds).fill(Number.NEGATIVE_INFINITY),
   };
 }
 
@@ -391,16 +405,30 @@ export function buildCharacters(holds: number, carries = 0): CharacterView {
  * holds nothing back, and the rules never hear of it. (spec 04-24, 07-31, 07-65)
  */
 export function swingSword(view: CharacterView, now: number): void {
-  view.swungAt = now;
+  view.swungAt[PLAYER] = now;
 }
 
 /**
- * How far through his gesture a blow is, in radians on the arm that holds the
- * sword: half a sine over the 150 ms, nought before it and nought after.
- * (spec 07-65)
+ * Marks the instant one zombie struck the town hall, off the one fact the buffer
+ * carries for it. **It is his gesture exactly** — the same half sine over the
+ * same 150 ms, on the same arm — because there is one law of gesture in the whole
+ * game and the silhouette never tells a kind from another: what it carries is a
+ * blow once a second instead of one every four tenths, and it carries no white
+ * arc, which is his sword's alone. (spec 03-2, 03-17, 07-19, 07-65, 07-67)
  */
-function swingOf(view: CharacterView, now: number): number {
-  const since = now - view.swungAt;
+export function swingZombie(view: CharacterView, at: number, now: number): void {
+  const seat = PLAYER + 1 + at;
+  if (seat < view.swungAt.length) view.swungAt[seat] = now;
+}
+
+/**
+ * How far through its gesture a blow is, in radians on the arm that carries it:
+ * half a sine over the 150 ms, nought before it and nought after. One law for
+ * the whole cast — his blow of the sword and the blow a zombie lands on the town
+ * hall go through this one line. (spec 07-65, 07-67)
+ */
+function swingOf(view: CharacterView, seat: number, now: number): number {
+  const since = now - view.swungAt[seat];
   if (!(since >= 0) || since >= SWING_SPAN) return 0;
   return Math.sin((Math.PI * since) / SWING_SPAN) * SWING_ARC;
 }
@@ -667,6 +695,10 @@ function seatBody(
  * its line, and nothing else — never the silhouette. The blot of each goes into
  * the one mesh of blots, after his. (spec 03-2, 07-22)
  *
+ * One that stands at the town hall hammering it swings the arm his blow of the
+ * sword swings, over the same 150 ms: it is armed off the buffer, one blow at a
+ * time, and a body that is not striking holds the gait alone. (spec 07-67)
+ *
  * One that has **just taken a blow** is painted white all over for the 80 ms
  * chapter 7 grants it: `isLit` is what says so, off the one buffer of events the
  * frame has already been read, so nothing here compares two states.
@@ -689,6 +721,7 @@ function seatZombies(
   let put = at;
   for (let i = 0; i < walking; i += 1) {
     const kind = zombies.type[i];
+    const seat = PLAYER + 1 + i;
     // White all over while it is lit, exactly as he goes white all over: the
     // whole silhouette flashes, and no box of it keeps a colour of its own.
     // (spec 07-36, 07-41)
@@ -697,7 +730,7 @@ function seatZombies(
       view,
       put,
       // His blot is the first one laid; theirs follow it. (spec 07-22)
-      i + 1,
+      seat,
       between(zombies.xPrev[i], zombies.x[i], alpha),
       0,
       between(zombies.zPrev[i], zombies.z[i], alpha),
@@ -716,7 +749,11 @@ function seatZombies(
       // the silhouette never tells a kind from another, and what differs is how
       // fast the blocks go by. (spec 03-8, 03-2, 07-19, 07-63)
       zombies.progress[i],
-      0,
+      // And the blow it is in the middle of, if it is standing at the town hall
+      // hammering: his gesture exactly, on the same arm, once a second instead of
+      // every four tenths. A body that is not striking swings nothing.
+      // (spec 03-17, 07-67)
+      swingOf(view, seat, now),
     );
   }
   return put;
@@ -793,7 +830,7 @@ export function placeCharacters(
     view.walked,
     // And the blow he is in the middle of, on the arm that carries the sword.
     // (spec 07-65)
-    swingOf(view, now),
+    swingOf(view, PLAYER, now),
   );
 
   // What he carries, over his head and nowhere else. (spec 04-47)

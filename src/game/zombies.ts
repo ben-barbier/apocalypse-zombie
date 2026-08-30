@@ -250,22 +250,36 @@ export function speedOf(game: Game, at: number): number {
   return kindAt(game, at).speed;
 }
 
-/** Whether it has come to the face of the town hall, where it stops. (spec 03-6, 03-17) */
+/**
+ * Whether it has come to the town hall, where it stops and hammers. It stops at
+ * the contact of the **built**, which on two streets is the face of the town
+ * hall and on the one the base watches is the face of the shed adossed to it:
+ * the shed is that face of the town hall seen from street one, so what stands
+ * there is at the town hall and its blows go to the town hall.
+ * (spec 03-6, 03-17, 03-45, 03-46)
+ */
 export function atTownHall(game: Game, at: number): boolean {
-  return game.assault.zombies.progress[at] >= game.assault.city.rails.length;
+  const pool = game.assault.zombies;
+  return pool.progress[at] >= game.assault.city.rails.faceAt[pool.street[at]];
 }
 
 /**
  * Carries one advance along. It is the only place an advance is written, and it
  * writes it upwards or not at all — never downwards. (spec 03-8)
  *
- * At the face of the town hall the advance stops for good and the zombie stays
+ * At the face of the built the advance stops for good and the zombie stays
  * exactly what it was: nothing takes it out of the pool, so it goes on being a
  * target for as long as the assault lasts. (spec 03-17)
+ *
+ * That face is the rail's to say, and on street one it is the shed rather than
+ * the town hall behind it: **the stop is a bound on the advance**, never a
+ * collision that pushes anything back, and the rail keeps its ninety-two blocks
+ * on all three streets. Nothing here reads the ground, so there is still one
+ * variable and no way-finding of any kind. (spec 03-8, 03-9, 03-45)
  */
 function advance(game: Game, at: number, seconds: number): void {
   const pool = game.assault.zombies;
-  const end = game.assault.city.rails.length;
+  const end = game.assault.city.rails.faceAt[pool.street[at]];
   if (pool.progress[at] >= end) {
     pool.stuckFor[at] = 0; // it stands where it means to stand
     return;

@@ -28,6 +28,13 @@ import { createRandom, type Random } from './random';
 /** The three streets of the star, and there will never be a fourth. (spec 02-2) */
 export const STREETS = 3;
 
+/**
+ * The one street the base watches, which is street one: the shed is adossed to
+ * the face of the town hall that looks down it, so it is the one rail with
+ * something in front of the town hall. (spec 02-8, 02-29)
+ */
+export const BASE_STREET = 0;
+
 /** The format of the Instantané, written in the JSON and never in the key. (spec 10-32) */
 export const SNAPSHOT_VERSION = 1;
 
@@ -727,6 +734,19 @@ export interface RailPool {
   readonly at: Float32Array;
   /** From the entrance to the face of the town hall, in blocks. (spec 02-13) */
   readonly length: number;
+  /**
+   * How far along its rail a walk comes to a stop, in blocks, one entry a
+   * street: the face of the **built** it meets. On the two free streets that is
+   * the face of the town hall, at the very end of the rail; on the one the base
+   * watches it is the face of the shed, which stands the depth of the shed short
+   * of it — the shed is built for a zombie exactly as the town hall is.
+   *
+   * **The rail keeps its ninety-two blocks on all three.** What comes earlier on
+   * street one is where a body stops, never the rail itself: the crossings and
+   * the table of the waves are reckoned on the rail. (spec 02-8, 02-13, 03-17,
+   * 03-45, 03-47)
+   */
+  readonly faceAt: Float32Array;
 }
 
 /** One gateway at the mouth of each street, on the square side. (spec 02-27) */
@@ -996,9 +1016,10 @@ export function createCity(balance: CityBalance): City {
   // The middle of the base, two blocks of shed out from the face of the town hall
   // that watches street one; the halo is measured from there. (spec 02-8, 02-31)
   const baseAt = townHall + balance.baseWidth / 2;
-  const baseAng = Math.atan2(dirZ(0), dirX(0)); // the heading of street one (spec 02-8, 02-29)
-  const baseX = dirX(0) * baseAt;
-  const baseZ = dirZ(0) * baseAt;
+  // The heading of street one, which is the one the base watches. (spec 02-8, 02-29)
+  const baseAng = Math.atan2(dirZ(BASE_STREET), dirX(BASE_STREET));
+  const baseX = dirX(BASE_STREET) * baseAt;
+  const baseZ = dirZ(BASE_STREET) * baseAt;
 
   const baysOf = (edge: number): readonly number[] =>
     edge === 0 ? balance.alignedBays : balance.shiftedBays;
@@ -1143,8 +1164,8 @@ export function createCity(balance: CityBalance): City {
           stands(at, balance.townHallHeight);
           continue;
         }
-        const shedAlong = x * dirX(0) + z * dirZ(0);
-        const shedAcross = -x * dirZ(0) + z * dirX(0);
+        const shedAlong = x * dirX(BASE_STREET) + z * dirZ(BASE_STREET);
+        const shedAcross = -x * dirZ(BASE_STREET) + z * dirX(BASE_STREET);
         if (
           shedAlong > townHall &&
           shedAlong < townHall + balance.baseWidth &&
@@ -1180,6 +1201,7 @@ export function createCity(balance: CityBalance): City {
     z: new Float32Array(STREETS * stops),
     at: new Float32Array(STREETS * stops),
     length: balance.street.rail,
+    faceAt: new Float32Array(STREETS),
   };
   const gateways: GatewayPool = {
     x: new Float32Array(STREETS),
@@ -1195,6 +1217,11 @@ export function createCity(balance: CityBalance): City {
     rails.x[first + 1] = spotX(ang, townHall, 0); // the face of the town hall (spec 03-6)
     rails.z[first + 1] = spotZ(ang, townHall, 0);
     rails.at[first + 1] = balance.street.rail;
+    // Where a walk down this rail stops: the face of the town hall, and the face
+    // of the shed on the one street the base watches, the depth of the shed short
+    // of it. It is a bound on the advance and nothing else — no collision, and
+    // nothing that pushes anything back. (spec 02-8, 03-8, 03-17, 03-45)
+    rails.faceAt[k] = balance.street.rail - (k === BASE_STREET ? balance.baseWidth : 0);
     gateways.x[k] = spotX(ang, mouth, 0); // at the mouth, never at the far end (spec 02-27)
     gateways.z[k] = spotZ(ang, mouth, 0);
     gateways.ang[k] = ang;

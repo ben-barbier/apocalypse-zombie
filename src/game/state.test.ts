@@ -8,6 +8,7 @@ import { BALANCE } from './balance';
 import {
   atBase,
   atFreeFace,
+  BASE_STREET,
   cellAt,
   clearEvents,
   createGame,
@@ -506,6 +507,30 @@ describe('the plan of the city', () => {
       const middle = Math.hypot(railX(rails, k, 46), railZ(rails, k, 46));
       expect(middle).toBeCloseTo(50, 4);
     }
+  });
+
+  it('stops a walk at the face of the built, the shed on street one', () => {
+    // spec 03-45: the shed of the base is built for a zombie, so the street it
+    // stands in front of stops at its face — the depth of the shed short of the
+    // town hall. spec 02-13: and the rail keeps its ninety-two blocks all the
+    // same, on the three of them.
+    const rails = city.rails;
+    expect(BASE_STREET).toBe(0); // the street the base watches (spec 02-8, 02-29)
+    expect(rails.faceAt[BASE_STREET]).toBe(92 - BALANCE.city.baseWidth); // 88
+    for (let k = 0; k < STREETS; k += 1) {
+      if (k === BASE_STREET) continue;
+      expect(rails.faceAt[k]).toBe(92); // nothing before the town hall (spec 03-45)
+    }
+    // Where a body of street one comes to rest: eight blocks out, which is the
+    // near face of the shed, and the far side of it is the town hall's own.
+    // (spec 02-7, 02-8)
+    const stops = rails.faceAt[BASE_STREET];
+    const x = railX(rails, BASE_STREET, stops);
+    const z = railZ(rails, BASE_STREET, stops);
+    expect(Math.hypot(x, z)).toBeCloseTo(TOWN_HALL + BALANCE.city.baseWidth, 4);
+    // And the cell it stands in is floor, never the three blocks of the shed.
+    // (spec 02-9, 03-47)
+    expect(heightAt(city, x, z)).toBe(0);
   });
 
   it('stands a gateway at the mouth of each street, never at the far end', () => {

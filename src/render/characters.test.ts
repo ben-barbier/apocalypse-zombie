@@ -24,6 +24,7 @@ import {
   flingHead,
   placeCharacters,
   swingSword,
+  swingZombie,
 } from './characters';
 import { ARC_SPAN, FIRE, STRUCK, WHITE, buildEffects, lightUp } from './effects';
 
@@ -813,6 +814,89 @@ describe('the blow of his sword', () => {
     place(view, playerAt(0, 0, 0, SOUTH), 1, 1075);
     expect(view.bodies.count).toBe(drawn);
     expect(view.draws.length).toBe(2);
+  });
+});
+
+describe('the blow a zombie lands on the town hall', () => {
+  const SOUTH = Math.PI / 2;
+  const AT = new THREE.Euler();
+  const named = (id: string): number => BODY.findIndex((box) => box.id === id);
+  const WHOLE = (120 * Math.PI) / 180;
+
+  /** How far the arm of the zombie at that slot of the pool has swung, in radians. */
+  function armSwing(view: CharacterView, which: number): number {
+    seatOf(view.bodies, BOXES + 1 + which * BOXES + named('armRight')).decompose(SPOT, TURN, SIZE);
+    return AT.setFromQuaternion(TURN).x;
+  }
+
+  /** Two of them standing still at the face, so the gait adds nothing of its own. */
+  function hammering(): ZombiePool {
+    const pool = poolOf(0, 0);
+    for (let i = 0; i < 2; i += 1) {
+      pool.ang[i] = SOUTH;
+      pool.angPrev[i] = SOUTH;
+    }
+    return pool;
+  }
+
+  it('is his gesture exactly: half a sine of 120° over the same 150 ms', () => {
+    // spec 07-67: the same law of gesture as spec 07-65, on the same arm, for the
+    // four kinds and for him alike — and not one figure of its own.
+    const view = buildCharacters(3);
+    const pool = hammering();
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0, SOUTH), pool, SCALES, 1, 1000);
+    expect(armSwing(view, 0)).toBeCloseTo(0, 6);
+
+    swingZombie(view, 0, 1000);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0, SOUTH), pool, SCALES, 1, 1000);
+    expect(armSwing(view, 0)).toBeCloseTo(0, 6); // it opens from where the arm was
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0, SOUTH), pool, SCALES, 1, 1075);
+    expect(armSwing(view, 0)).toBeCloseTo(WHOLE, 6); // and opens whole
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0, SOUTH), pool, SCALES, 1, 1150);
+    expect(armSwing(view, 0)).toBeCloseTo(0, 6); // and is done, on the dot
+
+    // The one beside it, which struck nothing, holds its arm where the gait put it.
+    expect(armSwing(view, 1)).toBeCloseTo(0, 6);
+  });
+
+  it('goes out at every blow, once a second, for as long as it stands there', () => {
+    // spec 03-17: it strikes once a second, indefinitely — so the gesture is armed
+    // once a second, indefinitely, and never wears out.
+    const view = buildCharacters(3);
+    const pool = hammering();
+    for (let blow = 0; blow < 12; blow += 1) {
+      const at = 1000 + blow * 1000; // one blow a second (spec 03-4, 03-17)
+      swingZombie(view, 0, at);
+      placeCharacters(view, UNLIT, playerAt(0, 0, 0, SOUTH), pool, SCALES, 1, at + 75);
+      expect(armSwing(view, 0)).toBeCloseTo(WHOLE, 6);
+      // And nothing at all of it is left when the next blow is due. (spec 07-65)
+      placeCharacters(view, UNLIT, playerAt(0, 0, 0, SOUTH), pool, SCALES, 1, at + 999);
+      expect(armSwing(view, 0)).toBeCloseTo(0, 6);
+    }
+  });
+
+  it('costs no call and no box, and leaves his own blow alone', () => {
+    // spec 07-20, 07-21: one more angle on one arm, and nothing else. spec 03-2,
+    // 07-19: the silhouette never tells one kind from another, gesture included.
+    const view = buildCharacters(3);
+    const pool = hammering();
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0, SOUTH), pool, SCALES, 1, 1000);
+    const drawn = view.bodies.count;
+
+    swingZombie(view, 0, 1000);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0, SOUTH), pool, SCALES, 1, 1075);
+    expect(view.bodies.count).toBe(drawn);
+    expect(view.draws.length).toBe(2);
+
+    // His arm is his own: a zombie hammering the town hall never moves it.
+    seatOf(view.bodies, named('armRight')).decompose(SPOT, TURN, SIZE);
+    expect(AT.setFromQuaternion(TURN).x).toBeCloseTo(0, 6);
+    // And his own blow leaves theirs alone, the other way about. (spec 07-65)
+    swingSword(view, 2000);
+    placeCharacters(view, UNLIT, playerAt(0, 0, 0, SOUTH), pool, SCALES, 1, 2075);
+    seatOf(view.bodies, named('armRight')).decompose(SPOT, TURN, SIZE);
+    expect(AT.setFromQuaternion(TURN).x).toBeCloseTo(WHOLE, 6);
+    expect(armSwing(view, 0)).toBeCloseTo(0, 6);
   });
 });
 

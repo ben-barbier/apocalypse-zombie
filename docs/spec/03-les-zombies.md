@@ -28,7 +28,7 @@ Ce chapitre décide les assaillants : les quatre types et leurs chiffres, le rai
 14. Le **contact** avec le joueur lui coûte un point de vie et ne coûte rien au zombie : celui-ci ne s'arrête pas, ne dévie pas, et ne lui prend jamais ce qu'il porte (chapitre 4).
 15. Un zombie qui passe à moins de **1,5 bloc** d'un canon posé au sol lui met **un coup au passage, sans jamais s'immobiliser**.
 16. Un canon posé sur un **toit est hors d'atteinte**, définitivement.
-17. Un zombie qui atteint la mairie **s'arrête au contact** et la frappe une fois par seconde, indéfiniment — **et il reste tuable** : aucune disparition, aucune explosion, aucune fin de course.
+17. Un zombie qui atteint la mairie **s'arrête au contact du bâti** — la face de la mairie, ou celle du hangar de la base quand il descend la rue 1 (règle 45) — et la frappe une fois par seconde, indéfiniment — **et il reste tuable** : aucune disparition, aucune explosion, aucune fin de course.
 18. Chaque coup porté à la mairie **détache un cube** qui ne revient jamais (chapitre 6).
 
 **La mort**
@@ -75,6 +75,12 @@ Ce chapitre décide les assaillants : les quatre types et leurs chiffres, le rai
 43. Il n'existe **aucun garde-fou de population à l'exécution** : rien ne compte les vivants pour retenir une entrée.
 44. La **vague 14 est le palier** : au-delà, chaque vague est sa copie exacte.
 
+**Le hangar**
+
+45. Le **hangar de la base est du bâti** pour un zombie : celui qui descend la rue 1 s'arrête à la face du hangar, la profondeur du hangar avant celle de la mairie ([chapitre 2](02-la-ville.md)), et rien ne change pour les rues 2 et 3, qui n'ont rien devant la mairie.
+46. Ses coups **vont à la mairie**, pour la valeur de sa colonne de dégâts comme partout ailleurs : le hangar lui est adossé, c'est la même construction vue depuis la rue 1.
+47. Le hangar n'a **aucun point de vie**, ne s'abîme jamais et ne tombe jamais : la prise de bombes y reste possible pendant tout l'assaut ([chapitre 4](04-le-joueur.md)).
+
 ## Les chiffres
 
 ### Les quatre types
@@ -98,6 +104,16 @@ Les dégâts sont en **coups de Traînard par seconde**, l'unité des constructi
 | Colosse | 115 s | 100 s |
 
 La **rue seule** est le temps passé sous le feu des canons ; le **rail entier** ajoute les 12 blocs qui séparent la bouche de la rue de la face de la mairie.
+
+### L'arrêt, rue par rue
+
+| Rue | Rail | Arrêt | Ce qu'un zombie a devant lui |
+|---|---:|---:|---|
+| **Rue 1** | 92 blocs | **88 blocs** | la face du **hangar**, adossé à la mairie |
+| **Rue 2** | 92 blocs | **92 blocs** | la face de la mairie |
+| **Rue 3** | 92 blocs | **92 blocs** | la face de la mairie |
+
+Les 4 blocs d'écart sont la **profondeur du hangar** ([chapitre 2](02-la-ville.md)). Les traversées ci-dessus sont celles du **rail** et ne bougent pas : sur la rue 1 un corps s'arrête simplement quatre blocs plus tôt — 2,7 secondes d'avance pour un Traînard —, et la table des vagues reste calée sur les 92 blocs.
 
 ### La table des vagues
 
@@ -171,6 +187,8 @@ Une fuite depuis le **fond d'une rue** coûte **15 secondes** au lieu de 6 : c'e
 - **Jamais un avancement qui décroît** — c'est la garantie, et elle est formelle, pas statistique.
 - **Jamais un zombie qui s'immobilise sur un canon au sol** — il redeviendrait une barricade, et un assaut pourrait caler devant un mur de canons.
 - **Jamais un zombie qui disparaît en atteignant la mairie** — il reste une cible, donc le joueur peut toujours réparer sa négligence en courant.
+- **Jamais un zombie qui traverse le bâti** — la rue 1 a le hangar devant la mairie, et un assaillant qui s'arrête derrière lui frappe hors de vue : ce qui coûte des points de mairie doit se voir le coûter.
+- **Jamais un hangar qui s'abîme, qui tombe ou qui porte des points de vie** — il ferme une face de la mairie, il ne s'ajoute pas à elle : une quatrième unité de dégâts naîtrait le jour où il en aurait, et la prise de bombes cesserait d'être acquise.
 - **Jamais un cadavre, jamais une trace au sol, jamais de sang** — la ville reste propre, le budget d'affichage intact, et la mort reste comique.
 - **Jamais un paquet mixte** — 4 blocs/s contre 1,5, il se séparerait de lui-même en cinq secondes ; autant l'assumer : un paquet est une menace, et une réponse.
 - **Jamais une cadence autre que 6 secondes** — à 4 s les paquets se collent à 6 blocs, la colonne devient un mur et le paquet perd sa lecture.
@@ -186,6 +204,8 @@ Une fuite depuis le **fond d'une rue** coûte **15 secondes** au lieu de 6 : c'e
 ## Pourquoi
 
 **Pourquoi des rails, et pas un calcul de chemin.** Le décor est figé et les fronts bâtis sont infranchissables : il n'y a rien à calculer. Un zombie n'a donc qu'une variable, son avancement, et cette pauvreté est exactement ce qu'on veut — elle rend le déplacement **incassable** (on ne se coince pas sur une polyligne), **gratuit** en CPU, et surtout **chiffrable** : la traversée d'une rue vaut 53,3 secondes pour un Traînard, une fois pour toutes, donc la table des vagues se vérifie sur le papier et se rejoue au banc.
+
+**Pourquoi le rail garde ses 92 blocs alors que la rue 1 s'arrête à 88.** L'arrêt est une **borne sur l'avancement**, jamais une collision qui repousse : rien ne décroît, rien ne se calcule, et un zombie a toujours un rail et un avancement. Raccourcir le rail de la rue 1 serait l'autre écriture, et elle est fausse à trois titres — les 92 blocs sont le chiffre du [chapitre 2](02-la-ville.md), les traversées et la table des vagues sont calées dessus, et la rue 1 cesserait d'être la même rue que les deux autres. Le hangar est du bâti, donc il arrête ; il n'est pas une construction de plus, donc il n'encaisse rien.
 
 **Pourquoi le total d'une vague est le nombre de zombies vivants.** Une vague entre en 6 à 48 secondes, et un Traînard vit 61 secondes sur son rail : **la vague entre plus vite qu'elle ne se vide**. Le nombre de vivants ne peut donc pas dépasser le total de la vague, et ce total est dans la table. C'est ce qui rend inutile tout garde-fou à l'exécution, et c'est aussi ce qui donne à un assaut sa forme : non pas un goutte-à-goutte, mais une **colonne** étirée sur les 80 blocs de la rue.
 

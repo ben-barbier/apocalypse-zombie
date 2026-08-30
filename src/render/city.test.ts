@@ -144,6 +144,9 @@ function cityOf(bays: number): City {
       z: new Float32Array(STREETS * 2),
       at: new Float32Array(STREETS * 2),
       length: 92, // spec 02-13
+      // Street one stops at the face of the shed, the other two at the town
+      // hall. (spec 03-45)
+      faceAt: new Float32Array([88, 92, 92]),
     },
     gateways,
   };

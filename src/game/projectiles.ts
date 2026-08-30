@@ -132,8 +132,9 @@ export function ballTarget(game: Game, cannon: number): number {
 /**
  * Where its target is reckoned to stand when the ball is due: its own advance
  * carried on at its own pace for the 0,6 second of the flight, on its own rail
- * and at its own offset, and no further than the face of the town hall, where an
- * advance stops for good. It is the whole of "a cannon never misses" — the blow
+ * and at its own offset, and no further than the face its rail stops at — the
+ * town hall, or the shed on the street the base watches —, where an advance
+ * stops for good. It is the whole of "a cannon never misses" — the blow
  * lands on the date in any case, and this is what puts the ball, the mark on the
  * floor and the eye in the same place. (spec 03-17, 05-25)
  *
@@ -149,7 +150,8 @@ function reckonAhead(game: Game, at: number, target: number): void {
   const offset = pool.offset[target];
 
   const carried = pool.progress[target] + speedOf(game, target) * game.balance.cannon.ball.flight;
-  const ahead = carried > rails.length ? rails.length : carried;
+  const stops = rails.faceAt[street];
+  const ahead = carried > stops ? stops : carried;
   const along = railAng(rails, street, ahead);
 
   balls.toX[at] = railX(rails, street, ahead) - Math.sin(along) * offset;

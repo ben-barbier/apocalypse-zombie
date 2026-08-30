@@ -122,6 +122,8 @@ Un interdit se lève **par une PR sur le chapitre qui le porte**, jamais en pass
 | un avancement qui décroît, un recul qui fait reculer un zombie | [3](03-les-zombies.md) |
 | un zombie que le canon bloque, une barricade | [3](03-les-zombies.md) |
 | un zombie qui disparaît en atteignant la mairie | [3](03-les-zombies.md) |
+| un zombie qui traverse le bâti | [3](03-les-zombies.md) |
+| un hangar qui s'abîme, qui tombe ou qui porte des points de vie | [3](03-les-zombies.md) |
 | un cadavre, une trace au sol, du sang | [3](03-les-zombies.md) |
 | un paquet mixte | [3](03-les-zombies.md) |
 | une cadence autre que 6 secondes | [3](03-les-zombies.md) |
