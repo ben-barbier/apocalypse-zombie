@@ -118,6 +118,76 @@ describe('what it is worth', () => {
   });
 });
 
+describe('the fall, which is the end of a game', () => {
+  it('ends the game the moment it reaches nought, and shows the wave reached', () => {
+    // spec 01-28: the game ends when the town hall reaches nought, and that is
+    // the one end there is. spec 01-30: what the end shows is the number of the
+    // wave reached, and nothing else.
+    const game = createGame(BALANCE);
+    game.snapshot.wave = 7;
+    for (let i = 0; i < 199; i += 1) strikeTownHall(game, 1, 0, 0, 0, 0);
+    expect(game.snapshot.townHall.hp).toBe(1);
+    expect(counted(game.assault.events, EVENT.GAME_ENDED)).toBe(0);
+
+    clearEvents(game.assault.events);
+    strikeTownHall(game, 1, 0, 0, 0, 0);
+    const events = game.assault.events;
+    expect(game.snapshot.townHall.hp).toBe(0);
+    expect(counted(events, EVENT.GAME_ENDED)).toBe(1);
+    // It comes after the blow and after the last segment, so the drawing has
+    // seen the whole of the fall before it is told the game is over. (spec 10-18)
+    expect(events.type[events.count - 1]).toBe(EVENT.GAME_ENDED);
+    expect(events.value[events.count - 1]).toBe(7); // spec 01-30
+  });
+
+  it('says it once, however long it goes on being hammered', () => {
+    // spec 01-28: one end, said once. spec 03-17: what arrived never goes away,
+    // so it keeps hammering a town hall that has nothing left.
+    const game = createGame(BALANCE);
+    arrive(game, ZOMBIE.BRUISER, 0);
+    let said = 0;
+    for (let i = 0; i < 60 * 400; i += 1) {
+      clearEvents(game.assault.events);
+      stepTownHall(game, SECONDS);
+      said += counted(game.assault.events, EVENT.GAME_ENDED);
+    }
+    expect(game.snapshot.townHall.hp).toBe(0);
+    expect(said).toBe(1);
+  });
+
+  it('ends it under the hammering itself, and not by hand', () => {
+    // spec 03-3, 03-4: a colossus takes ten shambler hits a second off it, so
+    // two hundred hp go in twenty seconds of standing at its face.
+    const game = createGame(BALANCE);
+    game.snapshot.wave = 4;
+    arrive(game, ZOMBIE.COLOSSUS, 0);
+    let seen = -1;
+    for (let i = 0; i < 60 * 40; i += 1) {
+      clearEvents(game.assault.events);
+      stepTownHall(game, SECONDS);
+      const events = game.assault.events;
+      for (let e = 0; e < events.count; e += 1) {
+        if (events.type[e] === EVENT.GAME_ENDED) seen = events.value[e];
+      }
+    }
+    expect(game.snapshot.townHall.hp).toBe(0);
+    expect(seen).toBe(4); // the wave reached (spec 01-30)
+  });
+
+  it('never takes back a victory already won when it falls in overtime', () => {
+    // spec 01-26: the victory is won for good, and the town hall may fall in
+    // overtime without unmaking it.
+    const game = createGame(BALANCE);
+    game.snapshot.won = true;
+    game.snapshot.wave = 13;
+    for (let i = 0; i < 200; i += 1) strikeTownHall(game, 1, 0, 0, 0, 0);
+    const events = game.assault.events;
+    expect(game.snapshot.won).toBe(true);
+    expect(counted(events, EVENT.GAME_ENDED)).toBe(1);
+    expect(events.value[events.count - 1]).toBe(13); // spec 01-30
+  });
+});
+
 describe('what strikes it', () => {
   it('strikes the moment it arrives, then once a second', () => {
     // spec 03-4, 03-17: at the contact it stops and strikes once a second,

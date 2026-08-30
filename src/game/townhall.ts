@@ -28,6 +28,9 @@ import { atTownHall, balanceOf } from './zombies';
  * One blow against the town hall, in shambler hits. It is the one door its hp go
  * down through, and there is no door at all that puts one back. (spec 01-19)
  *
+ * It is therefore also where a game ends, and where the fact of it is said: the
+ * town hall at nought is the one end there is. (spec 01-28)
+ *
  * `from` is what struck, and the spot is where it struck, which is what the puff
  * of white shards springs from. (spec 06-34, 10-17)
  */
@@ -55,6 +58,15 @@ export function strikeTownHall(
   for (let left = Math.ceil(before / segment) - 1; left >= standing; left -= 1) {
     pushEvent(events, EVENT.TOWN_HALL_SEGMENT_LOST, from, x, y, z, left);
   }
+
+  // And when the last of them has gone, the game has gone with it. The guard at
+  // the head of this function is what makes it once and once only, however long
+  // whatever stands at the face goes on hammering, and the number of the wave
+  // reached rides in the `value` because it is the whole of what the end shows.
+  // It says nothing of a victory already won: that one is won for good, and a
+  // town hall falling in overtime never takes it back.
+  // (spec 01-28, 01-26, 01-30, 10-19)
+  if (hall.hp <= 0) pushEvent(events, EVENT.GAME_ENDED, 0, 0, 0, 0, game.snapshot.wave);
 }
 
 /**

@@ -132,6 +132,14 @@ export const EVENT = {
    * alone. (spec 04-49, 05-5, 10-19, 10-20)
    */
   ARMFUL_POURED: 25,
+  /**
+   * The town hall has reached nought, and the game is over with it. It is the
+   * one end there is — the child himself never falls — and the `value` carries
+   * the number of the wave reached, because that figure is the whole of what
+   * the end shows: a figure reads without knowing how to read. There is no word
+   * of text beside it, and nothing at all is tallied up. (spec 01-28, 01-30)
+   */
+  GAME_ENDED: 26,
 } as const;
 
 export type EventType = (typeof EVENT)[keyof typeof EVENT];

@@ -44,22 +44,14 @@
          here loads a second one: the pictos are blocky inline shapes on a
          16 by 16 grid, the very grid a tile is drawn on.
          ================================================================ */
-      #hud {
-        position: fixed;
-        inset: 0;
-        /* The hud is looked at and never touched: the targets of chapter 8
-           are their own thing, and nothing here ever eats a press. */
-        pointer-events: none;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-        line-height: 1;
-        -webkit-user-select: none;
-        user-select: none;
+      /* --- the colours. Every one of them is chapter 7's, and there is
+         not a red among them: the palette holds none, and the bar of the
+         town hall is brown. (spec 07-11, 08-14, 08-19)
 
-        /* --- the colours. Every one of them is chapter 7's, and there is
-           not a red among them: the palette holds none, and the bar of the
-           town hall is brown. (spec 07-11, 08-14, 08-19) --- */
+         They sit on the page rather than on #hud because the fade that
+         closes a game wears two of them, and it is not part of the hud:
+         the hud erases, the fade stays. (spec 08-63) --- */
+      :root {
         --ground: #14110e; /* derived: the hud's own warm near-black ground */
         --lost: #2a231c; /* derived: a segment gone, "almost black" (spec 08-18) */
         --hall: #b17c52; /* spec 07 "Mur": the one brown of the bar (spec 08-14) */
@@ -73,6 +65,20 @@
         --street1: #5fd8f2; /* spec 07: the three gateways, and render/city.ts */
         --street2: #f25fd8;
         --street3: #e8f25f;
+      }
+
+      #hud {
+        position: fixed;
+        inset: 0;
+        /* The hud is looked at and never touched: the targets of chapter 8
+           are their own thing, and nothing here ever eats a press. */
+        pointer-events: none;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        -webkit-user-select: none;
+        user-select: none;
 
         /* --- the sizes, every one a share of the smaller side of the
            window and bounded in pixels. (spec 08-10, spec 08 "Les tailles") --- */
@@ -409,6 +415,58 @@
           transform: scale(1.12);
         }
       }
+
+      /* ================================================================
+         The end of a game, and it is the one end there is: the town hall
+         at nought. It is soft — the hud goes out in one second, a fade
+         closes over the world in under three, and what it carries is the
+         number of the wave reached and nothing else. A figure reads
+         without knowing how to read, so there is no word of text, no red,
+         no alarm and nothing tallied up. The Sas opens on it, and its one
+         door is chapter 8's. (spec 01-28, 01-29, 01-30, 01-31, 08-63)
+
+         It sits outside #hud because the hud is what erases: what stays
+         is what the Sas will open on.
+         ================================================================ */
+      #hud.gone {
+        animation: erasing 1s linear forwards;
+      }
+      @keyframes erasing {
+        to {
+          opacity: 0;
+        }
+      }
+      #fade {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        /* It is looked at and never touched, exactly like the hud. */
+        pointer-events: none;
+        background: var(--ground);
+        opacity: 0;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      /* 2,4 s, under the three seconds the chapter bounds it by, and it
+         holds where it stops: the world darkens behind it and stays there,
+         which is the ground the Sas will sit on. (spec 01-29, 08-55) */
+      #fade.on {
+        animation: closing 2400ms ease-out forwards;
+      }
+      @keyframes closing {
+        to {
+          opacity: 0.94;
+        }
+      }
+      #reached {
+        color: var(--stone);
+        font-size: clamp(64px, 24vmin, 200px);
+      }
     </style>
   </head>
   <body>
@@ -541,6 +599,10 @@
         <i class="arrow" id="arrow2"></i>
       </div>
     </div>
+
+    <!-- The fade that closes a game, and the one figure it ever carries:
+         the number of the wave reached. (spec 01-29, 01-30, 08-63) -->
+    <div id="fade"><b id="reached"></b></div>
 
     <script type="module" src="/src/app/main.ts"></script>
   </body>
