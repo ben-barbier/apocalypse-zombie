@@ -21,6 +21,7 @@
 import type { InputState } from '../game/state';
 import { type Pad, pollPad, readPad } from './gamepad';
 import { type Keys, readKeys } from './keyboard';
+import { type Thumbs, readThumbs } from './touch';
 
 /**
  * A button whose rising edge has to survive until a step reads it. `down` is
@@ -112,16 +113,23 @@ export function turnStick(input: InputState, ang: number): void {
 }
 
 /**
- * One reading, for the step about to run. The sources add themselves to the same
- * emptied object, so a child holding the stick while someone leans on an arrow
- * key gets one body and not two, and the norm is settled once at the end — then
- * the whole of it is turned onto the heading handed over, which is the camera's.
- * A turn keeps a norm, so the two orders would agree; the clamp comes first
- * because it belongs to the stick and the turn to the world.
+ * One reading, for the step about to run. The three sources add themselves to
+ * the same emptied object, so a child holding the pad while a thumb leans on the
+ * floating stick gets one body and not two, and the norm is settled once at the
+ * end — then the whole of it is turned onto the heading handed over, which is
+ * the camera's. A turn keeps a norm, so the two orders would agree; the clamp
+ * comes first because it belongs to the stick and the turn to the world.
  */
-export function sampleInput(input: InputState, pad: Pad, keys: Keys, ang: number): void {
+export function sampleInput(
+  input: InputState,
+  pad: Pad,
+  thumbs: Thumbs,
+  keys: Keys,
+  ang: number,
+): void {
   clearInput(input);
   readPad(pad, pollPad(pad), input);
+  readThumbs(thumbs, input);
   readKeys(keys, input);
   clampStick(input);
   turnStick(input, ang);

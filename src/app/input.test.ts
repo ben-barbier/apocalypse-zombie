@@ -15,6 +15,10 @@ import { createPad } from './gamepad';
 import { clampStick, createEdge, sampleInput, setEdge, takeEdge, turnStick } from './input';
 import { createKeys, pressKey } from './keyboard';
 import { createLoop, frame } from './loop';
+import { type Panel, createThumbs } from './touch';
+
+/** A page that answers to what the thumbs write, and holds nothing of its own. */
+const blank = (): Panel => ({ className: '', style: { setProperty: () => {} } });
 
 describe('a rising edge', () => {
   it('is raised by going down, and cleared by the reading and nothing else', () => {
@@ -133,15 +137,15 @@ describe('the stick in the frame of the camera', () => {
 });
 
 describe('one reading a step', () => {
-  it('gathers both sources into the one object', () => {
-    // spec 10-30: one InputState, written indifferently by either.
+  it('gathers every source into the one object', () => {
+    // spec 10-30: one InputState, written indifferently by any of them.
     const input = createInput();
     const pad = createPad();
     const keys = createKeys();
     pressKey(keys, 'ArrowRight');
     pressKey(keys, 'Space');
     // A camera watching down the x of the world: its right is the z of it.
-    sampleInput(input, pad, keys, 0);
+    sampleInput(input, pad, createThumbs(blank), keys, 0);
     expect(input.dx).toBeCloseTo(0, 12);
     expect(input.dz).toBeCloseTo(1, 12);
     expect(input.strike).toBe(true);
@@ -153,7 +157,7 @@ describe('one reading a step', () => {
     const keys = createKeys();
     input.strike = true;
     input.dx = 1;
-    sampleInput(input, pad, keys, 1.1);
+    sampleInput(input, pad, createThumbs(blank), keys, 1.1);
     expect(input).toEqual(createInput());
   });
 
@@ -166,7 +170,7 @@ describe('one reading a step', () => {
     const jumps: boolean[] = [];
     const loop = createLoop(game, input, {
       sample: () => {
-        sampleInput(input, pad, keys, 0);
+        sampleInput(input, pad, createThumbs(blank), keys, 0);
         jumps.push(input.jump);
       },
       read: () => {},
