@@ -31,7 +31,7 @@ Ce chapitre décide la seule chose que le joueur pose : les trois niveaux du can
 
 **Le losange et le liseré**
 
-17. Ce que fera le second bouton se lit sur un **losange posé au sol sous les pieds du joueur** : **blanc et large**, on pose ; **blanc, serré et pulsant**, on améliore ; **noir et élargi**, c'est impossible. Aucun mot, aucun chiffre.
+17. Ce que fera le second bouton se lit sur un **losange posé au sol sous les pieds du joueur**, dessiné en **contour** et jamais en aplat : **blanc et large**, on pose ; **blanc, serré et pulsant**, on améliore ; **noir et élargi**, c'est impossible. Aucun mot, aucun chiffre.
 18. Le losange est **noir** devant un canon de niveau 3, et devant un canon de niveau 2 hors du halo : il n'y a plus rien à améliorer.
 19. Tant que le losange est sous les pieds du joueur, la **portée du boulet est peinte au sol en liseré**, de la couleur du losange.
 20. Le losange et le liseré vivent **dans le monde et jamais dans le bandeau**, et ils disparaissent dès qu'on quitte l'emplacement : ce n'est pas l'état d'un canon, c'est la question qu'on est en train de se poser.
@@ -84,6 +84,11 @@ Ce chapitre décide la seule chose que le joueur pose : les trois niveaux du can
 52. Le pool est de **24 canons**, alloué au chargement : c'est une **borne technique** que l'économie rend inatteignable, jamais une règle de jeu, et le code n'a rien à défendre.
 53. Le tir simultané de plusieurs canons ne produit jamais plus de **4 sons à la fois**, avec **60 ms** de garde entre deux (chapitre 9).
 
+**Le trait du losange**
+
+54. Le losange **laisse voir le sol qu'il entoure** : c'est un contour, exactement comme le liseré de 05-19, dont il est la même figure à quatre côtés — et le creux se fait par la **géométrie**, jamais par une transparence ([07-17](07-le-regard.md)).
+55. L'épaisseur de ce contour est la **même dans les trois états de 05-17** : un losange serré est un losange **plus petit**, jamais un trait plus fin.
+
 ## Les chiffres
 
 ### Les trois niveaux
@@ -95,6 +100,16 @@ Ce chapitre décide la seule chose que le joueur pose : les trois niveaux du can
 | **3** | oui | oui | **automatique**, par tapis roulant | grand, le tapis court jusqu'à la base |
 
 Les prix — 40 pièces le canon, 60 le passage au niveau 2, 120 le passage au niveau 3 — appartiennent au chapitre 6.
+
+### Le trait du losange
+
+| Grandeur | Valeur | D'où elle sort |
+|---|---:|---|
+| Épaisseur du contour | **0,25 bloc** | le côté d'un éclat ([07-25](07-le-regard.md)) |
+| La même, à l'écran | **12 px** | l'échelle de lisibilité de référence, ×3 ([chapitre 7](07-le-regard.md)) |
+| Écart d'épaisseur entre les trois états | **aucun** | 05-55 |
+
+L'éclat est la **plus petite chose que le jeu demande déjà à l'œil de lire** : un trait plus fin que lui dirait moins que l'arc qu'on lui demande justement de laisser passer. C'est aussi pourquoi l'épaisseur ne suit pas la largeur — proportionnelle, elle tomberait à un demi-éclat sur le losange serré, c'est-à-dire sous ce seuil, et précisément dans l'état où le losange est le plus regardé.
 
 ### Le boulet
 
@@ -201,6 +216,7 @@ Le jet de feu **ne consomme aucun projectile** : c'est un cône et un test d'app
 - **Jamais une seconde construction** — il ne reste aucun lieu pour elle : le second bouton n'a qu'un seul sens à un endroit donné, et poser, améliorer et renforcer la mairie ont déjà pris les trois seuls endroits qui existent.
 - **Jamais un ralentisseur achetable** — goudron, glu, barricade : un zombie 25 % plus lent ne se voit pas à 8 ans ; et il *donnerait* du temps d'épée au lieu de substituer, ce qui pousserait la masse monétaire vers son plafond arithmétique. **Le seul ralentisseur du jeu est le joueur.**
 - **Jamais un quatrième niveau, jamais un embranchement au niveau 2** — le losange « améliorer » devrait demander *en quoi ?*, et c'est la définition d'un menu.
+- **Jamais un losange en aplat** — il est large et il suit les pieds partout : rempli, il repeint en blanc tout le sol autour du joueur, et l'arc de la fauchée, blanc lui aussi et déposé sur les 3 blocs devant lui ([04-22](04-le-joueur.md), [07-31](07-le-regard.md)), s'y noie en vue plongeante. Le contour dit exactement la même chose et ne mange rien.
 - **Jamais un canon qui bloque un zombie** — il redeviendrait une barricade, et un assaut pourrait caler devant un mur de canons.
 - **Jamais une zone d'effet sur le boulet** — un tir à cible unique et à dégât garanti se compte : huit boulets par traversée de Traînard, trois par Sprinteur, dix secondes de feu par Costaud. Une gerbe rendrait toute la table des vagues invérifiable.
 - **Jamais un test de ligne de vue, jamais un test de collision sur un projectile** — le CPU JavaScript est la ressource rare, et un boulet doit rester une interpolation et une date.
@@ -243,6 +259,8 @@ Le jet de feu **ne consomme aucun projectile** : c'est un cône et un test d'app
 **Pourquoi le pool de 24 n'est pas une règle de jeu.** C'est le budget de performance ([chapitre 10](10-l-architecture.md)), et il est hors d'atteinte par construction — non par un plancher de prix, mais par une propriété de l'économie : **la prime de bravoure substitue au lieu d'ajouter**. Un zombie tué à l'épée rapporte le double d'un zombie tué par un canon, mais c'est le *même* zombie : chaque canon posé vole des kills à l'épée et rabote le revenu qui achèterait le suivant. Le pire cas réel — les canons prennent tous les Traînards, l'épée prend tout le reste — plafonne à 23,1 canons, et seulement pour un joueur qui n'achèterait aucune amélioration, aucune bombe et aucun renfort. **Le code n'a rien à défendre.**
 
 **Pourquoi le canon est la seule construction, et pourquoi c'est définitif.** Ce n'est pas une affaire de budget — on pourrait toujours reprendre des pièces aux canons. Trois murs déjà posés ailleurs l'interdisent, et il faudrait les rouvrir un à un. **Il ne reste aucun lieu** : les trois sens du second bouton se distinguent par le seul endroit où l'on se tient, et une quatrième construction posée « là où l'on se tient » entrerait en collision avec le canon partout. **La bourse est une liste fermée de quatre vignettes** — canon, jet de feu, tapis roulant, renfort (chapitre 8). **Et la substitution ne survit pas à un tueur de plus** : toute construction qui tue sans passer par elle, ou qui rapporte, casse la démonstration qui tient le budget de performance.
+
+**Pourquoi le losange est un contour, et ce qu'un aplat mangeait.** Le losange est large, il vit sous les pieds et il suit le joueur partout : rempli, il devient une plaque blanche qui accompagne chacun de ses pas. Or ce qu'il recouvrait est ce que le geste a de plus lisible — l'**arc de la fauchée**, blanc lui aussi, déposé le long de la lame sur les 3 blocs de 04-22 et effacé en 150 ms ([07-31](07-le-regard.md)) : en vue plongeante, l'arc tombait dans le losange et vingt-cinq éclats partaient à chaque coup sans que personne les voie. Le contour rend le sol à la fauchée **sans rien retirer à la question posée** : les trois états se distinguent toujours par la taille, la couleur et le mouvement, qui sont les trois canaux dont le décor ne dispose pas ([07-14](07-le-regard.md)). Le creux se fait par la géométrie — on ne dessine pas l'intérieur — parce que ce jeu n'a **aucune transparence** ([07-17](07-le-regard.md)), et il ne coûte pas un appel d'affichage de plus : c'est le même maillage, un anneau à quatre côtés au lieu d'un carré plein, et le liseré de 05-19 en était déjà un à soixante-quatre. Reste l'épaisseur, et c'est le seul chiffre neuf : elle vaut un **éclat**, la plus petite chose que le jeu demande déjà à l'œil de lire, et elle ne varie pas — une épaisseur proportionnelle à la largeur amincirait le trait de moitié sur le losange serré, donc exactement là où l'enfant le regarde le plus.
 
 **Pourquoi les trois « trous » d'un canon n'en sont pas.** Qu'il ne ralentisse rien est la garantie qu'un assaut se termine, et c'est ce qui rend les durées de traversée exactes, donc la table vérifiable au banc. Qu'il ne traite ni le Sprinteur ni le Costaud est l'énoncé du jeu : 43 % des zombies sont réservés à l'épée, et la prime de bravoure est le prix payé pour les y garder. Qu'il ne protège pas le joueur est ce qui garde ses points de vie dans leur rôle de convertisseur ([chapitre 4](04-le-joueur.md)) — et le refuge existe déjà, gratuit : le toit.
 

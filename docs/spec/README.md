@@ -159,6 +159,7 @@ Un interdit se lève **par une PR sur le chapitre qui le porte**, jamais en pass
 | une réparation, payante ou gratuite | [5](05-les-canons.md) |
 | un canon de toit qui s'abîme | [5](05-les-canons.md) |
 | une revente, un déplacement, une destruction volontaire | [5](05-les-canons.md) |
+| un losange en aplat | [5](05-les-canons.md) |
 | un plafond au nombre de canons | [5](05-les-canons.md) |
 
 ### L'argent

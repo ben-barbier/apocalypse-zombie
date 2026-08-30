@@ -31,6 +31,17 @@
  * one primitive of **effect**, and a question one is asking is not an effect.
  * (spec 05-17 to 05-20, 07-22, 07-25, 08-4)
  *
+ * **Both are drawn as an outline, and neither is ever a plate of colour** — a
+ * diamond is a ring of four sides and the circle a ring of sixty-four, so the
+ * two are the same shape twice over and are built the same way. The hollow is
+ * made by the shape and never by an alpha: nothing in this game is see-through.
+ * A mark filled in would have painted the whole of the floor he stands on, and
+ * the white arc of a sweep — laid along the blade, three blocks ahead of him and
+ * a block and a fifth up — would have been read against white. The outline holds
+ * **one thickness in blocks whatever the state asks**, so a tight mark is a
+ * smaller mark and never a fainter one. (spec 05-17, 05-19, 05-54, 05-55, 07-17,
+ * 07-31)
+ *
  * **The cone is the one continuous effect of the game**, so it is the one thing
  * here that is not made of shards: an instanced cone attached to the cannon, one
  * instance per cannon that burns, and **the scale carries the length**. Short
@@ -52,7 +63,7 @@
 import * as THREE from 'three';
 import type { CannonBalance } from '../game/balance';
 import type { CannonPool } from '../game/state';
-import { BLACK, BLINK_SLOW, FIRE, WHITE } from './effects';
+import { BLACK, BLINK_SLOW, FIRE, SHARD_SIDE, WHITE } from './effects';
 
 /**
  * The one colour chapter 7 gives a cannon, off the palette of what is played:
@@ -85,6 +96,73 @@ export const PLATES = 8;
 
 /** How far the mark and the circle float over the floor, so the two do not fight for it. */
 const LIFT = 0.02;
+
+/**
+ * How thick the outline of the mark runs, in blocks, and it is **the same in
+ * the three states**.
+ *
+ * It is the side of a shard, and that is where it is read off rather than
+ * chosen: a shard is a quarter of a block and the smallest thing this game
+ * already asks the eye to make out, so at the ×3 chapter 7 takes as its scale
+ * of legibility it comes to twelve pixels across. A stroke any thinner than
+ * the arc laid over it would say less than the arc. (spec 05-55,
+ * 05 "Le trait du losange", 07-25, 07 "La planche")
+ */
+const MARK_LINE = SHARD_SIDE;
+
+/** Four sides make a diamond, sixty-four make a circle. (spec 05-17, 05-19) */
+const MARK_SIDES = 4;
+const REACH_SIDES = 64;
+
+/**
+ * How far a corner of the mark sits from its middle, in the mesh, for a shape
+ * whose half-width is a half: a square stood on its point. What the mesh is
+ * drawn at is therefore the width of the mark, in blocks, flat side to flat
+ * side. (spec 05-17)
+ */
+const MARK_CORNER = Math.SQRT1_2;
+
+/**
+ * How thick the circle runs, as a share of its own radius, so it stays a line
+ * at twelve blocks and at eighteen — 0,36 and 0,54 of a block, both of them
+ * over the shard the eye is given. (spec 05-19, 05-22, 07-25)
+ */
+const REACH_LINE = 0.03;
+
+/**
+ * A flat ring laid on the floor: `sides` of them, an outer edge at `outer` and
+ * an inner edge at `inner`, both measured from the middle out to a corner.
+ *
+ * It is the one shape this file draws twice over — **a diamond is a ring of
+ * four sides**, the circle is a ring of sixty-four — so the mark and the circle
+ * are made the same way and cost the same one call each. The hollow is the
+ * shape itself and never an alpha, which is the only way to hollow anything in
+ * a game where everything is opaque. (spec 05-17, 05-19, 05-54, 07-17)
+ */
+function flatRing(sides: number, inner: number, outer: number): THREE.BufferGeometry {
+  const spots = new Float32Array(sides * 6);
+  const facing = new Float32Array(sides * 6);
+  const woven: number[] = [];
+  for (let i = 0; i < sides; i += 1) {
+    const turn = (i / sides) * 2 * Math.PI;
+    const cos = Math.cos(turn);
+    const sin = Math.sin(turn);
+    spots[i * 3] = inner * cos;
+    spots[i * 3 + 2] = inner * sin;
+    spots[(sides + i) * 3] = outer * cos;
+    spots[(sides + i) * 3 + 2] = outer * sin;
+    // Laid flat and facing the sky, which is what makes it read from above.
+    facing[i * 3 + 1] = 1;
+    facing[(sides + i) * 3 + 1] = 1;
+    const next = (i + 1) % sides;
+    woven.push(i, sides + next, sides + i, i, next, sides + next);
+  }
+  const shape = new THREE.BufferGeometry();
+  shape.setAttribute('position', new THREE.BufferAttribute(spots, 3));
+  shape.setAttribute('normal', new THREE.BufferAttribute(facing, 3));
+  shape.setIndex(woven);
+  return shape;
+}
 
 /**
  * One box of a cannon: how large it is and where its middle sits, in blocks, for
@@ -234,6 +312,12 @@ export interface CannonView {
   readonly mark: THREE.Mesh;
   readonly circle: THREE.Mesh;
   /**
+   * The corners of the mark, held here so a frame can draw its hollow in again
+   * without going looking for them: the inner four move with the width the
+   * state asks, the outer four never move at all. (spec 05-55, 10-14)
+   */
+  readonly markSpots: THREE.BufferAttribute;
+  /**
    * One cone per cannon that burns, and the second of the two instanced systems
    * of effect chapter 7 counts — the shards are the other. (spec 07-38,
    * 07 "Les éclats")
@@ -336,26 +420,27 @@ export function buildCannons(holds: number, arc: number): CannonView {
   flames.count = 0;
   (flames.material as THREE.MeshBasicMaterial).fog = false;
 
-  // A square laid flat and turned a quarter turn about the upright: that is the
-  // whole of a diamond, and an instance carries only how wide it is. (spec 05-17)
-  const lozenge = new THREE.PlaneGeometry(1, 1);
-  lozenge.rotateX(-Math.PI / 2);
-  lozenge.rotateY(Math.PI / 4);
+  // A ring of four sides laid flat, its corners on the axes: that is the whole
+  // of a diamond, and what it is drawn at is how wide it is. It is made with no
+  // thickness at all, the hollow being written in at the width every frame asks,
+  // so a mark that has not been laid yet shows nothing rather than a plate of
+  // white. (spec 05-17, 05-54)
+  const lozenge = flatRing(MARK_SIDES, MARK_CORNER, MARK_CORNER);
   const mark = new THREE.Mesh(
     lozenge,
     // Unlit: a mark painted on the floor says what a button will do, and it must
-    // read the same wherever he stands. (spec 05-17)
+    // read the same wherever he stands. Opaque like everything else here — what
+    // it does not cover, it does not cover because it is not there. (spec 05-17,
+    // 07-17)
     new THREE.MeshBasicMaterial({ color: new THREE.Color(WHITE) }),
   );
   mark.name = 'diamond';
 
-  // The circle the ball would carry to, drawn as a thin ring on the floor. Its
-  // thickness is a fraction of its radius, so it stays a line at twelve blocks
-  // and at eighteen. (spec 05-19, 05-22)
-  const ring = new THREE.RingGeometry(0.97, 1, 64);
-  ring.rotateX(-Math.PI / 2);
+  // The circle the ball would carry to, the same ring at sixty-four sides. Its
+  // thickness is a share of its radius, so it stays a line at twelve blocks and
+  // at eighteen. (spec 05-19, 05-22)
   const circle = new THREE.Mesh(
-    ring,
+    flatRing(REACH_SIDES, 1 - REACH_LINE, 1),
     new THREE.MeshBasicMaterial({ color: new THREE.Color(WHITE), side: THREE.DoubleSide }),
   );
   circle.name = 'reach';
@@ -371,6 +456,7 @@ export function buildCannons(holds: number, arc: number): CannonView {
     bodies,
     mark,
     circle,
+    markSpots: lozenge.getAttribute('position') as THREE.BufferAttribute,
     flames,
     riseX: new Float32Array(holds),
     riseZ: new Float32Array(holds),
@@ -715,6 +801,29 @@ function seatFlame(
 }
 
 /**
+ * Draws the hollow of the mark in again for this frame, so the outline keeps
+ * the one thickness of `MARK_LINE` at whatever width the state asks. The outer
+ * four corners never move, which is what leaves the width of the mark carried
+ * by what the mesh is drawn at; only the inner four are written over, in a
+ * buffer made at load, so a frame allocates nothing. (spec 05-55, 10-14)
+ *
+ * Were the thickness a share of the width instead, a tight mark would be drawn
+ * at half the stroke of a wide one — an eighth of a block, half a shard — and
+ * would say less exactly where it is asked the most. (spec 05-17, 07-25)
+ */
+function hollowMark(view: CannonView, span: number): void {
+  // The mesh is drawn at twice `span`, so an outline `MARK_LINE` thick around a
+  // shape whose half-width is `span` leaves its corners at this much of one.
+  const left = span - MARK_LINE;
+  const inner = left > 0 ? (MARK_CORNER * left) / span : 0;
+  for (let i = 0; i < MARK_SIDES; i += 1) {
+    const turn = (i / MARK_SIDES) * 2 * Math.PI;
+    view.markSpots.setXYZ(i, inner * Math.cos(turn), 0, inner * Math.sin(turn));
+  }
+  view.markSpots.needsUpdate = true;
+}
+
+/**
  * Lays the mark under his feet and the circle it draws. Both are painted on the
  * floor, both are in the same colour, and both are gone from a spot the moment
  * he leaves it — because they are laid where he stands and nowhere else, every
@@ -725,6 +834,9 @@ function seatFlame(
  * word and no figure — the three are told apart by size, by colour and by
  * movement, which are the three channels the city itself does not use.
  * (spec 05-17, 05-18, 07-14)
+ *
+ * All three are an **outline** and none of them a plate: what the mark says, it
+ * says with its edge, and the floor it stands on stays the floor. (spec 05-54)
  *
  * Which of the three it is arrives already read: the rules settle it, and the
  * drawing takes the shape of the answer rather than the constant that names it.
@@ -751,6 +863,7 @@ export function layDiamond(
   }
 
   const colour = white ? WHITE : BLACK;
+  hollowMark(view, span);
   view.mark.position.set(x, y + LIFT, z);
   view.mark.scale.set(span * 2, 1, span * 2);
   (view.mark.material as THREE.MeshBasicMaterial).color.set(colour);
