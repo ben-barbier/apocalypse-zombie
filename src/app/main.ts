@@ -18,7 +18,33 @@
  * entirely alone: nothing in this file, and nothing the child can press, ever
  * aims it. (spec 04-19, 04-20)
  */
-import { type Sound, claimSession, hush, wakeSound } from '../audio/sound';
+import { type Sound, claimSession, hush, sweepVoices, wakeSound } from '../audio/sound';
+import {
+  armful,
+  beatPulse,
+  beginPulse,
+  bloup,
+  bonus,
+  cannonPlaced,
+  cannonUpgraded,
+  cannonball,
+  coin,
+  collapse,
+  contact,
+  createVoices,
+  endPulse,
+  gateway,
+  hushVoices,
+  lightFlame,
+  moan,
+  outFlame,
+  reinforcement,
+  rise,
+  sweepFlames,
+  tchac,
+  townHallHit,
+  whiff,
+} from '../audio/sounds';
 import { BALANCE } from '../game/balance';
 import { placePlayer } from '../game/player';
 import {
@@ -568,7 +594,23 @@ const loop = createLoop(game, input, {
       else if (kind === EVENT.CONTACT) blink(effects, STAGGER_BLINK, UNTOUCHABLE_BLINK, now);
       else if (kind === EVENT.COLLAPSE) blink(effects, 0, 0, now);
       else if (kind === EVENT.RISE) blink(effects, 0, RISEN_BLINK, now);
+
+      // And the sound of that same fact, in its own reading of it: the drawing
+      // and the audio answer the one buffer side by side, and neither is read
+      // off the other. (spec 09-2, 10-19)
+      hear(events, i);
     }
+
+    // What the flames are owed, once the whole frame has been read: a cannon
+    // that has gone takes its cone's voice with it, and losing one shuffles the
+    // pool under the spots the buffer named. (spec 05-50, 09-13, 10-13)
+    sweepFlames(audio, voices, held.snapshot.cannons.count);
+    // The notes of the pulse this frame owes, and nothing else asks for them.
+    // (spec 09-32)
+    beatPulse(audio, voices);
+    // And the seats that have come due, so an unplugging falls even on a frame
+    // where nothing at all sounded. (spec 09-13, 09-18)
+    sweepVoices(audio);
 
     // The net, written where the rules say it moves and nowhere else: the entry
     // into a preparation and the four purchases of that preparation. Nothing
@@ -699,6 +741,70 @@ let audio: Sound | null = null;
 claimSession();
 
 /*
+ * The two sounds of chapter 9 that keep a voice rather than a span: the flame of
+ * every cannon that may stand, and *le pouls*. Everything else takes its seat,
+ * sounds and gives it back on its own. (spec 09-13)
+ */
+const voices = createVoices(BALANCE.pools.cannons);
+
+/**
+ * Where a fact of the buffer meets its sound, and the whole of the table of
+ * chapter 9 in one place. It reads the same buffer the drawing reads, one entry
+ * at a time and in the same pass: a sound goes out because the simulation said
+ * what it had just done, never because two pictures differ. (spec 09-2, 10-19)
+ *
+ * Five of the seventeen are panned and five only — the "tchac", the "bloup", the
+ * dull whiff, the moan and a ball going out — and the panning is the sideways
+ * gap to the line of sight of the camera, which is why it is worked out here and
+ * nowhere under `src/audio/`: the sound knows nothing of a camera. The three of
+ * the sword are held far tighter than the other two, and that is the sound's own
+ * business. (spec 09-28, 09-29, 09-30)
+ *
+ * What is **not** here is as decided as what is: no sound for a ball landing, no
+ * sound for a cannon taking a blow or going, none for a segment of the town hall
+ * coming off, none for the sweep itself, none for an armful going into a
+ * magazine, none for the end of the game, and none for the ladders lighting.
+ * The picture says every one of those already. (spec 09-3, 09 "Les interdits")
+ */
+function hear(events: Readonly<EventBuffer>, at: number): void {
+  const kind = events.type[at];
+
+  // The five that carry a side, off the spot the fact carries. (spec 09-29)
+  if (kind === EVENT.SWORD_HIT) tchac(audio, acrossOf(camera, events.x[at], events.z[at]));
+  else if (kind === EVENT.FATAL_BLOW) bloup(audio, acrossOf(camera, events.x[at], events.z[at]));
+  else if (kind === EVENT.SWORD_MISS) whiff(audio, acrossOf(camera, events.x[at], events.z[at]));
+  else if (kind === EVENT.MOAN) moan(audio, acrossOf(camera, events.x[at], events.z[at]));
+  else if (kind === EVENT.CANNONBALL_FIRED) {
+    cannonball(audio, acrossOf(camera, events.x[at], events.z[at]));
+  }
+  // What happens to him, to the city and to his purse is centred: a side would
+  // say nothing of any of it. (spec 09-29, 09 "Pourquoi seuls cinq bruitages")
+  else if (kind === EVENT.CONTACT) contact(audio);
+  else if (kind === EVENT.COLLAPSE) collapse(audio);
+  else if (kind === EVENT.RISE) rise(audio);
+  // A cone lighting holds a voice for as long as it burns, and gives it back
+  // where it goes out. (spec 09-13)
+  else if (kind === EVENT.FLAME_LIT) lightFlame(audio, voices, events.index[at]);
+  else if (kind === EVENT.FLAME_OUT) outFlame(audio, voices, events.index[at]);
+  else if (kind === EVENT.CANNON_PLACED) cannonPlaced(audio);
+  else if (kind === EVENT.CANNON_UPGRADED) cannonUpgraded(audio);
+  // The one alarm of the game, and the one thing that lowers the rest of it: the
+  // leak is out of sight, and every blow it lands is a point gone for good.
+  // (spec 09-20, 09-23)
+  else if (kind === EVENT.TOWN_HALL_HIT) townHallHit(audio);
+  else if (kind === EVENT.COIN_TAKEN) coin(audio);
+  else if (kind === EVENT.ASSAULT_BONUS) bonus(audio);
+  else if (kind === EVENT.REINFORCEMENT_BOUGHT) reinforcement(audio);
+  else if (kind === EVENT.ARMFUL_TAKEN) armful(audio);
+  else if (kind === EVENT.GATEWAY_LIT) gateway(audio);
+  // And the one music, which runs through an assault and is quiet through a
+  // preparation: it gives a tempo to the one phase that has none, and it stops
+  // with the last zombie, at the very moment the bonus falls. (spec 09-33, 09-34)
+  else if (kind === EVENT.ASSAULT_BEGAN) beginPulse(audio, voices);
+  else if (kind === EVENT.ASSAULT_ENDED) endPulse(audio, voices);
+}
+
+/*
  * The second of the two resumptions, and the whole of it. The page is dead — a
  * memory purge, a reload, a WebGL context that never came back — so what the
  * last boundary of wave wrote is read once, here, and the game opens on the
@@ -743,8 +849,10 @@ const airlock = createAirlock((name) => document.getElementById(name), {
     loop.clock.steps = 0;
     stopLoop(loop);
     // The sound never crosses the Sas either: the held voices stop where they
-    // stand and nothing starts again on its own. (spec 09-14)
+    // stand and nothing starts again on its own — so the two handles kept on
+    // them are let go of here with them. (spec 09-14)
     hush(audio);
+    hushVoices(voices);
   },
   // And it starts again owing nothing at all, however long the Sas stood open:
   // the gap it leaves is not a gap of the game. (spec 08-68, 10-22)
@@ -782,6 +890,23 @@ const airlock = createAirlock((name) => document.getElementById(name), {
   // (spec 08-83, 09-7, 08-84)
   sound: () => {
     audio = wakeSound(audio);
+    /*
+     * And *le pouls* with it, whenever what the press goes back to is an
+     * assault. Two passages of chapter 9 pull against each other here and this
+     * is where they are settled: 09-33 writes that the pulse **runs through the
+     * assault**, while 09-14 writes that nothing starts again **on its own**
+     * once the Sas has been crossed. Started only by the fact of the buffer, the
+     * pulse would never be heard in the first assault of any game at all — wave
+     * one opens at load, before a press has built the one `AudioContext` and
+     * before a single frame has read a fact — and it would be missing from every
+     * assault picked up after an interruption besides.
+     *
+     * So 09-33 is taken as the rule and 09-14 as what it says: the sound comes
+     * back **by a press and never by itself**, which is this handler and no
+     * other. A preparation is left in its silence, as it must be. (spec 09-33,
+     * 09-14, 09-7, 08-83)
+     */
+    if (game.assault.phase === PHASE.ASSAULT) beginPulse(audio, voices);
   },
 });
 

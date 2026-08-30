@@ -15,11 +15,13 @@ import {
   type Game,
   ZOMBIE,
   type ZombieType,
+  clearEvents,
   createGame,
   heightAt,
   railX,
   railZ,
 } from './state';
+import { beginAssault } from './waves';
 import {
   atTownHall,
   balanceOf,
@@ -597,5 +599,148 @@ describe('the fatal blow', () => {
     game.assault.sword.aimAt = middle;
     fellZombie(game, middle, true);
     expect(game.assault.sword.aimAt).toBe(-1);
+  });
+});
+
+describe('the moan of the assault', () => {
+  /**
+   * The living, put on their rails and asked nothing else: the cadence of the
+   * moan reads the head count and nothing besides, so where they stand changes
+   * not one thing here.
+   */
+  function crowdOf(game: Game, howMany: number): void {
+    for (let i = 0; i < howMany; i += 1) put(game, ZOMBIE.SHAMBLER, i % 3, 10 + (i % 20), 0);
+  }
+
+  /**
+   * How many moans go out over so many seconds, with the buffer emptied every
+   * step exactly as the loop empties it. (spec 10-18)
+   */
+  function moansOver(game: Game, seconds: number): number {
+    const events = game.assault.events;
+    const steps = Math.round(seconds * BALANCE.loop.hz);
+    let found = 0;
+    for (let i = 0; i < steps; i += 1) {
+      clearEvents(events);
+      stepZombies(game, SECONDS);
+      found += counted(events, EVENT.MOAN);
+    }
+    return found;
+  }
+
+  /** Moans a second at a head count, read to the tenth the table is written to. */
+  function cadenceOf(howMany: number): number {
+    const game = createGame(BALANCE, 3);
+    crowdOf(game, howMany);
+    expect(game.assault.zombies.count).toBe(howMany);
+    const span = 200;
+    return Math.round((moansOver(game, span) / span) * 10) / 10;
+  }
+
+  /**
+   * The moans of a span: what each of them named, the spot the fact carries, and
+   * the spot the one it names stood at that very step — the two are read at the
+   * same instant, because a body walks on and the fact does not.
+   */
+  function listen(
+    game: Game,
+    steps: number,
+  ): { named: number[]; spots: number[]; stood: number[] } {
+    const events = game.assault.events;
+    const named: number[] = [];
+    const spots: number[] = [];
+    const stood: number[] = [];
+    for (let i = 0; i < steps; i += 1) {
+      clearEvents(events);
+      stepZombies(game, SECONDS);
+      for (let at = 0; at < events.count; at += 1) {
+        if (events.type[at] !== EVENT.MOAN) continue;
+        named.push(events.index[at]);
+        spots.push(events.x[at]);
+        stood.push(game.assault.zombies.x[events.index[at]]);
+      }
+    }
+    return { named, spots, stood };
+  }
+
+  it('follows the head count, and stops climbing at forty', () => {
+    // spec 09-25 and the table "Le gémissement selon la population": every
+    // 140 ms the living pile up count/40 of a moan, one whole at the most, so
+    // the cadence is capped at 7,1 a second from forty standing on.
+    expect(cadenceOf(4)).toBe(0.7);
+    expect(cadenceOf(14)).toBe(2.5);
+    expect(cadenceOf(22)).toBe(3.9);
+    expect(cadenceOf(30)).toBe(5.4);
+    expect(cadenceOf(40)).toBe(7.1);
+    expect(cadenceOf(60)).toBe(7.1); // the ceiling of the Rallonge, capped alike
+  });
+
+  it('is made of two figures and no third, and both are rules', () => {
+    // spec 09-25: a moment every 140 ms, and a head count of forty worth one
+    // whole moan. The pitch is the sound's business; the cadence is not.
+    expect(BALANCE.assault.moanPeriod).toBe(0.14);
+    expect(BALANCE.assault.moanCrowd).toBe(40);
+  });
+
+  it('belongs to no zombie: it names the living in turn, and carries where they stand', () => {
+    // spec 09-24, 09-26: one emission of the whole assault, and the one it names
+    // is taken from the living in turn — it is there to give the moan a side to
+    // come from, and for nothing else. Forty standing is one moan every 140 ms.
+    const game = createGame(BALANCE, 5);
+    crowdOf(game, 40);
+    const heard = listen(game, 90); // 1,5 second, which holds ten moments of 140 ms
+
+    expect(heard.named).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    // And the spot it carries is the spot of the one it names, which is the whole
+    // of what the panning of chapter 9 is worked out from. (spec 09-26, 09-28)
+    for (let i = 0; i < heard.named.length; i += 1) {
+      expect(heard.spots[i]).toBeCloseTo(heard.stood[i], 6);
+    }
+    // And ten different spots, not one repeated: they are ten different bodies.
+    expect(new Set(heard.spots).size).toBe(10);
+  });
+
+  it('says nothing of the kind that let it out', () => {
+    // spec 09-27: the pitch is drawn afresh at every voice, in `src/audio/`, and
+    // it never says what one is dealing with — the body says that. So the fact
+    // carries no kind at all, where the fatal blow carries one. (spec 07-30)
+    const game = createGame(BALANCE, 6);
+    put(game, ZOMBIE.COLOSSUS, 0, 20, 0);
+    crowdOf(game, 39);
+    const events = game.assault.events;
+
+    let seen = 0;
+    for (let i = 0; i < 90; i += 1) {
+      clearEvents(events);
+      stepZombies(game, SECONDS);
+      for (let at = 0; at < events.count; at += 1) {
+        if (events.type[at] !== EVENT.MOAN) continue;
+        expect(events.value[at]).toBe(0);
+        seen += 1;
+      }
+    }
+    expect(seen).toBe(10);
+  });
+
+  it('says nothing at all when nothing is standing', () => {
+    // A preparation has no assault to moan, and the arithmetic settles it: an
+    // empty pool piles up nothing, so nothing ever reaches one whole and no spot
+    // of an empty pool is ever named. (spec 09-24)
+    const game = createGame(BALANCE, 4);
+    expect(moansOver(game, 30)).toBe(0);
+  });
+
+  it('opens its own with an assault, and takes nothing from the one before', () => {
+    // spec 09-24: it is an emission of the **assault**, so what the last one left
+    // on the pile is not credited to this one.
+    const game = createGame(BALANCE, 2);
+    crowdOf(game, 30);
+    moansOver(game, 5);
+    expect(game.assault.moanOwed).toBeGreaterThan(0);
+
+    beginAssault(game);
+    expect(game.assault.moanOwed).toBe(0);
+    expect(game.assault.moanNext).toBe(0);
+    expect(game.assault.moanLeft).toBe(BALANCE.assault.moanPeriod);
   });
 });

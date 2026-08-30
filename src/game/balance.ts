@@ -143,6 +143,14 @@ export interface AssaultBalance {
   readonly beaconsAt: number;
   readonly rushAfter: number;
   readonly rushSpeed: number;
+  /**
+   * The moan of an assault, which belongs to no zombie at all: how often the
+   * assault may moan, and the head count one whole moan is worth. Both are
+   * rules and not a setting of the sound — the pitch is the sound's business,
+   * the cadence is not. (spec 09-24, 09-25)
+   */
+  readonly moanPeriod: number;
+  readonly moanCrowd: number;
 }
 
 /** One line of the wave table, written out in full — nothing is computed. (spec 03-41) */
@@ -432,6 +440,8 @@ export const BALANCE: Balance = freeze({
     beaconsAt: 3,
     rushAfter: 15,
     rushSpeed: 4,
+    moanPeriod: 0.14,
+    moanCrowd: 40,
   },
 
   // The wave table, written out line by line: no wave is computed at run time,
