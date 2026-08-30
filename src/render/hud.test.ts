@@ -28,6 +28,7 @@ import {
   type Hud,
   type HudRule,
   type Slab,
+  bearArrow,
   createHud,
   loseSegments,
   reinforceBar,
@@ -380,6 +381,39 @@ describe('the purse', () => {
     writeHud(hud, held, false, across);
     expect(sheet.at('badge3').className).toBe('badge');
   });
+
+  it('contributes the figure going up and the badges lighting to a payment, and nothing else', () => {
+    // spec 08-89: the payment that closes an assault is seen **in the world** —
+    // the spray of shards from the town hall — and the hud adds the figure of
+    // the purse going up and whatever badge lights with it. No sixth display, no
+    // tally, no figure floating over a body. (spec 06-10, 06-16, 07-37)
+    const { hud, sheet } = stand();
+    showNotch(hud, 0, 50);
+    const held = state();
+    const across = new Float32Array(RULE.streets);
+    writeHud(hud, held, false, across);
+
+    const untouched = ['phase', 'wave', 'prep', 'left', 'seg9', 'pip4', 'arrow0', 'notch'];
+    const before = untouched.map((name) => sheet.at(name).className);
+    const written = hud.writes;
+
+    held.snapshot.coins = 43; // what the payment of the second assault carries it to
+    writeHud(hud, held, false, across);
+
+    expect(hud.writes - written).toBe(2); // the figure, and the one badge
+    expect(sheet.at('coins').textContent).toBe('43');
+    expect(sheet.at('badge0').className).toBe('badge lit');
+    expect(untouched.map((name) => sheet.at(name).className)).toEqual(before);
+  });
+
+  it('lights the badge of the cannon in white, which is half of what says climb', () => {
+    // spec 08-87: at the first cannon he can pay for, the badge of the cannon
+    // lights white **and** every ladder of the city starts to beat. The badge is
+    // this file's half of it; the ladders are `render/city.ts`'s.
+    // spec 08-25: a badge that lights comes in on a white flash of 400 ms.
+    expect(PAGE).toMatch(/@keyframes lit\s*\{[\s\S]*?var\(--white\)/);
+    expect(PAGE).toMatch(/\.badge\.lit\s*\{[\s\S]*?animation:\s*lit 400ms/);
+  });
 });
 
 // --------------------------------------------------------------- the arrows
@@ -440,6 +474,72 @@ describe('the street arrows', () => {
     // spec 08-35: the sheet is what holds it there, so the sheet is what says so.
     expect(PAGE).toMatch(/#arrows\s*\{[^}]*height:\s*66\.6%/);
     expect(PAGE).toMatch(/#arrows\s*\{[^}]*top:\s*0/);
+  });
+});
+
+// ---------------------------------------------------- a street opening
+
+describe('the birth of an arrow', () => {
+  it('is born on the fact of a gateway lighting, and beats the whole preparation', () => {
+    // spec 08-85: from the first second of the preparation that comes before it,
+    // the arrow of the street is born white, grows twice as large over 2 s, takes
+    // its colour, and beats for the whole of that preparation.
+    const { hud, sheet } = stand();
+    const held = state();
+    const across = new Float32Array(RULE.streets);
+
+    held.snapshot.streets[1] = 1;
+    bearArrow(hud, 1);
+    writeHud(hud, held, true, across);
+    expect(sheet.at('arrow1').className).toBe('arrow on born');
+
+    // It stays borne for as long as that preparation runs, and writes nothing
+    // more while it does. (spec 08-12)
+    const written = hud.writes;
+    for (let i = 0; i < 60; i += 1) writeHud(hud, held, true, across);
+    expect(sheet.at('arrow1').className).toBe('arrow on born');
+    expect(hud.writes).toBe(written);
+  });
+
+  it('takes the plain look when the assault opens, and is never born twice', () => {
+    // spec 08-85: the beat runs the preparation and not a second longer — a beat
+    // that outlived the moment would stop announcing anything. And a street opens
+    // once. (spec 03-28)
+    const { hud, sheet } = stand();
+    const held = state();
+    const across = new Float32Array(RULE.streets);
+
+    held.snapshot.streets[1] = 1;
+    bearArrow(hud, 1);
+    writeHud(hud, held, true, across);
+    writeHud(hud, held, false, across);
+    expect(sheet.at('arrow1').className).toBe('arrow on');
+
+    // The next preparation comes, and nothing is born again.
+    writeHud(hud, held, true, across);
+    expect(sheet.at('arrow1').className).toBe('arrow on');
+  });
+
+  it('is born whether its street is on screen or not', () => {
+    // spec 08-86: it is the birth that is the message, so nothing here asks
+    // where the camera happens to be pointing.
+    const { hud, sheet } = stand();
+    const held = state();
+    held.snapshot.streets[1] = 1;
+    bearArrow(hud, 1);
+    writeHud(hud, held, true, new Float32Array([0, 0, 0])); // its gateway dead ahead
+    expect(sheet.at('arrow1').className).toBe('arrow on born');
+    expect(sheet.at('arrow1').written.get('--at')).toBe('50');
+  });
+
+  it('grows twice as large over two seconds and beats at the rate of the hud', () => {
+    // spec 08-85: the sheet carries every look and every length, here as
+    // everywhere else — and the beat is the 250 ms the figure of what is left
+    // already answers to, so the hud has one beat and not two. (spec 08-14, 08-40)
+    expect(PAGE).toMatch(/@keyframes born\s*\{[\s\S]*?scale\(2\)/);
+    expect(PAGE).toMatch(/@keyframes born\s*\{[\s\S]*?background:\s*var\(--white\)/);
+    expect(PAGE).toMatch(/\.arrow\.born\s*\{[\s\S]*?born 2s/);
+    expect(PAGE).toMatch(/\.arrow\.born\s*\{[\s\S]*?beating 250ms 2s/);
   });
 });
 

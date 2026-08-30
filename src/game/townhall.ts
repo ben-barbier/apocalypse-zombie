@@ -54,7 +54,7 @@ export function strikeTownHall(
   // crosses one brings a piece of the building down for good, and the `value`
   // says how many segments are still standing. (spec 06-35, 06-38)
   const segment = hall.cap / game.balance.economy.townHallSegments;
-  const standing = Math.ceil(hall.hp / segment);
+  const standing = segmentsStanding(game);
   for (let left = Math.ceil(before / segment) - 1; left >= standing; left -= 1) {
     pushEvent(events, EVENT.TOWN_HALL_SEGMENT_LOST, from, x, y, z, left);
   }
@@ -94,6 +94,17 @@ export function stepTownHall(game: Game, seconds: number): void {
     const takes = balanceOf(game.balance, pool.type[at] as ZombieType).shamblerHits;
     strikeTownHall(game, takes, at, pool.x[at], 0, pool.z[at]);
   }
+}
+
+/**
+ * How many segments of its bar still stand — a tenth of the ceiling each, at
+ * every notch alike. It is worked out from the town hall itself and held
+ * nowhere, so a resumed game seats its bar off this one reading and never off an
+ * eleventh field carried across a boundary of wave. (spec 06-35, 08-18, 08-70)
+ */
+export function segmentsStanding(game: Readonly<Game>): number {
+  const hall = game.snapshot.townHall;
+  return Math.ceil(hall.hp / (hall.cap / game.balance.economy.townHallSegments));
 }
 
 /**

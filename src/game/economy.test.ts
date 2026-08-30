@@ -312,3 +312,54 @@ describe('the whole of it, in one step', () => {
     expect(game.assault.coins.x.length).toBe(BALANCE.pools.coins);
   });
 });
+
+// --------------------------------------------------------- the one call to climb
+
+describe('the one moment that says climb', () => {
+  it('writes the fact the first time a cannon is payable, and writes it once', () => {
+    // spec 08-87: the cannon costs 40, and it is the purse reaching it — never a
+    // wave and never a calendar — that sets the ladders beating.
+    const game = createGame(BALANCE, 20);
+    expect(BALANCE.economy.prices.cannon).toBe(40); // spec 06, 08 "Les quatre vignettes"
+
+    game.snapshot.coins = 39;
+    stepEconomy(game);
+    expect(counted(game.assault.events, EVENT.LADDERS_LIT)).toBe(0);
+
+    game.snapshot.coins = 40;
+    stepEconomy(game);
+    expect(counted(game.assault.events, EVENT.LADDERS_LIT)).toBe(1);
+
+    // And never a second time, whatever the purse does afterwards. (spec 08-88)
+    game.snapshot.coins = 0;
+    stepEconomy(game);
+    game.snapshot.coins = 400;
+    for (let i = 0; i < 200; i += 1) stepEconomy(game);
+    expect(counted(game.assault.events, EVENT.LADDERS_LIT)).toBe(1);
+  });
+
+  it('says nothing at all when a cannon already stands', () => {
+    // spec 08-87, 08-88: it says "climb", so it has nothing to say to a child
+    // who has climbed — a page coming back from an Instantané with one up hears
+    // nothing, and the beat ends for good at the first cannon anyway.
+    const game = createGame(BALANCE, 21);
+    game.snapshot.cannons.count = 1;
+    game.snapshot.coins = 400;
+    for (let i = 0; i < 60; i += 1) stepEconomy(game);
+    expect(counted(game.assault.events, EVENT.LADDERS_LIT)).toBe(0);
+  });
+
+  it('falls at the end of the second assault, because that is where the money puts it', () => {
+    // spec 08-87: no cannon can go down under 40 coins, so every zombie of the
+    // first two waves falls to the sword and pays double. What the table pays is
+    // fixed by that, and it crosses 40 at the end of the second assault and not
+    // at the end of the first. (spec 06-2, 06-3, 06-13, 03 "La table des vagues")
+    const paid = (wave: number): number => {
+      const row = BALANCE.waves[wave - 1];
+      const bySword = BALANCE.economy.coins.shambler * BALANCE.economy.braveryFactor;
+      return row.shamblers * bySword + BALANCE.economy.assaultBonus;
+    };
+    expect(paid(1)).toBeLessThan(BALANCE.economy.prices.cannon);
+    expect(paid(1) + paid(2)).toBeGreaterThanOrEqual(BALANCE.economy.prices.cannon);
+  });
+});
