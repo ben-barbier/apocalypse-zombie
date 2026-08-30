@@ -467,6 +467,165 @@
         color: var(--stone);
         font-size: clamp(64px, 24vmin, 200px);
       }
+
+      /* ================================================================
+         The Sas: the one screen there is when the game is not running —
+         the welcome at load, the halt of an interruption, the halt one
+         asks for, and the end of a game, all four at once. There is no
+         second one, and it carries not one line of text and not one
+         setting. (spec 08-52, 08-55, 08-60)
+
+         Two doors: Reprendre, put forward by default, on a plain press;
+         and Nouvelle partie, on a press held for a second while a ring
+         fills clockwise — which empties in 200 ms if the press lets go.
+         That held press is what replaces a written confirmation.
+         (spec 08-56, 08-58)
+
+         It sits last on the page, so it lies over the hud and over the
+         fade that closes a game: the fade darkens the world, and the Sas
+         opens on what it left. (spec 08-63)
+         ================================================================ */
+      #airlock {
+        position: fixed;
+        inset: 0;
+        display: none;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      #airlock.open {
+        display: grid;
+        place-items: center;
+      }
+      /* The game freezes and darkens behind it. The veil is derived — it
+         is the hud's own ground, kept light enough that the city stays
+         plainly visible under it, since the child has to see that his
+         game is still there. (spec 08-55) */
+      #airlock::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: var(--ground);
+        opacity: 0.66;
+      }
+      /* Two doors side by side, one door centred. The padding is the
+         margin of a touch target, and it is the widest of the two of
+         chapter 8. (spec 08-49, 08-57) */
+      #doors {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: clamp(24px, 6vmin, 64px);
+        padding: calc(env(safe-area-inset-top) + 32px) calc(env(safe-area-inset-right) + 32px)
+          calc(env(safe-area-inset-bottom) + 32px) calc(env(safe-area-inset-left) + 32px);
+      }
+      #airlock.alone #resume {
+        display: none;
+      }
+      .door {
+        position: relative;
+        width: clamp(132px, 28vmin, 260px);
+        height: clamp(132px, 28vmin, 260px);
+        display: grid;
+        place-items: center;
+        background: var(--ground);
+        color: var(--stone);
+        touch-action: none;
+      }
+      .door > * {
+        grid-area: 1 / 1;
+      }
+      /* Reprendre is the one put forward by default. (spec 08-56) */
+      #resume {
+        box-shadow: inset 0 0 0 3px var(--stone);
+      }
+      .picto {
+        width: 52%;
+        height: 52%;
+      }
+      #resume .picto {
+        transform: translateY(-24%);
+      }
+      #onwave {
+        color: var(--stone);
+        font-size: clamp(36px, 9vmin, 84px);
+        transform: translateY(34%);
+      }
+      #fresh .glyph {
+        width: 26%;
+        height: 26%;
+        fill: var(--stone);
+        transform: translateY(88%);
+      }
+      /* The ring, which fills clockwise over the second the press is
+         held and empties in 200 ms when it lets go — from wherever it
+         had got to, which is what a transition does and an animation
+         does not. The circle carries pathLength="100", so the two
+         figures below are percentages of it and no geometry leaks into
+         them. (spec 08-56) */
+      #ring {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+      }
+      #ring circle {
+        fill: none;
+        stroke-width: 5;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+      }
+      #ring .track {
+        stroke: var(--lost);
+      }
+      #ring .fill {
+        stroke: var(--white);
+        stroke-dasharray: 100;
+        stroke-dashoffset: 100;
+        transition: stroke-dashoffset 200ms linear;
+      }
+      #fresh.held .fill {
+        stroke-dashoffset: 0;
+        transition-duration: 1000ms;
+      }
+
+      /* The little door that opens the Sas, top centre under the phase
+         strip: a target and not a display, which is why it is the one
+         thing in the hud that takes a press and why the top of the
+         screen is where it goes — no thumb ever visits it, so no press
+         can land on it by accident. It rides in the flow under the phase
+         strip rather than at a measured height, so it stays under it in
+         both dispositions. (spec 08-59)
+
+         It is never under 44 px, and the phase strip alone puts it far
+         further than 32 px from the top border. (spec 08-49) */
+      #hatch {
+        pointer-events: auto;
+        width: clamp(44px, 7vmin, 64px);
+        height: clamp(44px, 7vmin, 64px);
+        margin-top: calc(var(--gap) * 0.5);
+        display: grid;
+        place-items: center;
+        touch-action: none;
+      }
+      #hatch svg {
+        width: 58%;
+        height: 58%;
+        fill: var(--stone);
+        opacity: 0.55;
+      }
+      /* A game that has ended has no door to ask for: the hud erases, and
+         the Sas is already opening. (spec 08-63) */
+      #hud.gone #hatch {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -533,6 +692,16 @@
           <div id="span">
             <div id="prep"><i></i></div>
             <b id="left">0</b>
+          </div>
+          <!-- The little door of the Sas, and it is a target and not a
+               sixth display: it rides here so it stays under the phase
+               strip in both dispositions. (spec 08-59) -->
+          <div id="hatch">
+            <svg viewBox="0 0 16 16">
+              <rect x="2" y="1" width="12" height="14" />
+              <rect x="4" y="3" width="8" height="12" fill="#14110e" />
+              <rect x="9" y="8" width="2" height="2" />
+            </svg>
           </div>
         </div>
 
@@ -603,6 +772,59 @@
     <!-- The fade that closes a game, and the one figure it ever carries:
          the number of the wave reached. (spec 01-29, 01-30, 08-63) -->
     <div id="fade"><b id="reached"></b></div>
+
+    <!-- The Sas, and it is the one screen there is when the game is not
+         running. Not one word of text, not one setting. (spec 08-52,
+         08-55, 08-60) -->
+    <div id="airlock" class="shut">
+      <div id="doors">
+        <!-- Reprendre: the town hall, and the number of the wave in a
+             large figure. A plain press. (spec 08-56) -->
+        <div id="resume" class="door">
+          <svg class="picto" viewBox="0 0 16 16">
+            <rect x="2" y="6" width="12" height="9" fill="#b17c52" />
+            <rect x="0" y="4" width="16" height="2" fill="#e8cba0" />
+            <rect x="7" y="1" width="2" height="3" fill="#e8cba0" />
+            <rect x="4" y="8" width="2" height="7" fill="#e8cba0" />
+            <rect x="10" y="8" width="2" height="7" fill="#e8cba0" />
+          </svg>
+          <b id="onwave">1</b>
+        </div>
+        <!-- Nouvelle partie: the city — the star of three streets out of
+             its square — and a circular arrow. Held for a second, while
+             the ring fills. (spec 08-56) -->
+        <div id="fresh" class="door">
+          <svg id="ring" viewBox="0 0 100 100">
+            <circle class="track" cx="50" cy="50" r="46" pathLength="100" />
+            <circle class="fill" cx="50" cy="50" r="46" pathLength="100" />
+          </svg>
+          <svg class="picto" viewBox="0 0 16 16">
+            <rect x="6" y="6" width="4" height="4" fill="#e8cba0" />
+            <rect x="7" y="0" width="2" height="6" fill="#5fd8f2" />
+            <rect x="4" y="9" width="2" height="2" fill="#f25fd8" />
+            <rect x="2" y="11" width="2" height="2" fill="#f25fd8" />
+            <rect x="0" y="13" width="2" height="2" fill="#f25fd8" />
+            <rect x="10" y="9" width="2" height="2" fill="#e8f25f" />
+            <rect x="12" y="11" width="2" height="2" fill="#e8f25f" />
+            <rect x="14" y="13" width="2" height="2" fill="#e8f25f" />
+          </svg>
+          <svg class="glyph" viewBox="0 0 16 16">
+            <circle
+              cx="8"
+              cy="8"
+              r="6"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+              pathLength="16"
+              stroke-dasharray="12 4"
+              transform="rotate(-40 8 8)"
+            />
+            <polygon points="9,0 16,4 9,8" />
+          </svg>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="/src/app/main.ts"></script>
   </body>

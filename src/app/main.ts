@@ -88,10 +88,11 @@ import {
 } from '../render/hud';
 import { createScene } from '../render/scene';
 import { createQuality, mayDraw, senseQuality, tierOf } from '../render/quality';
-import { createPad } from './gamepad';
+import { createAirlock, openAirlock, pressAirlock, senseWidth } from './airlock';
+import { createPad, pollPad } from './gamepad';
 import { sampleInput } from './input';
 import { createKeys, listenKeys } from './keyboard';
-import { createLoop, startLoop } from './loop';
+import { createLoop, frame, startLoop, stopLoop } from './loop';
 
 const canvas = document.getElementById('view') as HTMLCanvasElement;
 
@@ -201,14 +202,22 @@ showNotch(hud, reinforcementNotch(game), reinforcementPrice(game));
  *
  * It lives here and not in `src/render/hud.ts` because it is not a sixth display
  * of the hud and never becomes one: 08-63 has the hud erase and the fade stay.
- * The Sas it opens on is chapter 8's own, and so is the freezing of what runs
- * behind it: both arrive with `src/app/airlock.ts`. (spec 01-31, 08-52, 08-68)
+ * The Sas the fade opens on is at the foot of this file, with everything else
+ * that opens it. (spec 01-31, 08-52, 08-63)
  */
 const displays = document.getElementById('hud') as HTMLElement;
 const veil = document.getElementById('fade') as HTMLElement;
 const reached = document.getElementById('reached') as HTMLElement;
 
+/**
+ * Whether the town hall has fallen. From that moment there is nothing left to
+ * resume, whatever else asks for the Sas: it opens on the one door of a new
+ * game. (spec 08-63, 01-31)
+ */
+let fallen = false;
+
 function closeGame(wave: number): void {
+  fallen = true;
   displays.className = 'gone';
   reached.textContent = String(wave);
   veil.className = 'on';
@@ -229,6 +238,12 @@ const context = createContext(canvas, {
     raise();
     fit();
   },
+  // The GPU has taken the context back: the Sas opens while the scene is put up
+  // again, and it is **not** closed when the GPU comes back — nothing in this
+  // game ever resumes on its own, so the child presses. (spec 10-38, 08-61, 08-62)
+  onLost: () => {
+    openAirlock(airlock);
+  },
 });
 
 /** The screen, and the resolution the tier in force asks for. */
@@ -237,6 +252,9 @@ function fit(): void {
   const height = window.innerHeight;
   resize(context, width, height, tierOf(quality).ratio);
   fitCamera(camera, width, height);
+  // A window that merely changes size never holds the game up: one threshold
+  // does, and it is this one. (spec 08-9, 08-62)
+  senseWidth(airlock, width);
 }
 
 /**
@@ -345,6 +363,11 @@ const loop = createLoop(game, input, {
   // rules are handed carry no picture at all. (spec 04-16, 04-19, 10-29, 10-30)
   sample: () => {
     sampleInput(input, pad, keys, camera.ang);
+    // The one press that asks for the Sas: Start on a pad, the little door
+    // under the phase strip, or the escape key. The steps this frame still owed
+    // are dropped along with the rest of its time, so the step under way is the
+    // last one that runs. (spec 04-57, 08-59, 08-68)
+    if (input.airlock) openAirlock(airlock);
   },
   // The one reading of the buffer, before anything is drawn. The audio and the
   // effects join it here, with their chapters. (spec 10-18, 10-19)
@@ -558,7 +581,114 @@ const loop = createLoop(game, input, {
   },
 });
 
-// A screen that changes size is not a reason to hold the game up. (spec 08)
+/**
+ * The Sas, and the one thing it is: the only screen there is when the game is
+ * not running. It is wired here because this is the one file that holds the
+ * loop, the pad, the page and the state all four at once — the Sas freezes the
+ * first, reads the second every frame, wears the third, and shows the number of
+ * the wave off the fourth. (spec 08-52, 08-54)
+ */
+let played = false;
+
+const airlock = createAirlock((name) => document.getElementById(name), {
+  wave: () => game.snapshot.wave,
+  // A game that has fallen has nothing left to resume, and a page that has just
+  // loaded has nothing yet: the door of a new game stands alone in both.
+  // (spec 08-57, 08-63)
+  standing: () => played && !fallen,
+  // Asked for every frame the Sas stands open: without this reading, Safari
+  // never hands a pad over and `gamepadconnected` never fires. (spec 08-54)
+  pads: () => pollPad(pad),
+  // Time never crosses it: the loop stops where it stands, and the steps this
+  // frame still owed are dropped rather than run behind the veil.
+  // (spec 08-55, 08-68)
+  freeze: () => {
+    loop.clock.steps = 0;
+    stopLoop(loop);
+  },
+  // And it starts again owing nothing at all, however long the Sas stood open:
+  // the gap it leaves is not a gap of the game. (spec 08-68, 10-22)
+  thaw: () => {
+    loop.clock.last = -1;
+    loop.clock.owed = 0;
+    played = true;
+    startLoop(loop);
+  },
+  /*
+   * A new game. The one `Game` is allocated at load and never replaced (spec
+   * 10-10), so a game already played is let go of by throwing away the
+   * Instantané and asking the page for itself again: it comes back on the Sas
+   * with nothing to resume, one door and one press — which is also the press
+   * Safari wants. A game not yet played **is** the new one, and the press that
+   * leaves is the whole of it.
+   *
+   * The throwing away is the Instantané's own — `clearSnapshot()` of
+   * `src/app/storage.ts`, which arrives with its chapter — and this is where it
+   * hangs: a game is left by the fall of the town hall or by a new game, and by
+   * nothing else. (spec 08-76)
+   */
+  renew: () => {
+    if (!played) return;
+    location.reload();
+  },
+  // The `AudioContext` comes back in the very handler of the press that leaves
+  // the Sas — `sound` of `AirlockHooks` — and never on `visibilitychange`. It
+  // is left unwired until the sounds themselves arrive. (spec 08-83)
+});
+
+/*
+ * Everything that opens the Sas, and it is the table of chapter 8 entire. Not
+ * one of them ever closes it: it is always a press that leaves, and a window
+ * that merely changes size is not an interruption at all.
+ * (spec 08-9, 08-61, 08-62)
+ */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') openAirlock(airlock);
+});
+window.addEventListener('pagehide', () => {
+  // Nothing is written here, and nothing ever will be: the disk is already up
+  // to date at every moment the browser stops promising anything.
+  // (spec 08-73, 10-36)
+  openAirlock(airlock);
+});
+// A pad gone, and only if a pad was the last entry used: a child playing with
+// his fingers is not interrupted by a pad running flat three rooms away.
+// (spec 08-62, 08 "Les interruptions")
+window.addEventListener('gamepaddisconnected', () => {
+  if (airlock.onPad) openAirlock(airlock);
+});
+window.addEventListener('gamepadconnected', () => {
+  airlock.onPad = true;
+});
+window.addEventListener('pointerdown', () => {
+  airlock.onPad = false;
+});
+// The keyboard is a shortcut for testing, here as everywhere else: it leaves
+// the Sas by the door put forward, and it says a pad is not what is in hand.
+// (spec 04-56)
+window.addEventListener('keydown', () => {
+  airlock.onPad = false;
+  pressAirlock(airlock);
+});
+// The town hall at nought: the hud erases, the fade closes over the world
+// carrying the number of the wave reached, and the Sas opens on what it leaves
+// — with the one door of a new game, since there is nothing left to resume.
+// (spec 01-31, 08-63)
+veil.addEventListener('animationend', () => {
+  openAirlock(airlock);
+});
+
+// A screen that changes size is not a reason to hold the game up. (spec 08-9)
 window.addEventListener('resize', fit);
+
+// A page opens on the Sas, always: it is the press that leaves it that hands
+// Safari the pad, the sound its gesture and the wake lock back. Nothing has
+// been played yet, so the door of a new game stands alone.
+// (spec 08-52, 08-53, 08-57, 08-62)
+openAirlock(airlock);
 fit();
-startLoop(loop);
+// One picture of the city before anything runs, so the Sas has a game to darken
+// behind it at the first screen exactly as it has at every other. It owes no
+// step: the clock has no frame before this one to measure from.
+// (spec 08-55, 10-22)
+frame(loop, 0);
