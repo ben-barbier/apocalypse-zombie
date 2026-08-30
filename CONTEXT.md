@@ -116,6 +116,14 @@ _Éviter_ : chemin, trajet, itinéraire
 **Avancement** :
 La progression d'un zombie le long de son rail. Elle ne décroît jamais — c'est la garantie qu'un assaut se termine toujours — et **rien ne la ralentit sauf un coup d'épée** : le seul ralentisseur du jeu est le joueur lui-même. C'est ce qui rend la traversée d'une rue chiffrable une fois pour toutes, donc la table des vagues vérifiable.
 
+**Poussée** :
+Ce qui empêche deux zombies d'occuper le même point : deux corps trop proches s'écartent chacun de la moitié de leur recouvrement. Elle ne joue qu'**entre zombies d'une même rue**, elle déplace le décalage et **jamais l'avancement** — sans quoi elle casserait la garantie qu'un assaut se termine —, et elle ne consulte jamais le générateur. Elle ne bloque personne : un zombie poussé avance exactement pareil.
+_Éviter_ : collision, répulsion, séparation
+
+**Couloir** :
+L'une des quatre positions en travers de la rue que prennent les zombies d'un paquet. Ils sont **répartis, jamais tirés au sort** : quatre tirages indépendants empileraient les corps par construction, et un paquet doit entrer déjà lisible.
+_Éviter_ : voie, ligne, colonne (réservé à la forme d'un assaut)
+
 **Paquet** :
 Les **quatre zombies d'un même type** qui entrent d'un coup par une rue, occupant sa largeur. Un assaut est une suite de paquets, jamais un flot continu, et un paquet ne mélange jamais deux types : un paquet est une menace, et une réponse.
 _Éviter_ : groupe, vague (réservé au cycle), salve
