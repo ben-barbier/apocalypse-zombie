@@ -22,6 +22,7 @@ import {
   beginAssault,
   checkWaveTotals,
   colossusStreetOf,
+  hasEnded,
   rowFor,
   stepWaves,
   takeOvertime,
@@ -616,5 +617,64 @@ describe('the defeat', () => {
     walk(game, 120);
     expect(game.assault.phase).toBe(PHASE.ASSAULT);
     expect(game.snapshot.wave).toBe(3);
+  });
+
+  it('reads the end off the town hall alone, and holds it nowhere', () => {
+    // spec 01-28: the town hall at nought is the one end there is, and the child
+    // himself never falls. spec 08-70: the Instantané holds ten fields and not
+    // one more, so there is no eleventh flag to say this.
+    const game = openAt(6);
+    expect(hasEnded(game)).toBe(false);
+    game.snapshot.playerHp = 0; // he falls where he stands, and that ends nothing
+    expect(hasEnded(game)).toBe(false);
+    game.snapshot.townHall.hp = 0;
+    expect(hasEnded(game)).toBe(true);
+  });
+
+  it('lets nothing walk in once it is over, whatever time passes', () => {
+    // spec 01-28: nothing more walks in, and no wave follows. Wave eight walks
+    // forty in over ten packs, so twelve seconds leaves plenty waiting.
+    // (spec 03, "La table des vagues", 03-22)
+    const game = openAt(8);
+    walk(game, 12);
+    const standing = game.assault.zombies.count;
+    const waiting = game.assault.toEnter;
+    expect(waiting).toBeGreaterThan(0);
+    game.snapshot.townHall.hp = 0;
+    walk(game, 300);
+    expect(game.assault.zombies.count).toBe(standing);
+    expect(game.assault.toEnter).toBe(waiting);
+    expect(game.snapshot.wave).toBe(8);
+  });
+
+  it('runs no preparation down once it is over', () => {
+    // spec 01-14, 01-28: a preparation runs of itself and runs into the assault
+    // of the next wave — but not past the end of a game.
+    const game = openAt(2);
+    clearAssault(game);
+    expect(game.assault.phase).toBe(PHASE.PREP);
+    const left = game.assault.prepLeft;
+    expect(left).toBe(40); // spec 01-15
+    game.snapshot.townHall.hp = 0;
+    walk(game, 120);
+    expect(game.assault.prepLeft).toBe(left);
+    expect(game.assault.phase).toBe(PHASE.PREP);
+    expect(game.snapshot.wave).toBe(2);
+  });
+
+  it('ends a game in overtime on the wave it had reached, victory and all', () => {
+    // spec 01-26: the victory is won for good and the town hall may fall in
+    // overtime without unmaking it. spec 01-30: what the end shows is the number
+    // of the wave reached, which in overtime has no ceiling. (spec 08-77)
+    const game = openAt(10);
+    clearAssault(game);
+    takeOvertime(game);
+    walk(game, 30.1);
+    expect(game.snapshot.wave).toBe(11);
+    game.snapshot.townHall.hp = 0;
+    walk(game, 300);
+    expect(hasEnded(game)).toBe(true);
+    expect(game.snapshot.won).toBe(true);
+    expect(game.snapshot.wave).toBe(11);
   });
 });

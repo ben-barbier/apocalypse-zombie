@@ -228,6 +228,23 @@ function prepFor(balance: Balance, wave: number): number {
   return wave <= balance.pace.lastEarlyPrepWave ? balance.pace.earlyPrep : balance.pace.latePrep;
 }
 
+/**
+ * Whether the game is over, which is one question and one only: has the town
+ * hall reached nought? That is the one end there is, and the child himself never
+ * falls, so nothing else is ever asked here. (spec 01-28)
+ *
+ * It is read off the town hall itself and held nowhere. A flag beside it would be
+ * a second fact saying the same thing, and it would have to cross a wave boundary
+ * — where the Instantané holds ten fields and not one more. (spec 08-70, 10-12)
+ *
+ * A victory is not an end and never was: it is won for good, the overtime carries
+ * a won game on, and the town hall may fall there without taking it back.
+ * (spec 01-25, 01-26, 01-32)
+ */
+export function hasEnded(game: Game): boolean {
+  return game.snapshot.townHall.hp <= 0;
+}
+
 /** How many are still to be dealt with, walking or yet to walk in. (spec 03-37) */
 export function zombiesLeft(game: Game): number {
   return game.assault.zombies.count + game.assault.toEnter;
@@ -391,7 +408,7 @@ export function takeOvertime(game: Game): void {
  * (spec 01-28)
  */
 export function stepWaves(game: Game, seconds: number): void {
-  if (game.snapshot.townHall.hp <= 0) return;
+  if (hasEnded(game)) return;
   const assault = game.assault;
 
   if (assault.phase === PHASE.PREP) {

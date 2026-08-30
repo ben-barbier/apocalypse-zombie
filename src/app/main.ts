@@ -191,6 +191,29 @@ const hud = createHud((name) => document.getElementById(name), {
 showNotch(hud, reinforcementNotch(game), reinforcementPrice(game));
 
 /**
+ * The end of a game, which the rules say once and the drawing does the rest of:
+ * the hud erases in one second, the fade closes over the world in under three,
+ * and the one thing it carries is the number of the wave reached — no word of
+ * text, no red, nothing tallied up. The look, the lengths and the ground it
+ * stops on are all in the sheet of `index.html`, exactly as the hud's are.
+ * (spec 01-28, 01-29, 01-30, 08-63)
+ *
+ * It lives here and not in `src/render/hud.ts` because it is not a sixth display
+ * of the hud and never becomes one: 08-63 has the hud erase and the fade stay.
+ * The Sas it opens on is chapter 8's own, and so is the freezing of what runs
+ * behind it: both arrive with `src/app/airlock.ts`. (spec 01-31, 08-52, 08-68)
+ */
+const displays = document.getElementById('hud') as HTMLElement;
+const veil = document.getElementById('fade') as HTMLElement;
+const reached = document.getElementById('reached') as HTMLElement;
+
+function closeGame(wave: number): void {
+  displays.className = 'gone';
+  reached.textContent = String(wave);
+  veil.className = 'on';
+}
+
+/**
  * Where each gateway falls across the screen, from -1 at the left border to +1 at
  * the right. It is the one thing an arrow takes from the camera, and it is filled
  * here, once a frame, into an array made at load. (spec 08-32, 10-14)
@@ -426,6 +449,10 @@ const loop = createLoop(game, input, {
       else if (kind === EVENT.CANNON_LOST && events.value[i] >= BALANCE.cannon.tiers) {
         retractConveyor(cannons, events.x[i], events.y[i], events.z[i], RETRACT_SPAN, now);
       }
+      // The town hall at nought: the game is over, and it is the one end there
+      // is. The wave reached rides in the fact, so nothing here reads the state
+      // to find out which one it was. (spec 01-28, 01-30, 10-19)
+      else if (kind === EVENT.GAME_ENDED) closeGame(events.value[i]);
       // The one body the child drives answers a blow with a rhythm rather than
       // with a flash: white at 2 Hz while he is staggered, then the same sped up
       // to 6 Hz while he is untouchable. He goes down with neither — being on
