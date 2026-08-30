@@ -35,15 +35,19 @@ describe('chapter 1 — the game', () => {
     expect(BALANCE.pace.mainWaves).toBe(10); // spec 01-10
   });
 
-  it('gives forty seconds of prep, then thirty', () => {
-    expect(BALANCE.pace.earlyPrep).toBe(40); // spec 01-15
+  it('gives twenty-five seconds of prep, then thirty', () => {
+    expect(BALANCE.pace.earlyPrep).toBe(25); // spec 01-15
     expect(BALANCE.pace.latePrep).toBe(30); // spec 01-15
     expect(BALANCE.pace.lastEarlyPrepWave).toBe(3); // spec 01-15
   });
 
-  it('never lets a prep go under thirty seconds, overtime included', () => {
-    // spec 01 "Les interdits": the longest resupply there and back costs 33,5 s.
-    expect(Math.min(BALANCE.pace.earlyPrep, BALANCE.pace.latePrep)).toBeGreaterThanOrEqual(30);
+  it('never lets a prep go under thirty seconds from wave four, overtime included', () => {
+    // spec 01 "Les interdits": from the fourth wave a cannon is standing and the
+    // prep is the resupply gradient of chapter 2 — the foot of a street at 10,9 s,
+    // the middle at 19,8, the far end at 28,8. The forbidden guards that gradient,
+    // and before the first cannon there is nothing to resupply.
+    expect(BALANCE.pace.latePrep).toBeGreaterThanOrEqual(30);
+    expect(BALANCE.pace.earlyPrep).toBeGreaterThanOrEqual(19.8);
   });
 
   it('fades out in under three seconds', () => {

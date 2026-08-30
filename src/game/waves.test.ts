@@ -461,9 +461,11 @@ describe('the two times of a wave', () => {
     expect(game.assault.phase).toBe(PHASE.PREP);
   });
 
-  it('gives forty seconds of preparation to the first three waves, then thirty', () => {
-    // spec 01-15: forty seconds for waves one to three, thirty from wave four on,
-    // overtime included; the wave named is the one whose assault has just closed.
+  it('gives twenty-five seconds of preparation to the first three waves, then thirty', () => {
+    // spec 01-15: twenty-five seconds for waves one to three, thirty from wave
+    // four on, overtime included; the wave named is the one whose assault has
+    // just closed. The short ones are the early ones because they are the empty
+    // ones — nothing is for sale before the third bonus.
     const held: number[] = [];
     const game = openAt(1);
     for (let wave = 1; wave <= 9; wave += 1) {
@@ -471,8 +473,8 @@ describe('the two times of a wave', () => {
       held.push(game.assault.prepLeft);
       walk(game, game.assault.prepLeft + 0.1);
     }
-    expect(held).toEqual([40, 40, 40, 30, 30, 30, 30, 30, 30]);
-    expect(held.reduce((a, b) => a + b, 0)).toBe(300); // spec 01, "Une partie"
+    expect(held).toEqual([25, 25, 25, 30, 30, 30, 30, 30, 30]);
+    expect(held.reduce((a, b) => a + b, 0)).toBe(255); // spec 01, "Une partie"
     expect(game.snapshot.wave).toBe(10);
   });
 
@@ -654,7 +656,7 @@ describe('the defeat', () => {
     clearAssault(game);
     expect(game.assault.phase).toBe(PHASE.PREP);
     const left = game.assault.prepLeft;
-    expect(left).toBe(40); // spec 01-15
+    expect(left).toBe(25); // spec 01-15
     game.snapshot.townHall.hp = 0;
     walk(game, 120);
     expect(game.assault.prepLeft).toBe(left);

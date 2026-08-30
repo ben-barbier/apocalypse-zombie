@@ -167,7 +167,8 @@ function walkPackIn(
   }
   if (held > size) held = size;
 
-  for (let i = 0; i < held; i += 1) spawnZombie(game, type, street, progress);
+  // Each of the four takes its own lane across the street. (spec 03-7)
+  for (let i = 0; i < held; i += 1) spawnZombie(game, type, street, progress, i);
   game.assault.toEnter -= held;
 }
 
