@@ -29,9 +29,16 @@ const SECONDS = 1 / 60;
 /** From the entrance of a street to the face of the town hall. (spec 02-13, 03-6) */
 const RAIL = 92;
 
-/** Stands one at the face of the town hall, where it stops for good. (spec 03-17) */
+/**
+ * Where a walk down each rail stops: the face of the shed on street one, four
+ * blocks short, and the face of the town hall on the other two. Both are the
+ * contact of the town hall, and both strike it. (spec 03-45, 03-46)
+ */
+const STOP = [RAIL - 4, RAIL, RAIL];
+
+/** Stands one at the face of the built it stops against, for good. (spec 03-17) */
 function arrive(game: Game, type: ZombieType, street: number): number {
-  const at = spawnZombie(game, type, street, RAIL);
+  const at = spawnZombie(game, type, street, STOP[street]);
   game.assault.zombies.blowLeft[at] = 0;
   return at;
 }
@@ -215,10 +222,10 @@ describe('what strikes it', () => {
   });
 
   it('leaves alone whatever has not come to its face yet', () => {
-    // spec 03-6, 03-17: a rail is ninety-two blocks, and the blows start where
-    // it ends.
+    // spec 03-6, 03-17, 03-45: a rail is ninety-two blocks and the blows start
+    // at the face it stops against, which on street one is the shed's, at 88.
     const game = createGame(BALANCE);
-    spawnZombie(game, ZOMBIE.SHAMBLER, 0, RAIL - 1);
+    spawnZombie(game, ZOMBIE.SHAMBLER, 0, STOP[0] - 1);
     for (let i = 0; i < 600; i += 1) stepTownHall(game, SECONDS);
     expect(game.snapshot.townHall.hp).toBe(200);
     expect(counted(game.assault.events, EVENT.TOWN_HALL_HIT)).toBe(0);
@@ -233,7 +240,35 @@ describe('what strikes it', () => {
     expect(game.snapshot.townHall.hp).toBe(200 - 30);
     expect(game.assault.zombies.count).toBe(1);
     expect(game.assault.zombies.hp[at]).toBe(1); // in sword hits, untouched
-    expect(game.assault.zombies.progress[at]).toBe(RAIL);
+    expect(game.assault.zombies.progress[at]).toBe(STOP[0]);
+  });
+
+  it('sends the blows of street one to the town hall, from the face of the shed', () => {
+    // spec 03-46: the shed is adossed to the town hall — it is that face of the
+    // town hall seen from street one — so what stands there hammers the town
+    // hall, for the column of its kind. spec 03-47: and the shed itself takes
+    // nothing, holds no hp, and never falls.
+    const game = createGame(BALANCE);
+    const at = arrive(game, ZOMBIE.BRUISER, 0);
+    expect(game.assault.zombies.progress[at]).toBe(STOP[0]); // the shed's face
+
+    stepTownHall(game, SECONDS);
+    expect(game.snapshot.townHall.hp).toBe(197); // three shambler hits (spec 03-3)
+
+    const events = game.assault.events;
+    expect(counted(events, EVENT.TOWN_HALL_HIT)).toBe(1);
+    expect(events.index[0]).toBe(at); // what struck, which is what swings an arm
+    // Eight blocks out from the middle of the city, which is where the puff of
+    // white shards springs from: in front of the shed, in plain sight, and not
+    // behind it. (spec 02-7, 02-8, 06-34)
+    // Street one runs down the x axis, so its rail reads there and the offset of
+    // a body reads across it, in the two blocks of spec 03-7.
+    expect(events.x[0]).toBeCloseTo(BALANCE.city.townHallSide / 2 + BALANCE.city.baseWidth, 4);
+    expect(Math.abs(events.z[0])).toBeLessThanOrEqual(BALANCE.assault.lateralSpread);
+
+    // And it goes on for as long as it stands there, once a second. (spec 03-17)
+    for (let i = 0; i < 60 * 10; i += 1) stepTownHall(game, SECONDS);
+    expect(game.snapshot.townHall.hp).toBe(200 - 3 * 11);
   });
 });
 

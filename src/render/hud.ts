@@ -63,7 +63,7 @@ export interface HudState {
     readonly prepLeft: number;
     readonly toEnter: number;
     readonly zombies: HudColumns;
-    readonly city: { readonly rails: { readonly length: number } };
+    readonly city: { readonly rails: { readonly faceAt: Readonly<Float32Array> } };
   };
 }
 
@@ -401,7 +401,10 @@ function readHeads(hud: Hud, held: HudState): void {
  */
 function showArrows(hud: Hud, held: HudState, across: Readonly<Float32Array>): void {
   const streets = held.snapshot.streets;
-  const length = held.assault.city.rails.length;
+  // Full is "they are at the town hall", so it is measured against the face each
+  // rail stops at and not against the rail: street one stops at the shed, four
+  // blocks short, and its arrow has to fill all the same. (spec 03-45, 08-34)
+  const stops = held.assault.city.rails.faceAt;
   readHeads(hud, held);
 
   for (let i = 0; i < hud.arrows.length; i += 1) {
@@ -412,7 +415,7 @@ function showArrows(hud: Hud, held: HudState, across: Readonly<Float32Array>): v
     }
     if (on === 0) continue;
 
-    const gauge = percentOf(length > 0 ? hud.heads[i] / length : 0);
+    const gauge = percentOf(stops[i] > 0 ? hud.heads[i] / stops[i] : 0);
     if (gauge !== hud.heldGauge[i]) {
       hud.heldGauge[i] = gauge;
       paint(hud, hud.arrows[i], '--gauge', gauge);

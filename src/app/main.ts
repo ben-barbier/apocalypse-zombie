@@ -55,6 +55,7 @@ import {
   flingHead,
   placeCharacters,
   swingSword,
+  swingZombie,
 } from '../render/characters';
 import { buildCity, buildCrown, showCrown } from '../render/city';
 import { createContext, resize } from '../render/context';
@@ -386,6 +387,11 @@ const loop = createLoop(game, input, {
       else if (kind === EVENT.CANNONBALL_HIT) blow(events, STRUCK.ZOMBIE, i, now);
       else if (kind === EVENT.TOWN_HALL_HIT) {
         blow(events, STRUCK.TOWN_HALL, i, now);
+        // And the arm of whatever landed it goes with it, which the `index` names:
+        // the same 150 ms of half sine he strikes with, so a body hammering the
+        // town hall is watched doing it rather than read off a bar going down.
+        // (spec 03-17, 07-65, 07-67)
+        swingZombie(characters, events.index[i], now);
         // And in the hud, the segment being eaten lights white for 80 ms. It
         // comes before the segment lost of the same blow, which is what makes
         // the segment being eaten the one still standing. (spec 08-16)

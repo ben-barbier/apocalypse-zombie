@@ -9,12 +9,14 @@
 import { describe, expect, it } from 'vitest';
 import { BALANCE } from './balance';
 import {
+  BASE_STREET,
   EVENT,
   type EventBuffer,
   type Game,
   ZOMBIE,
   type ZombieType,
   createGame,
+  heightAt,
   railX,
   railZ,
 } from './state';
@@ -33,6 +35,14 @@ const SECONDS = 1 / 60;
 
 /** From the entrance of a street to the face of the town hall. (spec 02-13, 03-6) */
 const RAIL = 92;
+
+/**
+ * Where a walk down each rail comes to a stop, in blocks: the face of the shed
+ * on street one, which the base is adossed to the town hall in front of, and the
+ * face of the town hall itself on the other two. The rail stays ninety-two on all
+ * three. (spec 02-8, 03-45)
+ */
+const STOP = [RAIL - 4, RAIL, RAIL];
 
 /**
  * Puts one on a rail at an advance and an offset of its own. Its spot is worked
@@ -184,7 +194,9 @@ describe('the rail', () => {
     const game = createGame(BALANCE, 5);
     game.assault.city.walkable.fill(0);
     game.assault.city.height.fill(8);
-    const at = put(game, ZOMBIE.SPRINTER, 0, 0, 1.5);
+    // Down street two, which has nothing in front of the town hall, so the whole
+    // ninety-two blocks are walked. (spec 03-45)
+    const at = put(game, ZOMBIE.SPRINTER, 1, 0, 1.5);
     walk(game, 60 * 24); // twenty-four seconds, one more than a sprinter needs
     expect(game.assault.zombies.progress[at]).toBe(RAIL); // spec 03, "Les traversées"
   });
@@ -228,25 +240,79 @@ describe('the rail', () => {
 });
 
 describe('the town hall, from the rail', () => {
-  it('stops at its face and stays a target', () => {
+  it('stops at its face and stays a target, on the two streets that face it', () => {
     // spec 03-17: it stops at the contact and goes on being killable — no
-    // vanishing, no burst, no end of the line.
+    // vanishing, no burst, no end of the line. spec 03-45: nothing changes for
+    // streets two and three, which have nothing in front of the town hall.
+    for (const street of [1, 2]) {
+      const game = createGame(BALANCE, 4);
+      const at = put(game, ZOMBIE.SHAMBLER, street, RAIL - 1, 0);
+      const pool = game.assault.zombies;
+      walk(game, 60 * 10);
+
+      expect(pool.progress[at]).toBe(RAIL);
+      expect(pool.count).toBe(1);
+      expect(pool.hp[at]).toBe(1); // untouched, in sword hits (spec 03-3)
+      expect(pool.type[at]).toBe(ZOMBIE.SHAMBLER);
+      expect(atTownHall(game, at)).toBe(true);
+      // It stands at the face of the town hall, four blocks from the middle of
+      // the city, and it does not go one block further. (spec 02-7)
+      expect(Math.hypot(pool.x[at], pool.z[at])).toBeCloseTo(
+        BALANCE.city.townHallSide / 2,
+        4,
+      );
+    }
+  });
+
+  it('stops at the face of the shed on street one, four blocks short', () => {
+    // spec 03-45: the shed of the base is built for a zombie, so the one street
+    // it stands in front of stops at its face — the depth of the shed short of
+    // the town hall. spec 03-17: and it is at the town hall all the same.
     const game = createGame(BALANCE, 4);
-    const at = put(game, ZOMBIE.SHAMBLER, 0, RAIL - 1, 0);
+    const at = put(game, ZOMBIE.SHAMBLER, BASE_STREET, STOP[BASE_STREET] - 1, 0);
     const pool = game.assault.zombies;
     walk(game, 60 * 10);
 
-    expect(pool.progress[at]).toBe(RAIL);
-    expect(pool.count).toBe(1);
-    expect(pool.hp[at]).toBe(1); // untouched, in sword hits (spec 03-3)
-    expect(pool.type[at]).toBe(ZOMBIE.SHAMBLER);
+    expect(pool.progress[at]).toBe(STOP[BASE_STREET]); // 88, and never 92
     expect(atTownHall(game, at)).toBe(true);
-    // It stands at the face of the town hall, four blocks from the middle of the
-    // city, and it does not go one block further. (spec 02-7)
+    expect(pool.count).toBe(1); // no vanishing: it is still a target (spec 03-17)
+    // Eight blocks from the middle of the city: the four of the town hall, plus
+    // the four the shed runs out from its face. (spec 02-7, 02-8)
     expect(Math.hypot(pool.x[at], pool.z[at])).toBeCloseTo(
-      Math.hypot(BALANCE.city.townHallSide / 2, pool.offset[at]),
+      BALANCE.city.townHallSide / 2 + BALANCE.city.baseWidth,
       4,
     );
+  });
+
+  it('never sets a foot in the shed, whatever its offset, all the way down', () => {
+    // spec 03-45, 03-47: the shed is built for a zombie — it stops at its face
+    // and never walks through it. The grid of the city is what answers: the cells
+    // of the shed stand three blocks high and the town hall seven, and a body
+    // that walks nothing but floor never reads anything but nought.
+    // spec 03-8: and the sweep is the walk itself, so nothing is sampled.
+    for (const offset of [-2, -1, 0, 1, 2]) {
+      const game = createGame(BALANCE, 12);
+      const city = game.assault.city;
+      const at = put(game, ZOMBIE.SPRINTER, BASE_STREET, 0, offset);
+      const pool = game.assault.zombies;
+      // A sprinter at four blocks a second moves a fifteenth of a block a step,
+      // so ninety-two blocks are read through at some fourteen hundred spots.
+      let steps = 0;
+      while (pool.progress[at] < STOP[BASE_STREET]) {
+        walk(game, 1);
+        pool.offset[at] = offset; // held, so the sweep is the whole width of the rail
+        steps += 1;
+        expect(heightAt(city, pool.x[at], pool.z[at])).toBe(0);
+        expect(pool.progress[at]).toBeLessThanOrEqual(STOP[BASE_STREET]);
+      }
+      expect(steps).toBeGreaterThan(1000);
+      // And it stays there, hammering, without ever creeping in. (spec 03-17)
+      for (let i = 0; i < 60 * 20; i += 1) {
+        walk(game, 1);
+        expect(heightAt(city, pool.x[at], pool.z[at])).toBe(0);
+      }
+      expect(pool.progress[at]).toBe(STOP[BASE_STREET]);
+    }
   });
 });
 

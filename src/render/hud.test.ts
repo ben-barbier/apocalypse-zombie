@@ -97,6 +97,13 @@ const RULE: HudRule = {
 /** From the mouth of a street to the face of the town hall, in blocks. (spec 02-13) */
 const RAIL = 92;
 
+/**
+ * Where a walk down each rail comes to a stop: the face of the shed on street
+ * one, four blocks short of the town hall, and the face of the town hall on the
+ * other two. It is what an arrow fills against. (spec 03-45, 08-34)
+ */
+const STOP = new Float32Array([RAIL - 4, RAIL, RAIL]);
+
 function state() {
   return {
     snapshot: {
@@ -113,7 +120,7 @@ function state() {
         street: new Uint8Array(60),
         progress: new Float32Array(60),
       },
-      city: { rails: { length: RAIL } },
+      city: { rails: { faceAt: STOP } },
     },
   };
 }
@@ -230,11 +237,11 @@ describe('what wakes it', () => {
     const held = state();
     const across = new Float32Array(RULE.streets);
     held.assault.zombies.count = 1;
-    held.assault.zombies.progress[0] = RAIL / 2;
+    held.assault.zombies.progress[0] = STOP[0] / 2;
     writeHud(hud, held, false, across);
 
     const settled = hud.writes;
-    held.assault.zombies.progress[0] = RAIL / 2 + 0.01;
+    held.assault.zombies.progress[0] = STOP[0] / 2 + 0.01;
     writeHud(hud, held, false, across);
     expect(hud.writes).toBe(settled);
   });
@@ -406,12 +413,12 @@ describe('the street arrows', () => {
     expect(sheet.at('arrow0').written.get('--gauge')).toBe('0'); // just walked in
 
     held.assault.zombies.count = 2;
-    held.assault.zombies.progress[0] = RAIL / 4;
-    held.assault.zombies.progress[1] = RAIL / 2; // the head of the column
+    held.assault.zombies.progress[0] = STOP[0] / 4;
+    held.assault.zombies.progress[1] = STOP[0] / 2; // the head of the column
     writeHud(hud, held, false, across);
     expect(sheet.at('arrow0').written.get('--gauge')).toBe('50'); // spec 08-34
 
-    held.assault.zombies.progress[1] = RAIL;
+    held.assault.zombies.progress[1] = STOP[0]; // at the face of the shed (spec 03-45)
     writeHud(hud, held, false, across);
     expect(sheet.at('arrow0').written.get('--gauge')).toBe('100'); // at the town hall
   });

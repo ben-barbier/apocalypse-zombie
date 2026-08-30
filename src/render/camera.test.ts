@@ -79,6 +79,9 @@ function flatCity(): City {
       z: new Float32Array(6),
       at: new Float32Array(6),
       length: 92,
+      // Street one stops at the face of the shed, the other two at the town
+      // hall. (spec 03-45)
+      faceAt: new Float32Array([88, 92, 92]),
     },
     gateways: { x: new Float32Array(3), z: new Float32Array(3), ang: new Float32Array(3) },
   };

@@ -96,6 +96,7 @@ Ce chapitre décide comment le jeu se voit : l'heure orange et sa lumière uniqu
 64. La démarche est **entièrement du dessin** : aucune règle ne la lit, elle ne touche pas à l'état de jeu, et le banc du [chapitre 11](11-le-banc.md) joue une partie entière sans elle.
 65. Le **coup d'épée se voit** : un balancement de plus, ajouté au **seul bras qui porte l'épée**, qui part de la démarche et y revient. Il **ne retient rien** — ni la cadence, ni le déplacement, ni le coup suivant ([chapitre 4](04-le-joueur.md)) — et il ne coûte **aucune boîte de plus**.
 66. L'**arc suit la lame** : ses vingt-cinq éclats se posent **un à un et régulièrement sur les 150 ms du geste** — au tiers du geste, un tiers de l'ouverture est blanc et pas davantage —, chacun s'efface **150 ms après sa pose**, et le bras, en demi-sinusoïde, devance la traînée de **66° au plus** avant que les deux se rejoignent quand il rentre.
+67. Le **coup d'un zombie sur la mairie se voit du même geste** : la demi-sinusoïde de la règle 65, sur le même bras, à la cadence d'un coup par seconde ([chapitre 3](03-les-zombies.md)) — **une seule loi de geste dans tout le jeu**, la même pour les quatre types et pour le joueur, et pas un chiffre neuf.
 
 ## Les chiffres
 
@@ -289,6 +290,7 @@ La démarche n'ajoute **aucune boîte et aucun appel d'affichage** : ce sont les
 | Pose de l'arc | **régulière sur les 150 ms** | l'arc suit la lame : au tiers du geste, un tiers de l'ouverture |
 | Avance du bras sur l'arc | **66° au plus, vers 60 ms** — 60° à mi-geste | la demi-sinusoïde du bras contre la pose régulière de l'arc |
 | Vie d'un éclat de l'arc | **150 ms après sa pose** | 07-31 ; l'arc entier est éteint 300 ms après le coup |
+| Le coup d'un zombie sur la mairie | **le même geste**, une fois par seconde | [03-17](03-les-zombies.md) ; le geste ne connaît ni type ni arme, et il ne porte aucun arc |
 
 Le geste **s'ajoute** à la démarche au lieu de la remplacer : un corps qui court et un corps à l'arrêt frappent le même coup, et le bras rend la foulée exactement où il l'a prise.
 
