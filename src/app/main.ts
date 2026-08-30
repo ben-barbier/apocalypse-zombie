@@ -93,6 +93,7 @@ import { createPad, pollPad } from './gamepad';
 import { sampleInput } from './input';
 import { createKeys, listenKeys } from './keyboard';
 import { createLoop, frame, startLoop, stopLoop } from './loop';
+import { createThumbs, eraseThumbs, fitThumbs, listenThumbs, showAction } from './touch';
 
 const canvas = document.getElementById('view') as HTMLCanvasElement;
 
@@ -111,10 +112,13 @@ placePlayer(game);
 // nothing pops into being in plain view. (spec 01-16, 03-31)
 beginAssault(game);
 
-// The two entries that write the one `InputState`: the gamepad the game is
-// designed for, and the keyboard that is only a shortcut for testing. The touch
-// screen arrives with chapter 8, into this same object. (spec 04-56, 10-30)
+// The two entries the game is designed for — the gamepad and the touch screen —
+// and the keyboard that is only a shortcut for testing. All three write the one
+// `InputState`, and nothing below this floor can tell them apart.
+// (spec 04-56, 10-30)
 const pad = createPad();
+const thumbs = createThumbs((name) => document.getElementById(name));
+listenThumbs(thumbs);
 const keys = createKeys();
 listenKeys(keys);
 
@@ -219,6 +223,9 @@ let fallen = false;
 function closeGame(wave: number): void {
   fallen = true;
   displays.className = 'gone';
+  // The targets go out with them, and stop taking a press at once: there is
+  // nothing left to steer behind a fade. (spec 08-5, 08-63)
+  eraseThumbs(thumbs);
   reached.textContent = String(wave);
   veil.className = 'on';
 }
@@ -255,6 +262,9 @@ function fit(): void {
   // A window that merely changes size never holds the game up: one threshold
   // does, and it is this one. (spec 08-9, 08-62)
   senseWidth(airlock, width);
+  // And the swing of the floating stick, which is the one size of the touch
+  // surface the sheet cannot settle on its own. (spec 08-10, 08-46)
+  fitThumbs(thumbs, width, height);
 }
 
 /**
@@ -362,7 +372,7 @@ const loop = createLoop(game, input, {
   // picture ever runs in: nothing here aims the camera, and the entries the
   // rules are handed carry no picture at all. (spec 04-16, 04-19, 10-29, 10-30)
   sample: () => {
-    sampleInput(input, pad, keys, camera.ang);
+    sampleInput(input, pad, thumbs, keys, camera.ang);
     // The one press that asks for the Sas: Start on a pad, the little door
     // under the phase strip, or the escape key. The steps this frame still owed
     // are dropped along with the rest of its time, so the step under way is the
@@ -509,6 +519,11 @@ const loop = createLoop(game, input, {
       across[s] = acrossOf(camera, gateways.x[s], gateways.z[s]);
     }
     writeHud(hud, held, held.assault.phase === PHASE.PREP, across);
+    // And the act target with it, for the same reason: it is DOM over the
+    // canvas, it costs no draw call, and it writes only when the answer under
+    // his feet has moved. It is there only when an action is possible, and it
+    // wears the picto of what it will do. (spec 08-48, 04-58)
+    showAction(thumbs, held.assault.diamond.shows);
 
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
     // The whole cast in one call: the one body the child drives, and every
