@@ -26,6 +26,10 @@
  * whatever the wave. Not one line of this file so much as looks at
  * `snapshot.wave`. (spec 06-5, 06-13)
  *
+ * The one exception proves it: `callLadders` asks whether a cannon stands, and
+ * it asks nothing about the wave either — the moment the ladders start to beat
+ * is chosen by the money, which is exactly why it lives here. (spec 08-87)
+ *
  * **Nothing goes stale.** A coin lies where it fell for as long as the assault
  * lasts and is paid whole at the end; the purse has no ceiling, no interest and
  * no expiry, so it is one addition and never anything more. (spec 06-8, 06-14,
@@ -122,6 +126,36 @@ function takeCoin(game: Game, at: number): void {
 }
 
 /**
+ * The one moment of the game that says **climb**, written once and never again.
+ *
+ * The diamond says "you may put one down" once he is up on a roof, but nothing
+ * at all said to go up — so when the purse can pay for a cannon for the first
+ * time and not one stands, the rules write the fact and the drawing sets every
+ * ladder of the city beating. It ends for good when the first cannon goes down,
+ * which is `CANNON_PLACED` and needs no fact of its own: a signal that never
+ * ends stops being a signal. (spec 08-87, 08-88)
+ *
+ * **The moment is chosen by the money and never by a calendar.** Nothing here
+ * reads the wave: it is at the end of the second assault that the payment
+ * carries the purse to forty-three, and that is the first cannon it can pay for
+ * — the figure is where it falls out, not where it is put. A child who has
+ * gathered faster is told sooner, and one who has not is told when he can act on
+ * it. (spec 06-5, 08-87, 08 "Pourquoi les échelles se mettent à pulser")
+ *
+ * It asks that no cannon stands, so a page that comes back from an Instantané
+ * with one already up says nothing at all — and one that comes back with none
+ * says it again, because the child still has to be told. (spec 08-70)
+ */
+function callLadders(game: Game): void {
+  const assault = game.assault;
+  if (assault.laddersCalled) return;
+  if (game.snapshot.cannons.count > 0) return;
+  if (game.snapshot.coins < game.balance.economy.prices.cannon) return;
+  assault.laddersCalled = true;
+  pushEvent(assault.events, EVENT.LADDERS_LIT, 0, 0, 0, 0, 0);
+}
+
+/**
  * The magnet, and the one gathering of the whole game: whatever he passes within
  * four blocks of is his, at that very instant. There is no button to press and
  * nothing to aim at — running after a coin is having it **straight away**,
@@ -157,6 +191,12 @@ export function stepEconomy(game: Game): void {
     if (offX * offX + offY * offY + offZ * offZ >= within) continue;
     takeCoin(game, at);
   }
+
+  // And the one question the purse is asked, once a step: may it pay for a first
+  // cannon yet? It is asked here rather than at each of the places that raise the
+  // purse, so no path — a coin walked past, the payment that closes an assault,
+  // a page that comes back — can be the one that forgets to ask. (spec 08-87)
+  callLadders(game);
 }
 
 /**
