@@ -18,6 +18,7 @@
  * entirely alone: nothing in this file, and nothing the child can press, ever
  * aims it. (spec 04-19, 04-20)
  */
+import { type Sound, claimSession, hush, wakeSound } from '../audio/sound';
 import { BALANCE } from '../game/balance';
 import { placePlayer } from '../game/player';
 import {
@@ -685,6 +686,19 @@ const loop = createLoop(game, input, {
 let played = false;
 
 /*
+ * The sound, which is nothing at all until a press has been made: the one
+ * `AudioContext` is built in the handler of the press that leaves the Sas and
+ * nowhere else, so what stands here before it is `null` — and `null` is what
+ * the whole of `src/audio/` takes to mean the game is playing on, mute.
+ * (spec 09-7, 08-83, 09-37)
+ *
+ * The one thing the sound does before any press is this line: without it the
+ * silent switch of an iPad cuts the whole game. (spec 08-82)
+ */
+let audio: Sound | null = null;
+claimSession();
+
+/*
  * The second of the two resumptions, and the whole of it. The page is dead — a
  * memory purge, a reload, a WebGL context that never came back — so what the
  * last boundary of wave wrote is read once, here, and the game opens on the
@@ -728,6 +742,9 @@ const airlock = createAirlock((name) => document.getElementById(name), {
   freeze: () => {
     loop.clock.steps = 0;
     stopLoop(loop);
+    // The sound never crosses the Sas either: the held voices stop where they
+    // stand and nothing starts again on its own. (spec 09-14)
+    hush(audio);
   },
   // And it starts again owing nothing at all, however long the Sas stood open:
   // the gap it leaves is not a gap of the game. (spec 08-68, 10-22)
@@ -759,8 +776,13 @@ const airlock = createAirlock((name) => document.getElementById(name), {
     location.reload();
   },
   // The `AudioContext` comes back in the very handler of the press that leaves
-  // the Sas — `sound` of `AirlockHooks` — and never on `visibilitychange`. It
-  // is left unwired until the sounds themselves arrive. (spec 08-83)
+  // the Sas — this hook — and never on `visibilitychange`. The first press
+  // builds it, every press after that resumes the one there is, and a press
+  // that brings nothing back leaves the game mute and says nothing at all.
+  // (spec 08-83, 09-7, 08-84)
+  sound: () => {
+    audio = wakeSound(audio);
+  },
 });
 
 /*
