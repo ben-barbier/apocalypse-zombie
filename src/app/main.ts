@@ -29,7 +29,8 @@ import {
   createGame,
   createInput,
 } from '../game/state';
-import { reinforcementNotch, reinforcementPrice } from '../game/townhall';
+import { applySnapshot, decodeSnapshot, encodeSnapshot, owesSnapshot } from '../game/snapshot';
+import { reinforcementNotch, reinforcementPrice, segmentsStanding } from '../game/townhall';
 import { beginAssault } from '../game/waves';
 import { loadAtlas } from '../render/atlas';
 import {
@@ -93,6 +94,7 @@ import { createPad, pollPad } from './gamepad';
 import { sampleInput } from './input';
 import { createKeys, listenKeys } from './keyboard';
 import { createLoop, frame, startLoop, stopLoop } from './loop';
+import { clearSnapshot, readSnapshot, writeSnapshot } from './storage';
 import { createThumbs, eraseThumbs, fitThumbs, listenThumbs, showAction } from './touch';
 
 const canvas = document.getElementById('view') as HTMLCanvasElement;
@@ -222,6 +224,10 @@ let fallen = false;
 
 function closeGame(wave: number): void {
   fallen = true;
+  // A game is left by the fall of the town hall or by a new game, and by nothing
+  // else: the net goes with it. Never at a victory, which keeps its own for the
+  // overtime. (spec 08-76)
+  clearSnapshot();
   displays.className = 'gone';
   // The targets go out with them, and stop taking a press at once: there is
   // nothing left to steer behind a fade. (spec 08-5, 08-63)
@@ -501,6 +507,13 @@ const loop = createLoop(game, input, {
       else if (kind === EVENT.COLLAPSE) blink(effects, 0, 0, now);
       else if (kind === EVENT.RISE) blink(effects, 0, RISEN_BLINK, now);
     }
+
+    // The net, written where the rules say it moves and nowhere else: the entry
+    // into a preparation and the four purchases of that preparation. Nothing
+    // during an assault, and nothing in a handler of interruption — at the
+    // moments the browser stops promising anything the disk is already up to
+    // date. (spec 08-72, 08-73, 10-36)
+    if (owesSnapshot(held)) writeSnapshot(encodeSnapshot(held));
   },
   draw: (held, alpha, now) => {
     if (senseQuality(quality, now)) {
@@ -605,12 +618,41 @@ const loop = createLoop(game, input, {
  */
 let played = false;
 
+/*
+ * The second of the two resumptions, and the whole of it. The page is dead — a
+ * memory purge, a reload, a WebGL context that never came back — so what the
+ * last boundary of wave wrote is read once, here, and the game opens on the
+ * preparation of the wave in hand with a full bar. **Starting again from nought
+ * does not exist.** A text unreadable, of another format or a field short is
+ * thrown away without a word and there is nothing to resume: no message, no
+ * screen of error, and the Sas opens on the one door of a new game.
+ * (spec 08-66, 08-67, 08-78)
+ *
+ * The first of the two asks for nothing at all: the memory has survived, the one
+ * `Game` still stands, the Sas froze the time in front of it, and the press that
+ * leaves picks it up exactly where it was, preparation bar included. (spec 08-65)
+ */
+const kept = decodeSnapshot(readSnapshot());
+if (kept === null) clearSnapshot();
+else {
+  applySnapshot(game, kept);
+  // The two things the hud is told rather than reads every frame are seated off
+  // the state that came back: a resumed town hall has taken its blows and may
+  // already stand at a notch. (spec 08-15, 08-18, 10-37)
+  const notch = reinforcementNotch(game);
+  showCrown(crown, notch);
+  showNotch(hud, notch, reinforcementPrice(game));
+  loseSegments(hud, segmentsStanding(game));
+}
+const resumed = kept !== null;
+
 const airlock = createAirlock((name) => document.getElementById(name), {
   wave: () => game.snapshot.wave,
-  // A game that has fallen has nothing left to resume, and a page that has just
-  // loaded has nothing yet: the door of a new game stands alone in both.
-  // (spec 08-57, 08-63)
-  standing: () => played && !fallen,
+  // A game that has fallen has nothing left to resume; a page that has just
+  // loaded has nothing yet **unless the Instantané brought a game back**, which
+  // is the whole question this hook asks at load. The door of a new game stands
+  // alone whenever the answer is no. (spec 08-57, 08-63, 08-66)
+  standing: () => (played || resumed) && !fallen,
   // Asked for every frame the Sas stands open: without this reading, Safari
   // never hands a pad over and `gamepadconnected` never fires. (spec 08-54)
   pads: () => pollPad(pad),
@@ -638,12 +680,16 @@ const airlock = createAirlock((name) => document.getElementById(name), {
    * leaves is the whole of it.
    *
    * The throwing away is the Instantané's own — `clearSnapshot()` of
-   * `src/app/storage.ts`, which arrives with its chapter — and this is where it
-   * hangs: a game is left by the fall of the town hall or by a new game, and by
-   * nothing else. (spec 08-76)
+   * `src/app/storage.ts` — and this is where it hangs: a game is left by the
+   * fall of the town hall or by a new game, and by nothing else. It comes
+   * **before** the page is asked for itself again, so that the page which comes
+   * back cannot find what it is being let go of. (spec 08-76)
    */
   renew: () => {
-    if (!played) return;
+    clearSnapshot();
+    // A game resumed off the Instantané is a game in hand exactly as a played
+    // one is: it is the one in memory, so it too is let go of by a reload.
+    if (!played && !resumed) return;
     location.reload();
   },
   // The `AudioContext` comes back in the very handler of the press that leaves

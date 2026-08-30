@@ -224,7 +224,7 @@ function announceStreets(game: Game, wave: number): void {
  * to the base, thirty from there on, overtime included. It never goes under
  * thirty, and no button of the game touches it. (spec 01-14, 01-15)
  */
-function prepFor(balance: Balance, wave: number): number {
+export function prepFor(balance: Balance, wave: number): number {
   return wave <= balance.pace.lastEarlyPrepWave ? balance.pace.earlyPrep : balance.pace.latePrep;
 }
 
