@@ -1,0 +1,23 @@
+{
+  "profile": "child",
+  "seed": 1,
+  "waves": 10,
+  "indicators": {
+    "townHallHits": 244,
+    "minutes": 15.223,
+    "peak": 40,
+    "swordShare": 65.354,
+    "coins": 763,
+    "cannons": [
+      8,
+      1,
+      0
+    ],
+    "collapses": 0,
+    "breaches": {
+      "count": 26,
+      "meanFor": 7.103,
+      "longestFor": 20.917
+    }
+  }
+}

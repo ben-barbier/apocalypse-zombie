@@ -21,7 +21,10 @@
  * bounded by the assertion of `waves.ts`, and the collapses are a guard-rail of
  * the pilot and never a threshold of the balance. (spec 11-16, 11-25, 11-26)
  */
-import type { Balance } from '../src/game/balance';
+import { writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { BALANCE, type Balance } from '../src/game/balance';
 import { placePlayer } from '../src/game/player';
 import {
   EVENT,
@@ -36,7 +39,15 @@ import { step } from '../src/game/step';
 import { beginAssault, hasEnded, takeOvertime } from '../src/game/waves';
 import { atTownHall } from '../src/game/zombies';
 import { createPilot, flyPilot } from './pilot';
-import type { Profile } from './profiles';
+import { CHILD, type Profile } from './profiles';
+import {
+  SCANS,
+  type Verdict,
+  playOvertimeVerdict,
+  playVerdict,
+} from './campaigns';
+import { calledIn, pronounce, scanIn, verdictIn } from './report';
+import type { Crossed } from './thresholds';
 
 /**
  * Past how many collapses a run is **void** — it counts neither for the balance
@@ -98,7 +109,21 @@ export interface Run {
   /** The wave reached, which is the whole of what an end ever shows. (spec 01-30) */
   readonly wave: number;
   readonly won: boolean;
+  /**
+   * The town hall still on its feet when the run stopped. `won` says the victory
+   * of wave ten was taken and nothing takes it back, so past wave ten it says
+   * nothing about the end at all — and the overtime is read entirely on the end.
+   * (spec 01-26, 11-30, 11-31)
+   */
+  readonly standing: boolean;
   readonly steps: number;
+  /**
+   * The run stopped because the game did, and not because the ceiling of steps
+   * came. A run that walks into that ceiling is a run that does not end, and the
+   * table has to say so rather than print a duration that means nothing.
+   * (spec 11-2)
+   */
+  readonly ended: boolean;
   readonly indicators: Indicators;
   /** Past the ceiling of collapses, this run counts for nothing. (spec 11-25) */
   readonly voided: boolean;
@@ -238,7 +263,9 @@ export function playRun(
     seed,
     wave: game.snapshot.wave,
     won: game.snapshot.won,
+    standing: game.snapshot.townHall.hp > 0,
     steps,
+    ended: steps < MOST_STEPS,
     indicators: {
       townHallHits,
       minutes: (steps * seconds) / 60,
@@ -266,4 +293,130 @@ function cannonsByTier(game: Game): number[] {
   for (let tier = 0; tier < game.balance.cannon.tiers; tier += 1) found.push(0);
   for (let at = 0; at < cannons.count; at += 1) found[cannons.tier[at] - 1] += 1;
   return found;
+}
+
+// ------------------------------- the entry of `npm run bench`, and the code
+
+/**
+ * **The entry, and the exit code.** `npm run bench` plays the two verdicts,
+ * prints their tables and pronounces once; a named campaign plays that one and
+ * nothing else. The code out is **nought or one, and nothing else**, because
+ * what reads this bench reads a code and a list. (spec 11-38, 11-40)
+ *
+ * The six names a campaign answers to are the six of chapter 11 — `verdict`,
+ * `overtime`, `prices`, `range`, `table`, `gradient` — and a scan among them
+ * comes out at nought whatever it finds. (spec 11-28, 11-33)
+ *
+ * **Why `node bench/run.ts` needs one word more in `package.json`.** The whole
+ * repository imports without an extension, which is what `moduleResolution:
+ * bundler` is for and what Vite and Vitest resolve; `node` alone resolves no
+ * such thing, and it fails on the very first import of `src/game/`. Giving the
+ * bench its extensions would not be enough — every module of `src/game/` imports
+ * its neighbours without one too, so the failure only moves one file along, and
+ * `src/` is not this ticket's to rewrite. So it is **what the target of the
+ * script runs under** that changes: `node` is handed a resolve hook, inline and
+ * in one line, that retries a specifier with `.ts` when it does not resolve.
+ * Five npm scripts stay five, `bench/` keeps its six modules and its reference,
+ * and not one dependency is added — which is what 10-46 and 11-41 ask, and all
+ * they ask. (spec 10-46, 11-41)
+ */
+export const CAMPAIGNS = ['verdict', 'overtime', 'prices', 'range', 'table', 'gradient'];
+
+/** Where the frozen run lives, beside the six modules. (spec 11-42) */
+const REFERENCE_AT = new URL('./reference.json', import.meta.url);
+
+/** The eight indicators of one run, and which run it was. (spec 11-42) */
+export interface Reference {
+  readonly profile: string;
+  readonly seed: number;
+  /** The last wave played, so the file says what it froze. */
+  readonly waves: number;
+  readonly indicators: Indicators;
+}
+
+/**
+ * Three decimals, and the reason is the diff: this file is the **account of what
+ * a retouch did to the game**, and an account is read. A thousandth of a minute,
+ * of a per cent or of a second is far under anything the grid of chapter 11 ever
+ * reads, and the long tail of a double would bury the four figures that matter
+ * under sixteen that do not. (spec 11-45)
+ */
+function trimmed(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
+/** The reference run: the child, seed one, waves one to ten. (spec 11-42) */
+export function referenceOf(balance: Balance): Reference {
+  const run = playRun(balance, CHILD, 1, balance.pace.mainWaves);
+  const found = run.indicators;
+  return {
+    profile: run.profile,
+    seed: run.seed,
+    waves: balance.pace.mainWaves,
+    indicators: {
+      townHallHits: found.townHallHits,
+      minutes: trimmed(found.minutes),
+      peak: found.peak,
+      swordShare: trimmed(found.swordShare),
+      coins: found.coins,
+      cannons: [...found.cannons],
+      collapses: found.collapses,
+      breaches: {
+        count: found.breaches.count,
+        meanFor: trimmed(found.breaches.meanFor),
+        longestFor: trimmed(found.breaches.longestFor),
+      },
+    },
+  };
+}
+
+function say(lines: readonly string[]): void {
+  for (const line of lines) console.log(line);
+}
+
+/**
+ * What `npm run bench` does, and what it hands back as an exit code. It is
+ * exported so a test may ask it a question without spawning anything.
+ */
+export function main(args: readonly string[]): number {
+  // `--freeze`, and never a hand: the file has value only as the exact replay of
+  // the balance in hand. (spec 11-44)
+  if (args.includes('--freeze')) {
+    const reference = referenceOf(BALANCE);
+    writeFileSync(REFERENCE_AT, `${JSON.stringify(reference, null, 2)}\n`);
+    say([`bench/reference.json gelé — ${calledIn(reference.profile)}, graine ${reference.seed}`]);
+    return 0;
+  }
+
+  const asked = args[0] ?? '';
+  const scan = SCANS[asked];
+  if (scan !== undefined) {
+    say(scanIn(scan(BALANCE)));
+    return 0; // a scan explores and never judges (spec 11-33)
+  }
+  if (asked !== '' && asked !== 'verdict' && asked !== 'overtime') {
+    say([`Campagne inconnue : ${asked}`, `Les six : ${CAMPAIGNS.join(', ')}`]);
+    return 1;
+  }
+
+  const verdicts: Verdict[] = [];
+  if (asked === '' || asked === 'verdict') verdicts.push(playVerdict(BALANCE));
+  if (asked === '' || asked === 'overtime') verdicts.push(playOvertimeVerdict(BALANCE));
+
+  const crossed: Crossed[] = [];
+  for (const verdict of verdicts) {
+    say(verdictIn(verdict));
+    say(['']);
+    for (const cell of verdict.crossed) crossed.push(cell);
+  }
+  say(pronounce(crossed));
+  return crossed.length === 0 ? 0 : 1;
+}
+
+// The bench is run, never imported, when `node` is handed this file: the tests
+// beside it import it for `playRun` and must not play fifteen games for the
+// privilege.
+const entry = process.argv[1];
+if (entry !== undefined && resolve(entry) === fileURLToPath(import.meta.url)) {
+  process.exitCode = main(process.argv.slice(2));
 }
