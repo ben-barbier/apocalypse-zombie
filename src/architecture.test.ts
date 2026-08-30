@@ -2,8 +2,10 @@
  * The architecture guard. It reads the files and fails on anything the spec
  * forbids, so the rules of chapter 10 are runnable and not merely written down.
  *
- * It covers, in order: the boundary (spec 10-1 to 10-7), the storage rules
- * (spec 10-7, 10-32, 10-33) and the words ADR-0002 forbids (spec 10-8, 10-9).
+ * It covers, in order: the boundary (spec 10-1 to 10-7), what `src/audio/` may
+ * know and the one place free chance is allowed (spec 10-3, 09-12), the storage
+ * rules (spec 10-7, 10-32, 10-33) and the words ADR-0002 forbids (spec 10-8,
+ * 10-9).
  *
  * This file is the only one in `src/` that sits outside a scanned folder: it
  * quotes every forbidden word, so scanning itself would fail on the first line.
@@ -16,7 +18,7 @@ import { describe, expect, it } from 'vitest';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const ADR_WORDS = 'docs/adr/0002-code-en-anglais-conception-en-francais.md';
 
-/** Every folder the guard reads. `src/audio` and `bench` arrive with their chapters. */
+/** Every folder the guard reads. `bench` arrives with its chapter. */
 const SCANNED = ['src/game', 'src/render', 'src/app', 'src/audio', 'bench'];
 
 /** The folders that obey the "imports nothing" rule. (spec 10-1, 10-5) */
@@ -24,6 +26,17 @@ const PURE = ['src/game', 'bench'];
 
 /** Where a snapshot may touch a disk, and nowhere else. (spec 10-7) */
 const STORAGE_FILE = 'src/app/storage.ts';
+
+/**
+ * The one folder that knows only the types of the rules and their buffer of
+ * events (spec 10-3), and the one folder in the whole game allowed to draw its
+ * own chance — nothing it draws is ever observable, so nothing it draws can
+ * make a run unplayable twice over (spec 09-12).
+ */
+const AUDIO = 'src/audio';
+
+/** What a test file may take from beyond the project, and it is the only thing. */
+const TESTING = 'vitest';
 
 /**
  * Where a run is composed. Spec 10-15 forbids a module of rules to import the
@@ -313,6 +326,49 @@ describe('the boundary', () => {
         const reachesBalance = /(^|\/)balance$/.test(imported.from);
         if (reachesBalance && !isTypeOnly(imported.statement)) {
           broken.push(`${source.path} imports the balance instead of taking it`);
+        }
+      }
+    }
+    expect(broken).toEqual([]);
+  });
+});
+
+describe('the audio', () => {
+  /**
+   * Chapter 9 hands `src/audio/` the one exception to the rule of chapter 10:
+   * the offset the noise is read from and the pitch of a moan are drawn freely,
+   * because neither reaches the state, neither goes into the Instantané, and
+   * the bench plays with no sound at all. Everywhere else, free chance would
+   * make a run unplayable a second time. (spec 09-12, 10-1)
+   */
+  it('draws free chance in the one folder allowed to, and in no other', () => {
+    const chance = /\bMath\s*\.\s*random\b/;
+    expect(chance.test('const offset = Math.random() * 2;')).toBe(true);
+
+    const broken = SOURCES.filter(
+      (source) => source.folder !== AUDIO && chance.test(source.text),
+    ).map((source) => `${source.path} draws its own chance`);
+    expect(broken).toEqual([]);
+  });
+
+  /**
+   * What `src/audio/` knows: the types of the rules and their buffer of events,
+   * and nothing else at all — not the engine, not the page. The layers above
+   * settle which folders it may point at; this settles that it points nowhere
+   * beyond the project. (spec 10-3)
+   */
+  it('knows the types of the rules and the buffer of events, and nothing else', () => {
+    const broken: string[] = [];
+    for (const source of SOURCES) {
+      if (source.folder !== AUDIO) continue;
+      for (const imported of importsOf(source.text)) {
+        if (imported.from.startsWith('.')) continue;
+        if (isTest(source.path) && imported.from === TESTING) continue;
+        broken.push(`${source.path} imports ${imported.from}`);
+      }
+      for (const named of ['document', 'window']) {
+        if (new RegExp(`\\b${named}\\b`).test(source.text)) {
+          broken.push(`${source.path} names ${named}`);
         }
       }
     }

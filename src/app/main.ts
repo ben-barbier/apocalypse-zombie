@@ -18,6 +18,7 @@
  * entirely alone: nothing in this file, and nothing the child can press, ever
  * aims it. (spec 04-19, 04-20)
  */
+import { type Sound, claimSession, hush, wakeSound } from '../audio/sound';
 import { BALANCE } from '../game/balance';
 import { placePlayer } from '../game/player';
 import {
@@ -29,7 +30,8 @@ import {
   createGame,
   createInput,
 } from '../game/state';
-import { reinforcementNotch, reinforcementPrice } from '../game/townhall';
+import { applySnapshot, decodeSnapshot, encodeSnapshot, owesSnapshot } from '../game/snapshot';
+import { reinforcementNotch, reinforcementPrice, segmentsStanding } from '../game/townhall';
 import { beginAssault } from '../game/waves';
 import { loadAtlas } from '../render/atlas';
 import {
@@ -57,7 +59,15 @@ import {
   swingSword,
   swingZombie,
 } from '../render/characters';
-import { buildCity, buildCrown, showCrown } from '../render/city';
+import {
+  GATEWAY_COLOURS,
+  beatCity,
+  buildCity,
+  buildCrown,
+  type CityView,
+  flareGateway,
+  showCrown,
+} from '../render/city';
 import { createContext, resize } from '../render/context';
 import {
   COIN,
@@ -67,6 +77,7 @@ import {
   type Struck,
   blink,
   buildEffects,
+  dropBarrier,
   flyCoin,
   holdShards,
   isBlinking,
@@ -79,6 +90,7 @@ import {
   sweepArc,
 } from '../render/effects';
 import {
+  bearArrow,
   createHud,
   loseSegments,
   reinforceBar,
@@ -93,6 +105,7 @@ import { createPad, pollPad } from './gamepad';
 import { sampleInput } from './input';
 import { createKeys, listenKeys } from './keyboard';
 import { createLoop, frame, startLoop, stopLoop } from './loop';
+import { clearSnapshot, readSnapshot, writeSnapshot } from './storage';
 import { createThumbs, eraseThumbs, fitThumbs, listenThumbs, showAction } from './touch';
 
 const canvas = document.getElementById('view') as HTMLCanvasElement;
@@ -149,11 +162,16 @@ holdShards(effects, tierOf(quality).shards);
 // The notch is read off the stuff it wears and never off a figure. (spec 06-37)
 const crown = buildCrown(BALANCE.city, sheet);
 let scene = createScene(BALANCE.city);
+// The city stays in hand because two things move on it — the gateway of a street
+// that opens, the ladders while the child is being told to climb — and both are
+// built again with it after a lost context. (spec 08-86, 08-88, 10-37)
+let city!: CityView;
 raise();
 
 /** Puts the city, the bodies and the shards into the scene, from the grid the rules engender. */
 function raise(): void {
-  scene.add(buildCity(game.assault.city, BALANCE.city, sheet).node);
+  city = buildCity(game.assault.city, BALANCE.city, sheet);
+  scene.add(city.node);
   // The scene is a projection of the state, so the town hall comes back wearing
   // the notch it stands at, whatever asked for the scene. (spec 10-37)
   scene.add(crown.node);
@@ -222,6 +240,10 @@ let fallen = false;
 
 function closeGame(wave: number): void {
   fallen = true;
+  // A game is left by the fall of the town hall or by a new game, and by nothing
+  // else: the net goes with it. Never at a victory, which keeps its own for the
+  // overtime. (spec 08-76)
+  clearSnapshot();
   displays.className = 'gone';
   // The targets go out with them, and stop taking a press at once: there is
   // nothing left to steer behind a fade. (spec 08-5, 08-63)
@@ -236,6 +258,24 @@ function closeGame(wave: number): void {
  * here, once a frame, into an array made at load. (spec 08-32, 10-14)
  */
 const across = new Float32Array(STREETS);
+
+/**
+ * Whether the ladders of the city are beating, which is the game telling the
+ * child to climb. The rules own the moment — the first cannon he can pay for
+ * with none standing — and the first cannon put down ends it for good; nothing
+ * here works either out. (spec 08-87, 08-88, 10-19)
+ */
+let calling = false;
+
+/**
+ * The barriers that come down at the mouth of a street that opens: a row across
+ * the width of that street, standing halfway up its gateway. How long they take
+ * to fall is the drawing's own — the gateway settles into its colour over two
+ * seconds, and a barrier that took as long to drop would float rather than fall.
+ * (spec 03-30, 08-86)
+ */
+const BARRIER_HIGH = BALANCE.city.street.gatewayHeight / 2;
+const BARRIER_SPAN = 800;
 
 const context = createContext(canvas, {
   // The scene is a projection of the state, so it is simply built again — the
@@ -471,11 +511,39 @@ const loop = createLoop(game, input, {
         // fourth badge on the price of the notch to come. (spec 08-17, 08-26)
         reinforceBar(hud, events.value[i], reinforcementPrice(game));
       }
+      // A street opening, and it is the most important moment of the game: the
+      // arrow of that street is born, white, and the world goes with it — the
+      // gateway flares and the barriers come down at its mouth. There is no
+      // cinematic and no camera taken from the child, here least of all.
+      // (spec 08-85, 08-86, 08-45, 03-30)
+      else if (kind === EVENT.GATEWAY_LIT) {
+        const street = events.index[i];
+        bearArrow(hud, street);
+        flareGateway(city, street, now);
+        dropBarrier(
+          effects,
+          events.x[i],
+          BARRIER_HIGH,
+          events.z[i],
+          held.assault.city.gateways.ang[street],
+          BALANCE.city.street.width,
+          GATEWAY_COLOURS[street % GATEWAY_COLOURS.length],
+          BARRIER_SPAN,
+          now,
+        );
+      }
+      // A first cannon he can pay for, with none standing: every ladder of the
+      // city starts to beat, and that is the whole of what says "climb".
+      // (spec 08-87)
+      else if (kind === EVENT.LADDERS_LIT) calling = true;
       // A cannon going down, which takes 0,3 second and comes up out of the
       // ground over it. What it looks like once it is up is read off the pool,
       // never off a comparison of two states. (spec 05-7, 10-19)
       else if (kind === EVENT.CANNON_PLACED) {
         raiseCannon(cannons, events.x[i], events.z[i], PLACE_SPAN, now);
+        // And the ladders stop, for good: a signal that never ends stops being
+        // one. (spec 08-88)
+        calling = false;
       }
       // An armful going into a magazine: the cells that arrive come up over the
       // 0,3 second of the gesture, off what it held before. (spec 04-49)
@@ -501,6 +569,13 @@ const loop = createLoop(game, input, {
       else if (kind === EVENT.COLLAPSE) blink(effects, 0, 0, now);
       else if (kind === EVENT.RISE) blink(effects, 0, RISEN_BLINK, now);
     }
+
+    // The net, written where the rules say it moves and nowhere else: the entry
+    // into a preparation and the four purchases of that preparation. Nothing
+    // during an assault, and nothing in a handler of interruption — at the
+    // moments the browser stops promising anything the disk is already up to
+    // date. (spec 08-72, 08-73, 10-36)
+    if (owesSnapshot(held)) writeSnapshot(encodeSnapshot(held));
   },
   draw: (held, alpha, now) => {
     if (senseQuality(quality, now)) {
@@ -526,6 +601,11 @@ const loop = createLoop(game, input, {
     showAction(thumbs, held.assault.diamond.shows);
 
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
+    // The two things that move on the city itself: the gateway of a street that
+    // has just opened settling into its colour, and the ladders beating while
+    // the child is being told to climb. Both are the stuff a thing is made of,
+    // neither is a light, and neither costs a call. (spec 07-4, 08-86, 08-88)
+    beatCity(city, calling, now);
     // The whole cast in one call: the one body the child drives, and every
     // zombie standing in the city — the same fourteen boxes, told apart by the
     // colour and the scale of their kind. The white flash of 80 ms on whichever
@@ -605,12 +685,54 @@ const loop = createLoop(game, input, {
  */
 let played = false;
 
+/*
+ * The sound, which is nothing at all until a press has been made: the one
+ * `AudioContext` is built in the handler of the press that leaves the Sas and
+ * nowhere else, so what stands here before it is `null` — and `null` is what
+ * the whole of `src/audio/` takes to mean the game is playing on, mute.
+ * (spec 09-7, 08-83, 09-37)
+ *
+ * The one thing the sound does before any press is this line: without it the
+ * silent switch of an iPad cuts the whole game. (spec 08-82)
+ */
+let audio: Sound | null = null;
+claimSession();
+
+/*
+ * The second of the two resumptions, and the whole of it. The page is dead — a
+ * memory purge, a reload, a WebGL context that never came back — so what the
+ * last boundary of wave wrote is read once, here, and the game opens on the
+ * preparation of the wave in hand with a full bar. **Starting again from nought
+ * does not exist.** A text unreadable, of another format or a field short is
+ * thrown away without a word and there is nothing to resume: no message, no
+ * screen of error, and the Sas opens on the one door of a new game.
+ * (spec 08-66, 08-67, 08-78)
+ *
+ * The first of the two asks for nothing at all: the memory has survived, the one
+ * `Game` still stands, the Sas froze the time in front of it, and the press that
+ * leaves picks it up exactly where it was, preparation bar included. (spec 08-65)
+ */
+const kept = decodeSnapshot(readSnapshot());
+if (kept === null) clearSnapshot();
+else {
+  applySnapshot(game, kept);
+  // The two things the hud is told rather than reads every frame are seated off
+  // the state that came back: a resumed town hall has taken its blows and may
+  // already stand at a notch. (spec 08-15, 08-18, 10-37)
+  const notch = reinforcementNotch(game);
+  showCrown(crown, notch);
+  showNotch(hud, notch, reinforcementPrice(game));
+  loseSegments(hud, segmentsStanding(game));
+}
+const resumed = kept !== null;
+
 const airlock = createAirlock((name) => document.getElementById(name), {
   wave: () => game.snapshot.wave,
-  // A game that has fallen has nothing left to resume, and a page that has just
-  // loaded has nothing yet: the door of a new game stands alone in both.
-  // (spec 08-57, 08-63)
-  standing: () => played && !fallen,
+  // A game that has fallen has nothing left to resume; a page that has just
+  // loaded has nothing yet **unless the Instantané brought a game back**, which
+  // is the whole question this hook asks at load. The door of a new game stands
+  // alone whenever the answer is no. (spec 08-57, 08-63, 08-66)
+  standing: () => (played || resumed) && !fallen,
   // Asked for every frame the Sas stands open: without this reading, Safari
   // never hands a pad over and `gamepadconnected` never fires. (spec 08-54)
   pads: () => pollPad(pad),
@@ -620,6 +742,9 @@ const airlock = createAirlock((name) => document.getElementById(name), {
   freeze: () => {
     loop.clock.steps = 0;
     stopLoop(loop);
+    // The sound never crosses the Sas either: the held voices stop where they
+    // stand and nothing starts again on its own. (spec 09-14)
+    hush(audio);
   },
   // And it starts again owing nothing at all, however long the Sas stood open:
   // the gap it leaves is not a gap of the game. (spec 08-68, 10-22)
@@ -638,17 +763,26 @@ const airlock = createAirlock((name) => document.getElementById(name), {
    * leaves is the whole of it.
    *
    * The throwing away is the Instantané's own — `clearSnapshot()` of
-   * `src/app/storage.ts`, which arrives with its chapter — and this is where it
-   * hangs: a game is left by the fall of the town hall or by a new game, and by
-   * nothing else. (spec 08-76)
+   * `src/app/storage.ts` — and this is where it hangs: a game is left by the
+   * fall of the town hall or by a new game, and by nothing else. It comes
+   * **before** the page is asked for itself again, so that the page which comes
+   * back cannot find what it is being let go of. (spec 08-76)
    */
   renew: () => {
-    if (!played) return;
+    clearSnapshot();
+    // A game resumed off the Instantané is a game in hand exactly as a played
+    // one is: it is the one in memory, so it too is let go of by a reload.
+    if (!played && !resumed) return;
     location.reload();
   },
   // The `AudioContext` comes back in the very handler of the press that leaves
-  // the Sas — `sound` of `AirlockHooks` — and never on `visibilitychange`. It
-  // is left unwired until the sounds themselves arrive. (spec 08-83)
+  // the Sas — this hook — and never on `visibilitychange`. The first press
+  // builds it, every press after that resumes the one there is, and a press
+  // that brings nothing back leaves the game mute and says nothing at all.
+  // (spec 08-83, 09-7, 08-84)
+  sound: () => {
+    audio = wakeSound(audio);
+  },
 });
 
 /*

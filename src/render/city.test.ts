@@ -11,22 +11,28 @@
  * depend on how large the grid is — which is the very thing the first test says.
  * (spec 10-2)
  */
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { City } from '../game/state';
 import { ATLAS_SIZE, TILE, TILES, type TileId, tileUv } from './atlas';
 import { FIELD, NEAR } from './camera';
 import {
+  FLARE_SPAN,
   GATEWAY_COLOURS,
   NOTCHES,
   STOREY,
   TOP,
+  beatCity,
   buildCity,
   buildCrown,
   eachCrownFace,
   eachFace,
+  flareGateway,
   showCrown,
   type CityPlan,
+  type CityView,
 } from './city';
 import { createScene, hazeNear } from './scene';
 
@@ -597,5 +603,107 @@ describe('what a frame keeps in the view', () => {
       expect([mesh.name, kept(mesh)]).toEqual([mesh.name, true]);
     }
     expect(seated).toBeGreaterThan(0);
+  });
+});
+
+// ------------------------------------------- the two moments of the city itself
+
+/** The beat of the ladders, at whichever moment of its cycle a test wants. */
+const beatAt = (view: CityView, calling: boolean, at: number): number => {
+  beatCity(view, calling, at);
+  return view.ladders?.emissive.r ?? -1;
+};
+
+describe('the ladders being told to beat', () => {
+  it('beats the stuff they are made of, and never lights a lamp beside them', () => {
+    // spec 08-88, 07-4: a beat of the stuff, never a point light — there is no
+    // point light anywhere in this game, and this puts none in.
+    const view = buildCity(cityOf(6), PLAN, standIn());
+    const source = readFileSync(fileURLToPath(new URL('./city.ts', import.meta.url)), 'utf8');
+    expect(source).not.toMatch(/PointLight|SpotLight/);
+
+    expect(view.ladders).not.toBeNull();
+    // The slow rate of chapter 7 — a second at the bottom, half a second on to
+    // the top — so the game has one beat and not two. (spec 07-41)
+    expect(beatAt(view, true, 0)).toBe(0);
+    expect(beatAt(view, true, 250)).toBeGreaterThan(0);
+    expect(beatAt(view, true, 500)).toBeCloseTo(0, 5);
+  });
+
+  it('leaves the rest of the city alone while they beat', () => {
+    // spec 08-88: the ladders, and every ladder of the city — not the walls they
+    // run up. They wear a stuff of their own, and it costs no call.
+    const view = buildCity(cityOf(6), PLAN, standIn());
+    beatCity(view, true, 250);
+    const rest = view.draws.filter((mesh) => mesh.name !== 'ladder' && mesh.name !== 'gateways');
+    expect(rest.length).toBeGreaterThan(0);
+    for (const mesh of rest) {
+      const stuff = mesh.material as THREE.MeshLambertMaterial;
+      expect([mesh.name, stuff.emissive.r]).toEqual([mesh.name, 0]);
+    }
+    expect(view.draws.length).toBe(TILES.length + 1); // the count has not moved
+  });
+
+  it('comes to rest for good, and a city with no ladder asks nothing', () => {
+    // spec 08-88: it stops at the first cannon, definitively — a signal that
+    // never ends stops being one.
+    const view = buildCity(cityOf(6), PLAN, standIn());
+    beatCity(view, true, 250);
+    expect(beatAt(view, false, 300)).toBe(0);
+    expect(beatAt(view, false, 550)).toBe(0);
+
+    const bare = buildCity(cityOf(0), PLAN, standIn());
+    expect(bare.ladders).toBeNull(); // no building, no ladder, and nothing to beat
+    expect(() => beatCity(bare, true, 250)).not.toThrow();
+  });
+});
+
+describe('a gateway lighting because its street opens', () => {
+  it('flares white and comes home to the colour its street keeps for the game', () => {
+    // spec 08-86, 03-30: the world goes with the arrow being born — an emphatic
+    // effect, and no cinematic anywhere near it. (spec 08-45)
+    const view = buildCity(CITY, PLAN, standIn());
+    const hue = new THREE.Color(GATEWAY_COLOURS[1]);
+    const worn = (piece: number): THREE.Color => {
+      const paint = new THREE.Color();
+      view.gateways.getColorAt(piece, paint);
+      return paint;
+    };
+
+    flareGateway(view, 1, 1000);
+    beatCity(view, false, 1000);
+    // All three pieces of that gateway, and no piece of any other. (spec 02-27)
+    for (let piece = 3; piece < 6; piece += 1) expect(worn(piece).getHex()).toBe(0xffffff);
+    expect(worn(0).getHex()).toBe(new THREE.Color(GATEWAY_COLOURS[0]).getHex());
+
+    beatCity(view, false, 1000 + FLARE_SPAN / 2);
+    expect(worn(3).r).toBeGreaterThan(hue.r);
+    expect(worn(3).getHex()).not.toBe(0xffffff);
+
+    // Home, over the two seconds the arrow of that street takes to be born.
+    beatCity(view, false, 1000 + FLARE_SPAN);
+    expect(worn(3).getHex()).toBe(hue.getHex());
+    expect(FLARE_SPAN).toBe(2000); // spec 08-85
+  });
+
+  it('takes no camera and puts up no card, at the most important moment least of all', () => {
+    // spec 08-45, 04-20, 08-43: the game never takes the camera from the child —
+    // no cinematic, no imposed framing, at no moment of the game — and there is
+    // no card, no message and no alarm anywhere near a street opening. So the
+    // whole of the effect is a colour written into a mesh already drawn.
+    const source = readFileSync(fileURLToPath(new URL('./city.ts', import.meta.url)), 'utf8');
+    expect(source).not.toMatch(/Camera|lookAt/);
+    expect(source).not.toMatch(/\bdocument\b/);
+  });
+
+  it('costs no call of its own, since the nine pieces already share one', () => {
+    // spec 07-44, 10 "Le budget de rendu": the flare writes colours into the one
+    // mesh the three gateways were already drawn in.
+    const view = buildCity(CITY, PLAN, standIn());
+    const before = view.draws.length;
+    flareGateway(view, 0, 0);
+    beatCity(view, true, 100);
+    expect(view.draws.length).toBe(before);
+    expect(view.draws).toContain(view.gateways);
   });
 });
