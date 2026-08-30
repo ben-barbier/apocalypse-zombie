@@ -1352,6 +1352,17 @@ export interface Assault {
    * wave boundary. (spec 05-20, 08-70, 10-12)
    */
   readonly diamond: Diamond;
+  /**
+   * The moan of the assault, which is three numbers and belongs to no zombie:
+   * the seconds left of the moment under way, what the living have piled up
+   * since the last moan went out, and which of the living is owed the next one.
+   *
+   * It rides in the volatile branch because it says nothing a wave boundary has
+   * to remember: an assault opens its own. (spec 09-24, 09-25, 09-26, 10-12)
+   */
+  moanLeft: number;
+  moanOwed: number;
+  moanNext: number;
 }
 
 /** The one object, allocated at load and mutated in place ever after. (spec 10-10) */
@@ -1405,6 +1416,9 @@ export function createGame(balance: Balance, seed = 0): Game {
       player: createPlayer(),
       sword: createSword(),
       diamond: createDiamond(),
+      moanLeft: balance.assault.moanPeriod,
+      moanOwed: 0,
+      moanNext: 0,
     },
   };
 }

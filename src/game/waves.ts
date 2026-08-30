@@ -273,6 +273,11 @@ export function beginAssault(game: Game): void {
   assault.prepLeft = 0; // no clock runs during an assault (spec 01-12)
   assault.fewFor = 0;
   assault.toEnter = totalOf(row);
+  // The moan is an emission of the **assault**, so an assault opens its own: the
+  // pile the last one left behind buys nothing here. (spec 09-24)
+  assault.moanLeft = balance.assault.moanPeriod;
+  assault.moanOwed = 0;
+  assault.moanNext = 0;
   announceStreets(game, wave);
 
   // The streets that carry the wave open one after the other, eight seconds

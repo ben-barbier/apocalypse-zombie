@@ -456,4 +456,55 @@ export function stepZombies(game: Game, seconds: number): void {
     grazeCannons(game, at, was);
     touchPlayer(game, at);
   }
+
+  moanAssault(game, seconds);
+}
+
+/**
+ * The moan, and it belongs to no zombie at all: it is one emission of the whole
+ * assault, whose cadence follows the head count still standing. Sixty separate
+ * moaners would make that cadence a consequence of the wave table; two figures
+ * make it a decision. (spec 09-24, 09 "Pourquoi le gémissement n'appartient à
+ * aucun zombie")
+ *
+ * Every 140 ms the living pile up `count / 40` of a moan, and what one moment
+ * may pile up is **one whole and no more**: at one, a moan goes out and one is
+ * taken off the pile, which is what leaves it standing under one whole once the
+ * moan has gone. Four standing give 0,7 moans a second, thirty give 5,4, and
+ * past forty the cadence stops climbing at 7,1 — which is the first of the two
+ * ceilings of the chapter, the second being the six seats of the combat bus.
+ * (spec 09-25)
+ *
+ * The ceiling is on the **share** of a moment and not on the pile it is added
+ * to, because that is the one reading the table of the chapter bears: a pile
+ * cut back to one whole before the moan goes out would throw away the remainder
+ * of every moment, and thirty standing would give 3,6 moans a second where the
+ * table writes 5,4. What is written holds either way — nothing is ever piled up
+ * past one whole, and the cadence is capped from forty standing on.
+ * (spec 09-25, 09 "Le gémissement selon la population")
+ *
+ * With nothing standing the pile takes on nothing, so nothing ever goes out and
+ * no spot of an empty pool is ever named: the arithmetic settles it, and there
+ * is no case written for it.
+ *
+ * The one the fact names is taken from the living in turn, and it is the whole
+ * of what it is for: it gives the moan a side to come from, and it never says
+ * what kind it is. (spec 09-26, 09-27)
+ */
+function moanAssault(game: Game, seconds: number): void {
+  const assault = game.assault;
+  const pool = assault.zombies;
+  const rule = game.balance.assault;
+
+  assault.moanLeft -= seconds;
+  while (assault.moanLeft <= 0) {
+    assault.moanLeft += rule.moanPeriod;
+    assault.moanOwed += Math.min(1, pool.count / rule.moanCrowd);
+    if (assault.moanOwed < 1) continue;
+
+    assault.moanOwed -= 1;
+    const who = assault.moanNext % pool.count;
+    assault.moanNext = who + 1;
+    pushEvent(assault.events, EVENT.MOAN, who, pool.x[who], 0, pool.z[who], 0);
+  }
 }
