@@ -355,6 +355,60 @@
       #arrows .arrow:nth-child(3) {
         --hue: var(--street3);
       }
+      /* A street opening — the second at wave five, the third at wave
+         eleven — is the most important moment of the game, and the whole
+         of what says so: the arrow is born white, grows to twice its size
+         over 2 s, takes its colour, and beats for the rest of the
+         preparation. It is born whether its street is on screen or not.
+         There is no cinematic, no card and no camera taken from the
+         child anywhere near it. (spec 08-85, 08-86, 08-45)
+
+         The beat runs at the slow rate of chapter 7 — the very one the
+         figure of what is left answers to — so the hud has one beat and
+         not two. How far it swells is the drawing's own.
+         (spec 07-41, 08-40)
+
+         Twice its size means an arrow flat against a border reaches half
+         an arrow past the 16 px every display keeps clear of one, for the
+         two seconds of the birth. 08-85 asks for the ×2 in so many words
+         and the margin governs where a display *sits*, so the ×2 wins and
+         the resting place of an arrow is untouched. It is a display and
+         never a target: nothing is ever pressed here.
+         (spec 08-85, 08-5, 08 "Les cibles tactiles") */
+      .arrow.born {
+        animation:
+          born 2s,
+          beating 250ms 2s ease-in-out infinite alternate;
+      }
+      @keyframes born {
+        from {
+          transform: translateX(-50%) scale(1);
+          background: var(--white);
+        }
+        50% {
+          transform: translateX(-50%) scale(2);
+        }
+        to {
+          transform: translateX(-50%) scale(1);
+          background: var(--hue);
+        }
+      }
+      @keyframes beating {
+        to {
+          transform: translateX(-50%) scale(1.18);
+        }
+      }
+      /* What the arrow is made of goes white with it, so the whole shape
+         is born white and not merely its border. (spec 08-85) */
+      .arrow.born::after {
+        animation: borning 2s;
+      }
+      @keyframes borning {
+        from,
+        50% {
+          background: var(--white);
+        }
+      }
 
       /* ---------------------------------------------------------------
          5 — The phase strip, top centre: the number of the wave, small,

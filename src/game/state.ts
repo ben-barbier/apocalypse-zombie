@@ -147,6 +147,16 @@ export const EVENT = {
    * of text beside it, and nothing at all is tallied up. (spec 01-28, 01-30)
    */
   GAME_ENDED: 26,
+  /**
+   * The purse can pay for a cannon for the first time, and not one stands. It is
+   * the one moment of the game that says **climb**, and the rules own it because
+   * the moment is chosen by the money and never by a calendar: at the end of the
+   * second assault the payment carries the purse to forty-three, which is the
+   * first cannon it can pay for. The drawing hears it and every ladder of the
+   * city starts to beat; the beat ends for good on the first `CANNON_PLACED`,
+   * and this fact is never written a second time. (spec 08-87, 08-88)
+   */
+  LADDERS_LIT: 27,
 } as const;
 
 export type EventType = (typeof EVENT)[keyof typeof EVENT];
@@ -1307,6 +1317,15 @@ export interface Assault {
    * blocks a second once it reaches fifteen. (spec 03-38, 03-39) */
   fewFor: number;
   /**
+   * Whether the ladders have already been called, which is what keeps that one
+   * fact to one writing. It rides in the volatile branch and not in the ten
+   * fields that cross a wave boundary, because it needs no writing there: a page
+   * that comes back with a cannon standing asks nothing, and one that comes back
+   * with none and enough in the purse is a child who still has to be told to
+   * climb. (spec 08-70, 08-87, 10-12)
+   */
+  laddersCalled: boolean;
+  /**
    * The terrain, engendered at load from the rules of chapter 2. It rides here
    * because `Game` has three branches and three only: it is not the injected
    * balance, and it is not one of the ten fields that cross a wave boundary.
@@ -1377,6 +1396,7 @@ export function createGame(balance: Balance, seed = 0): Game {
       sent: new Uint8Array(STREETS),
       enterLeft: new Float32Array(STREETS),
       fewFor: 0,
+      laddersCalled: false,
       city: createCity(balance.city),
       zombies: createZombiePool(balance.pools.zombies),
       projectiles: createProjectilePool(balance.pools.projectiles),

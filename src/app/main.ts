@@ -57,7 +57,15 @@ import {
   swingSword,
   swingZombie,
 } from '../render/characters';
-import { buildCity, buildCrown, showCrown } from '../render/city';
+import {
+  GATEWAY_COLOURS,
+  beatCity,
+  buildCity,
+  buildCrown,
+  type CityView,
+  flareGateway,
+  showCrown,
+} from '../render/city';
 import { createContext, resize } from '../render/context';
 import {
   COIN,
@@ -67,6 +75,7 @@ import {
   type Struck,
   blink,
   buildEffects,
+  dropBarrier,
   flyCoin,
   holdShards,
   isBlinking,
@@ -79,6 +88,7 @@ import {
   sweepArc,
 } from '../render/effects';
 import {
+  bearArrow,
   createHud,
   loseSegments,
   reinforceBar,
@@ -149,11 +159,16 @@ holdShards(effects, tierOf(quality).shards);
 // The notch is read off the stuff it wears and never off a figure. (spec 06-37)
 const crown = buildCrown(BALANCE.city, sheet);
 let scene = createScene(BALANCE.city);
+// The city stays in hand because two things move on it — the gateway of a street
+// that opens, the ladders while the child is being told to climb — and both are
+// built again with it after a lost context. (spec 08-86, 08-88, 10-37)
+let city!: CityView;
 raise();
 
 /** Puts the city, the bodies and the shards into the scene, from the grid the rules engender. */
 function raise(): void {
-  scene.add(buildCity(game.assault.city, BALANCE.city, sheet).node);
+  city = buildCity(game.assault.city, BALANCE.city, sheet);
+  scene.add(city.node);
   // The scene is a projection of the state, so the town hall comes back wearing
   // the notch it stands at, whatever asked for the scene. (spec 10-37)
   scene.add(crown.node);
@@ -236,6 +251,24 @@ function closeGame(wave: number): void {
  * here, once a frame, into an array made at load. (spec 08-32, 10-14)
  */
 const across = new Float32Array(STREETS);
+
+/**
+ * Whether the ladders of the city are beating, which is the game telling the
+ * child to climb. The rules own the moment — the first cannon he can pay for
+ * with none standing — and the first cannon put down ends it for good; nothing
+ * here works either out. (spec 08-87, 08-88, 10-19)
+ */
+let calling = false;
+
+/**
+ * The barriers that come down at the mouth of a street that opens: a row across
+ * the width of that street, standing halfway up its gateway. How long they take
+ * to fall is the drawing's own — the gateway settles into its colour over two
+ * seconds, and a barrier that took as long to drop would float rather than fall.
+ * (spec 03-30, 08-86)
+ */
+const BARRIER_HIGH = BALANCE.city.street.gatewayHeight / 2;
+const BARRIER_SPAN = 800;
 
 const context = createContext(canvas, {
   // The scene is a projection of the state, so it is simply built again — the
@@ -471,11 +504,39 @@ const loop = createLoop(game, input, {
         // fourth badge on the price of the notch to come. (spec 08-17, 08-26)
         reinforceBar(hud, events.value[i], reinforcementPrice(game));
       }
+      // A street opening, and it is the most important moment of the game: the
+      // arrow of that street is born, white, and the world goes with it — the
+      // gateway flares and the barriers come down at its mouth. There is no
+      // cinematic and no camera taken from the child, here least of all.
+      // (spec 08-85, 08-86, 08-45, 03-30)
+      else if (kind === EVENT.GATEWAY_LIT) {
+        const street = events.index[i];
+        bearArrow(hud, street);
+        flareGateway(city, street, now);
+        dropBarrier(
+          effects,
+          events.x[i],
+          BARRIER_HIGH,
+          events.z[i],
+          held.assault.city.gateways.ang[street],
+          BALANCE.city.street.width,
+          GATEWAY_COLOURS[street % GATEWAY_COLOURS.length],
+          BARRIER_SPAN,
+          now,
+        );
+      }
+      // A first cannon he can pay for, with none standing: every ladder of the
+      // city starts to beat, and that is the whole of what says "climb".
+      // (spec 08-87)
+      else if (kind === EVENT.LADDERS_LIT) calling = true;
       // A cannon going down, which takes 0,3 second and comes up out of the
       // ground over it. What it looks like once it is up is read off the pool,
       // never off a comparison of two states. (spec 05-7, 10-19)
       else if (kind === EVENT.CANNON_PLACED) {
         raiseCannon(cannons, events.x[i], events.z[i], PLACE_SPAN, now);
+        // And the ladders stop, for good: a signal that never ends stops being
+        // one. (spec 08-88)
+        calling = false;
       }
       // An armful going into a magazine: the cells that arrive come up over the
       // 0,3 second of the gesture, off what it held before. (spec 04-49)
@@ -526,6 +587,11 @@ const loop = createLoop(game, input, {
     showAction(thumbs, held.assault.diamond.shows);
 
     if (!mayDraw(quality, now)) return; // the last tier holds the drawing at 30
+    // The two things that move on the city itself: the gateway of a street that
+    // has just opened settling into its colour, and the ladders beating while
+    // the child is being told to climb. Both are the stuff a thing is made of,
+    // neither is a light, and neither costs a call. (spec 07-4, 08-86, 08-88)
+    beatCity(city, calling, now);
     // The whole cast in one call: the one body the child drives, and every
     // zombie standing in the city — the same fourteen boxes, told apart by the
     // colour and the scale of their kind. The white flash of 80 ms on whichever
