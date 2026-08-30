@@ -6,7 +6,7 @@
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",
-    "bench": "node bench/run.ts",
+    "bench": "node --import 'data:text/javascript,import{registerHooks}from\"node:module\";registerHooks({resolve(s,c,n){try{return n(s,c)}catch{return n(s%2B\".ts\",c)}}})' bench/run.ts",
     "check": "tsc && vitest run src/architecture.test.ts"
   },
   "dependencies": {

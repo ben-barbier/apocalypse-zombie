@@ -41,9 +41,12 @@ const TESTING = 'vitest';
 /**
  * Where a run is composed. Spec 10-15 forbids a module of rules to import the
  * balance and writes the call that hands it over — `createGame(BALANCE)` — so
- * that call has one home, and this is the list of the homes it may have.
+ * that call has one home, and this is the list of the homes it may have. The
+ * bench has the second one: `bench/run.ts` is the entry of `npm run bench`, and
+ * a bench that could not name the balance as delivered could try nothing at all.
+ * (spec 10-15, 11-41)
  */
-const ROOTS = ['src/app/main.ts'];
+const ROOTS = ['src/app/main.ts', 'bench/run.ts'];
 
 const STORAGE_APIS = [
   'localStorage',
@@ -408,6 +411,28 @@ describe('the storage', () => {
   it('never listens for unload', () => {
     const broken = SOURCES.filter((source) => /\bunload\b/.test(source.text)).map((s) => s.path);
     expect(broken).toEqual([]);
+  });
+});
+
+describe('the bench', () => {
+  it('carries six modules and not one more, plus the reference and its test', () => {
+    // spec 11-41. The tests sit beside the modules they try, as everywhere else
+    // in this repository. (spec 10-41)
+    const modules = SOURCES.filter((source) => source.folder === 'bench')
+      .map((source) => source.path.slice('bench/'.length))
+      .filter((name) => !isTest(name));
+    expect(modules.sort()).toEqual([
+      'campaigns.ts',
+      'pilot.ts',
+      'profiles.ts',
+      'report.ts',
+      'run.ts',
+      'thresholds.ts',
+    ]);
+
+    const beside = readdirSync(join(ROOT, 'bench'));
+    expect(beside).toContain('reference.json');
+    expect(beside).toContain('reference.test.ts');
   });
 });
 
