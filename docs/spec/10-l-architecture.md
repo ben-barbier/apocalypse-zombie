@@ -102,7 +102,7 @@ npm, **lockfile commité**. `three` est la **seule** dépendance d'exécution ; 
 | Pas rattrapés au maximum par image | 6 |
 | Figeage sur coup fatal, jamais rattrapé | 60 ms |
 | Entrées du tampon d'événements | 256 |
-| Pas dans une partie de 15,2 min | ≈ 55 000 |
+| Pas dans une partie de 14,5 min | ≈ 52 000 |
 | Durée d'une partie au banc, sans rendu | ≈ 1 s |
 
 ### Les pools, alloués au chargement

@@ -51,10 +51,13 @@ La spec, le glossaire, les tickets, les commits et le texte affiché dans le jeu
 | Barème | `balance` | | Tampon d'événements | `events` |
 | Module | `bay` | | Tronçon | `stretch` |
 | Pourtour | `perimeter` | | Niveau | `tier` |
+| Poussée | `shove` | | Couloir | `lane` |
 
 **La règle qui gouverne cette table** : en anglais, un terme du glossaire reçoit un mot et un seul, qui ne soit ni déjà pris par un autre terme du glossaire, ni pris par l'API Three.js. C'est le flou que les listes `_Éviter_` de `CONTEXT.md` combattent, pas la racine des mots — `sweep`, `breach` et `magazine` sont retenus bien que « balayage », « percée » et « chargeur » soient bannis en français, parce qu'aucun n'a de concurrent en anglais.
 
 C'est cette règle qui a écarté deux mots naturels pour les termes du banc : *Balayage* ne peut pas être `sweep`, déjà la **Fauchée**, d'où `scan` ; et *Profondeur* ne peut pas être `depth`, que Three.js emploie (`BoxGeometry`, `depthTest`) et que les 8 blocs de profondeur du front bâti réclameraient au rendu, d'où `venture`.
+
+Elle donne son mot à la **Poussée** : `push` est déjà pris par le tampon d'événements (`pushEvent`), et un terme du glossaire ne partage son mot avec rien — d'où `shove`, qui dit la bousculade et rien d'autre.
 
 Elle donne aussi son mot au **Niveau** d'un canon : `level` est interdit — il part sur la **Vague**, avec `round` et `stage` —, et `rank` traîne l'idée d'un classement que ce jeu n'a pas. D'où `tier`.
 

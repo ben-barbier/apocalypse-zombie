@@ -209,7 +209,7 @@ L'argent n'est donc pas ce qui arrête le joueur en Rallonge : ce qui l'arrête 
 | en brassées, donc en allers-retours à la base | **40** |
 | aller-retour vers le tiers du fond d'une rue ([chapitre 2](02-la-ville.md)) | 28,8 s |
 | aller-retour vers le toit le plus lointain | 33,5 s |
-| *pour mémoire, une partie bien jouée* | *≈ 913 s* |
+| *pour mémoire, une partie bien jouée* | *≈ 868 s* |
 
 Le niveau 3 rend **plus de temps de course qu'une partie n'en contient**. On ne l'achète pas avec des pièces, on l'achète avec du temps.
 

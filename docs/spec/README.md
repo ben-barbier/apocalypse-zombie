@@ -42,7 +42,7 @@ Un interdit se lève **par une PR sur le chapitre qui le porte**, jamais en pass
 | une difficulté qui monte par les statistiques — points de vie, dégâts, vitesse | [1](01-la-partie.md) |
 | un chrono pendant l'assaut | [1](01-la-partie.md) |
 | un bouton « prêt », une préparation qu'on allonge ou qu'on abrège | [1](01-la-partie.md) |
-| une préparation sous 30 secondes, Rallonge comprise | [1](01-la-partie.md) |
+| une préparation sous 30 secondes à partir de la vague 4, Rallonge comprise | [1](01-la-partie.md) |
 | une régénération de la mairie | [1](01-la-partie.md) |
 | une ouverture au contact du hangar | [1](01-la-partie.md) |
 | un tutoriel | [1](01-la-partie.md) |
@@ -120,6 +120,9 @@ Un interdit se lève **par une PR sur le chapitre qui le porte**, jamais en pass
 | un calcul de chemin — A\*, navmesh, champ de flux | [3](03-les-zombies.md) |
 | un zombie qui quitte son rail, un zombie qui poursuit le joueur | [3](03-les-zombies.md) |
 | un avancement qui décroît, un recul qui fait reculer un zombie | [3](03-les-zombies.md) |
+| une poussée qui touche l'avancement | [3](03-les-zombies.md) |
+| un décalage de paquet tiré au sort | [3](03-les-zombies.md) |
+| une poussée entre deux rues | [3](03-les-zombies.md) |
 | un zombie que le canon bloque, une barricade | [3](03-les-zombies.md) |
 | un zombie qui disparaît en atteignant la mairie | [3](03-les-zombies.md) |
 | un zombie qui traverse le bâti | [3](03-les-zombies.md) |
