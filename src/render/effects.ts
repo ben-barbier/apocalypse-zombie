@@ -39,6 +39,7 @@
  */
 import * as THREE from 'three';
 import type { CoinPool, Player, ProjectilePool } from '../game/state';
+import { alwaysDrawn } from './scene';
 
 /** A quarter of a block, and the one size a shard ever has. (spec 07-25) */
 export const SHARD_SIDE = 0.25;
@@ -423,6 +424,9 @@ export function buildEffects(holds: number, coins: number, balls = 0): Effects {
     seats,
   );
   shards.name = 'shards';
+  // The shards move every frame and there is no frame that seats the same ones,
+  // so no sphere measured around them stays true for two frames running.
+  alwaysDrawn(shards);
   const paint = shards.material as THREE.MeshBasicMaterial;
   paint.fog = false;
   shards.count = 0;
@@ -443,6 +447,7 @@ export function buildEffects(holds: number, coins: number, balls = 0): Effects {
     held,
   );
   lying.name = 'coins';
+  alwaysDrawn(lying);
   (lying.material as THREE.MeshBasicMaterial).fog = false;
   lying.count = 0;
 
@@ -456,6 +461,7 @@ export function buildEffects(holds: number, coins: number, balls = 0): Effects {
     held,
   );
   rims.name = 'rims';
+  alwaysDrawn(rims);
   (rims.material as THREE.MeshBasicMaterial).fog = false;
   rims.count = 0;
 

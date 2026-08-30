@@ -64,6 +64,7 @@ import * as THREE from 'three';
 import type { CannonBalance } from '../game/balance';
 import type { CannonPool } from '../game/state';
 import { BLACK, BLINK_SLOW, FIRE, SHARD_SIDE, WHITE } from './effects';
+import { alwaysDrawn } from './scene';
 
 /**
  * The one colour chapter 7 gives a cannon, off the palette of what is played:
@@ -398,6 +399,9 @@ export function buildCannons(holds: number, arc: number): CannonView {
     holds * (MOST_BOXES + 2),
   );
   bodies.name = 'cannons';
+  // A cannon goes down where the child asks for it, long after the first frame
+  // measured this mesh around the nothing it then seated.
+  alwaysDrawn(bodies);
   bodies.count = 0;
 
   // One cone, of a length of one and of the opening chapter 5 settles, so an
@@ -417,6 +421,7 @@ export function buildCannons(holds: number, arc: number): CannonView {
     holds,
   );
   flames.name = 'flames';
+  alwaysDrawn(flames);
   flames.count = 0;
   (flames.material as THREE.MeshBasicMaterial).fog = false;
 

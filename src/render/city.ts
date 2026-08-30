@@ -24,6 +24,7 @@
 import * as THREE from 'three';
 import type { City } from '../game/state';
 import { TILES, type TileId, tileUv } from './atlas';
+import { alwaysDrawn } from './scene';
 
 /** What the drawing needs of the plan of chapter 2, and nothing the grid says. */
 export interface CityPlan {
@@ -547,6 +548,9 @@ export function buildCrown(plan: CityPlan, sheet: THREE.Texture): CrownView {
     if (count === 0) continue;
     const mesh = new THREE.InstancedMesh(quadOf(tile.id), paint, count);
     mesh.name = `crown:${tile.id}`;
+    // The city under it is seated at load and never moves, so it keeps its
+    // culling; the crown is seated again at every notch, and cannot.
+    alwaysDrawn(mesh);
     meshes.set(tile.id, mesh);
     node.add(mesh);
     draws.push(mesh);

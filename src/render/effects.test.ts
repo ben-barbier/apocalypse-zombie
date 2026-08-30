@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { CoinPool, Player, ProjectilePool } from '../game/state';
+import { FIELD, NEAR } from './camera';
 import {
   ARC,
   ARC_SPAN,
@@ -45,6 +46,7 @@ import {
   strike,
   sweepArc,
 } from './effects';
+import { alwaysDrawn } from './scene';
 
 /** The pool, allocated at load. (spec 07-27, 10 "Les pools") */
 const POOL = 600;
@@ -922,5 +924,94 @@ describe('the ball, its trail and its mark', () => {
     expect(effects.shards.count).toBe(10 + PER_BALL);
     effects.shards.getColorAt(0, PAINT);
     expect(PAINT.getHex()).toBe(new THREE.Color(WHITE).getHex());
+  });
+});
+
+// --------------------------------------------- what a frame keeps in the view
+
+/**
+ * The view of the one camera, and the very line `WebGLRenderer` reads it with
+ * before it draws an object at all. It is written out here rather than asserted
+ * as a flag, because what it stands against was a mesh that carried every right
+ * flag, held its instances, said it was drawing them — and was thrown out of
+ * every frame all the same.
+ */
+const VIEW = new THREE.Frustum();
+const SEEN = new THREE.Matrix4();
+const MIDDLE = new THREE.Vector3(0, 0, 0);
+
+function watch(lens: THREE.PerspectiveCamera): void {
+  lens.updateMatrixWorld(true);
+  VIEW.setFromProjectionMatrix(
+    SEEN.multiplyMatrices(lens.projectionMatrix, lens.matrixWorldInverse),
+  );
+}
+
+const kept = (mesh: THREE.Object3D): boolean =>
+  !mesh.frustumCulled || VIEW.intersectsObject(mesh as THREE.Mesh);
+
+/**
+ * A camera standing sixty blocks out in street one and looking further out
+ * still, so that the middle of the world falls behind it. That is the whole of
+ * what this view is for: a mesh that measured its sphere around nothing keeps an
+ * empty one at that middle, and this camera cannot hold it. (spec 02-12)
+ */
+const OUT = 60;
+
+function lookingOut(): THREE.PerspectiveCamera {
+  const lens = new THREE.PerspectiveCamera(FIELD, 16 / 9, NEAR, 200);
+  lens.position.set(OUT - 6, 4, 0);
+  lens.lookAt(OUT, 1, 0);
+  return lens;
+}
+
+describe('what a frame keeps in the view', () => {
+  it('draws every shard and every coin, wherever in the city they fall', () => {
+    // spec 07-27, 07-35: one mesh for the six hundred shards, two for the coins.
+    // The three of them seat nothing on the first frame of a game — no blow has
+    // landed and no zombie has fallen — so the sphere each of them measured then
+    // was empty, and every frame that did not look at the middle of the world
+    // threw the three of them away: the arc of a blow, a body felled, the mark,
+    // the coins, all of it drawn and none of it seen.
+    const effects = buildEffects(POOL, COINS, BALLS);
+    effects.node.updateMatrixWorld(true);
+    // The first frame of a game, and it is the whole of the defect: at that
+    // instant these three seat nothing at all, and it is then that Three.js
+    // measures the sphere it will cull them by for the rest of the run. Which
+    // camera asks makes no difference — that one asks at all is the whole of it.
+    watch(lookingOut());
+    for (const mesh of effects.draws) kept(mesh);
+
+    scatter(effects, PRIORITY.FATAL, 12, OUT, 1, 0, WHITE, 3, 600, 0);
+    placeShards(effects, 0);
+    placeCoins(effects, lying([[OUT, 0.5, 0, 1]]), standing(OUT, 0, 0), 1, 0);
+    effects.node.updateMatrixWorld(true);
+
+    const lens = lookingOut();
+    watch(lens);
+    // The middle of the world is behind the camera, so an empty sphere there is
+    // thrown away: that is what makes the loop below an assertion and not a
+    // formality.
+    expect(VIEW.containsPoint(MIDDLE)).toBe(false);
+    expect(VIEW.containsPoint(new THREE.Vector3(OUT, 1, 0))).toBe(true);
+    expect(effects.shards.count).toBeGreaterThan(0);
+    expect(effects.coins.count).toBeGreaterThan(0);
+    expect(effects.rims.count).toBeGreaterThan(0);
+    for (const mesh of effects.draws) expect([mesh.name, kept(mesh)]).toEqual([mesh.name, true]);
+  });
+
+  it('takes the three of them out of the culling and leaves the count alone', () => {
+    // Nothing is drawn of a mesh seating nothing, so the calls of a frame are
+    // the ones chapter 10 budgets whether the culling is armed or not.
+    // (spec 10 "Le budget de rendu")
+    const effects = buildEffects(POOL, COINS, BALLS);
+    expect(effects.draws.length).toBe(3);
+    for (const mesh of effects.draws) {
+      expect(mesh.frustumCulled).toBe(false);
+      expect(mesh.count).toBe(0);
+    }
+    // and the door it comes through is the one `scene.ts` holds
+    alwaysDrawn(effects.shards);
+    expect(effects.shards.frustumCulled).toBe(false);
   });
 });
