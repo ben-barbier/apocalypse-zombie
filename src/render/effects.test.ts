@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { CoinPool, Player, ProjectilePool } from '../game/state';
 import { FIELD, NEAR } from './camera';
+import { GATEWAY_COLOURS } from './city';
 import {
   ARC,
   ARC_SPAN,
@@ -33,6 +34,7 @@ import {
   blink,
   buildEffects,
   coinSide,
+  dropBarrier,
   flyCoin,
   holdShards,
   isBlinking,
@@ -1013,5 +1015,67 @@ describe('what a frame keeps in the view', () => {
     // and the door it comes through is the one `scene.ts` holds
     alwaysDrawn(effects.shards);
     expect(effects.shards.frustumCulled).toBe(false);
+  });
+});
+
+// -------------------------------------------------- the barriers of a street
+
+describe('the barriers of a street that opens', () => {
+  /** The mouth of a street running due east, and the six blocks it is wide. */
+  const MOUTH_X = 16; // the apothem of the square (spec 02-6)
+  const WIDE = 6; // spec 02-12
+  const HIGH = 3.5; // halfway up a gateway of seven (spec 02-27)
+  const SPAN = 800;
+
+  it('lays a row of shards across the mouth, and nothing else at all', () => {
+    // spec 03-30, 07-25, 07-26: the barriers coming down are a cloud of shards
+    // like every other effect of this game — there is no second primitive, and
+    // nothing is ever put down on a city that carries no object of decor.
+    const effects = buildEffects(POOL, COINS);
+    dropBarrier(effects, MOUTH_X, HIGH, 0, 0, WIDE, GATEWAY_COLOURS[0], SPAN, 0);
+
+    expect(effects.count).toBeGreaterThan(1);
+    let least = Infinity;
+    let most = -Infinity;
+    for (let i = 0; i < effects.count; i += 1) {
+      expect(effects.x[i]).toBe(MOUTH_X); // all of them at the mouth
+      expect(effects.y[i]).toBe(HIGH);
+      expect(effects.priority[i]).toBe(PRIORITY.PLAIN); // the first to give way (spec 07-29)
+      if (effects.z[i] < least) least = effects.z[i];
+      if (effects.z[i] > most) most = effects.z[i];
+    }
+    // In the colour its street keeps for the whole game, as the gateway over it
+    // is. (spec 02-28, 07-10)
+    PAINT.set(GATEWAY_COLOURS[0]);
+    expect(effects.red[0]).toBeCloseTo(PAINT.r, 6);
+    expect(effects.green[0]).toBeCloseTo(PAINT.g, 6);
+    expect(effects.blue[0]).toBeCloseTo(PAINT.b, 6);
+    // Across the street and no wider than it is. (spec 02-12)
+    expect(most - least).toBeGreaterThan(WIDE / 2);
+    expect(most - least).toBeLessThanOrEqual(WIDE);
+    expect(least).toBeCloseTo(-most, 6);
+  });
+
+  it('falls to the ground exactly as it is erased', () => {
+    // The fall is not chosen: it is the height they stand at over the span they
+    // go out in, so the row lands as it goes. (spec 07-28)
+    const effects = buildEffects(POOL, COINS);
+    dropBarrier(effects, MOUTH_X, HIGH, 0, 0, WIDE, GATEWAY_COLOURS[0], SPAN, 0);
+    for (let i = 0; i < effects.count; i += 1) {
+      expect(effects.dx[i]).toBe(0);
+      expect(effects.dz[i]).toBe(0);
+      expect(effects.y[i] + effects.dy[i] * (SPAN / 1000)).toBeCloseTo(0, 6);
+      expect(effects.span[i]).toBe(SPAN);
+    }
+  });
+
+  it('turns with the street it closes', () => {
+    // A street running north gets its row laid east to west, and never along it.
+    const effects = buildEffects(POOL, COINS);
+    dropBarrier(effects, 0, HIGH, MOUTH_X, Math.PI / 2, WIDE, GATEWAY_COLOURS[1], SPAN, 0);
+    for (let i = 0; i < effects.count; i += 1) expect(effects.z[i]).toBeCloseTo(MOUTH_X, 6);
+    let most = -Infinity;
+    for (let i = 0; i < effects.count; i += 1) most = Math.max(most, Math.abs(effects.x[i]));
+    expect(most).toBeGreaterThan(0);
   });
 });

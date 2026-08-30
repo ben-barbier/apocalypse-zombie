@@ -779,6 +779,71 @@ export function layArc(effects: Effects, now: number): void {
   }
 }
 
+// ------------------------------------------------------------- the barriers
+
+/**
+ * How far apart the shards of a barrier stand along the mouth, in blocks: half a
+ * block, so a row of them reads as a bar and not as a handful of specks. It is
+ * twice the side of a shard, which is where it comes from. (spec 07-25)
+ */
+const BARRIER_GAP = 0.5;
+
+/**
+ * The barriers coming down at the mouth of a street that opens: a row of shards
+ * laid across it in the colour of that street, which fall to the ground over
+ * their span and are erased as they land. It is 03-30 read in the one vocabulary
+ * chapter 7 gives an effect — **a cloud of shards, and nothing else**: no flat
+ * picture turned to the camera, no machine of its own, and nothing at all put
+ * down on the city, which carries no object of decor and never will.
+ * (spec 03-30, 07-25, 07-26, 02 "Jamais un objet de décor")
+ *
+ * How fast they fall is not chosen: it is the height they stand at over the span
+ * they are erased in, so the row reaches the ground exactly as it goes out.
+ *
+ * They are of the plain sort, the first to give up a slot: a barrier is worth
+ * nothing beside a fatal blow, and it comes down during a preparation, where
+ * nothing else is asking. (spec 07-29)
+ */
+export function dropBarrier(
+  effects: Effects,
+  x: number,
+  y: number,
+  z: number,
+  ang: number,
+  wide: number,
+  colour: string,
+  span: number,
+  now: number,
+): void {
+  PAINT.set(colour);
+  const red = PAINT.r;
+  const green = PAINT.g;
+  const blue = PAINT.b;
+  // Across the street, which is the mouth turned a quarter of a turn.
+  const acrossX = -Math.sin(ang);
+  const acrossZ = Math.cos(ang);
+  const held = Math.floor(wide / BARRIER_GAP) + 1;
+  const fall = span > 0 ? -y / (span / 1000) : 0;
+
+  for (let n = 0; n < held; n += 1) {
+    const at = takeSlot(effects, PRIORITY.PLAIN, now);
+    if (at < 0) break;
+    const off = (n - (held - 1) / 2) * BARRIER_GAP;
+    effects.x[at] = x + acrossX * off;
+    effects.y[at] = y;
+    effects.z[at] = z + acrossZ * off;
+    effects.dx[at] = 0;
+    effects.dy[at] = fall;
+    effects.dz[at] = 0;
+    effects.red[at] = red;
+    effects.green[at] = green;
+    effects.blue[at] = blue;
+    effects.born[at] = now;
+    effects.span[at] = span;
+    effects.priority[at] = PRIORITY.PLAIN;
+  }
+}
+
 /**
  * A blow taken, and the one effect this file carries for every chapter that will
  * ever land one: a puff of white shards, and the thing struck white for 80 ms.

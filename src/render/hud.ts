@@ -16,7 +16,7 @@
  *
  *   - the buffer of events, dealt out by `src/app/main.ts` where the one reading
  *     of it lives — a blow on the town hall, a segment gone, a reinforcement
- *     bought (spec 10-18, 10-19);
+ *     bought, a gateway lit (spec 10-18, 10-19);
  *   - a handful of scalars compared: the purse, his hp, the wave, which of the
  *     two times is running, how far a preparation has run out, how many are
  *     left, and one number per street for the gauge and one for where the arrow
@@ -123,6 +123,13 @@ const BADGE = 'badge';
 const BADGE_LIT = 'badge lit';
 const ARROW = 'arrow';
 const ARROW_ON = 'arrow on';
+/**
+ * The one look a street opening wears: white at birth, twice its size over two
+ * seconds, then its own colour and a beat that runs the whole preparation. The
+ * lengths and the beat are in the sheet, as every other look here is.
+ * (spec 08-85)
+ */
+const ARROW_BORN = 'arrow on born';
 const PREPARING = 'prep';
 const ASSAULTING = 'assault';
 const LEFT = '';
@@ -162,7 +169,10 @@ export interface Hud {
   heldStanding: number;
   heldNotch: number;
   readonly heldLit: Uint8Array;
+  /** Which of the three looks each arrow is wearing: gone, plain, or born. */
   readonly heldOn: Uint8Array;
+  /** Which streets opened on the preparation running, and are being born in it. */
+  readonly born: Uint8Array;
   readonly heldGauge: Int16Array;
   readonly heldAt: Int16Array;
   /** How far down each street the head of its column has come, this frame. */
@@ -249,6 +259,7 @@ export function createHud(find: (name: string) => Slab | null, rule: HudRule): H
     heldNotch: 0,
     heldLit: new Uint8Array(BADGES),
     heldOn: new Uint8Array(rule.streets),
+    born: new Uint8Array(rule.streets),
     heldGauge: new Int16Array(rule.streets),
     heldAt: new Int16Array(rule.streets),
     heads: new Float32Array(rule.streets),
@@ -332,6 +343,27 @@ export function reinforceBar(hud: Hud, notch: number, price: number): void {
   showNotch(hud, notch, price);
 }
 
+/**
+ * A street opening, which is the most important moment of the game and the one
+ * the child has to read without a word: the arrow of that street **is born**,
+ * white, grows to twice its size over two seconds, takes its colour, and beats
+ * for the whole of the preparation that opens it. (spec 08-85)
+ *
+ * It comes in on the fact the rules write when a gateway lights, and not on a
+ * flag of the state compared with itself — which is what makes it the *birth*
+ * of an arrow rather than the mere sight of one: a page coming back from an
+ * Instantané at wave seven finds its three streets already active and no fact in
+ * the buffer, so nothing is born a second time. (spec 08-86, 10-19)
+ *
+ * **It is born whether the street is on screen or not.** Nothing here so much as
+ * asks: the arrow is always there and always placed, and it is the birth that is
+ * the message. (spec 08-31, 08-86)
+ */
+export function bearArrow(hud: Hud, street: number): void {
+  if (street < 0 || street >= hud.born.length) return;
+  hud.born[street] = 1;
+}
+
 // --------------------------------------------------- what a compared scalar writes
 
 /** A share held to [0, 1] and turned into a whole percent. */
@@ -398,8 +430,17 @@ function readHeads(hud: Hud, held: HudState): void {
  * out of sight puts its arrow flat against the border it lies beyond and a
  * street in sight puts it over its own gateway. It lives in the top two thirds
  * and never lower, and the sheet is what holds it there. (spec 08-32, 08-35)
+ *
+ * An arrow just borne wears the third look for as long as the preparation that
+ * bore it runs, and takes the plain one when the assault opens: a beat that
+ * outlived the moment it announces would stop announcing anything. (spec 08-85)
  */
-function showArrows(hud: Hud, held: HudState, across: Readonly<Float32Array>): void {
+function showArrows(
+  hud: Hud,
+  held: HudState,
+  preparing: boolean,
+  across: Readonly<Float32Array>,
+): void {
   const streets = held.snapshot.streets;
   // Full is "they are at the town hall", so it is measured against the face each
   // rail stops at and not against the rail: street one stops at the shed, four
@@ -408,10 +449,13 @@ function showArrows(hud: Hud, held: HudState, across: Readonly<Float32Array>): v
   readHeads(hud, held);
 
   for (let i = 0; i < hud.arrows.length; i += 1) {
-    const on = streets[i] === 1 ? 1 : 0;
+    // The birth is over with the preparation that carried it, and it is over for
+    // good: a street opens once. (spec 08-85, 03-28)
+    if (!preparing) hud.born[i] = 0;
+    const on = streets[i] !== 1 ? 0 : hud.born[i] === 1 ? 2 : 1;
     if (on !== hud.heldOn[i]) {
       hud.heldOn[i] = on;
-      dress(hud, hud.arrows[i], on === 1 ? ARROW_ON : ARROW);
+      dress(hud, hud.arrows[i], on === 0 ? ARROW : on === 1 ? ARROW_ON : ARROW_BORN);
     }
     if (on === 0) continue;
 
@@ -501,5 +545,5 @@ export function writeHud(
     ink(hud, hud.wave, snapshot.wave);
   }
   showPhase(hud, held, preparing);
-  showArrows(hud, held, across);
+  showArrows(hud, held, preparing, across);
 }

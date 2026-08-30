@@ -2,8 +2,17 @@
  * The city, drawn from the very grid the rules engender: the paving of the
  * square and of the three streets, the frontages with their storeys and their
  * ladders, the roofs at their three values, the town hall, the shed of the base
- * and the three gateways. Nothing here moves, and nothing here is added to the
- * city — the one thing that is ever put down on it is a cannon. (spec 02-5)
+ * and the three gateways. Nothing here is added to the city — the one thing that
+ * is ever put down on it is a cannon. (spec 02-5)
+ *
+ * **Two things move on it, and they are two of the three moments the child has
+ * to understand without a word.** A street opening lights its gateway, and the
+ * ladders of the whole city beat for as long as a first cannon is payable and
+ * none stands. Both are a beat **of the stuff a thing is made of** and never a
+ * light of their own: this game has no point light anywhere, and neither of
+ * these puts one in. Neither costs a call: the ladders share the one mesh their
+ * tile already has, and the three gateways the one mesh they already share.
+ * (spec 07-4, 08-86, 08-87, 08-88)
  *
  * It reads `City` — the grid of heights and the pool of buildings the rules
  * engender — and never a second plan of its own: were the two to part by one
@@ -24,6 +33,7 @@
 import * as THREE from 'three';
 import type { City } from '../game/state';
 import { TILES, type TileId, tileUv } from './atlas';
+import { BLINK_SLOW } from './effects';
 import { alwaysDrawn } from './scene';
 
 /** What the drawing needs of the plan of chapter 2, and nothing the grid says. */
@@ -309,6 +319,17 @@ export interface CityView {
   readonly node: THREE.Group;
   /** One entry per call of a frame. (spec 10 "Le budget de rendu") */
   readonly draws: readonly THREE.InstancedMesh[];
+  /**
+   * The stuff the ladders are made of, theirs alone so that they may beat
+   * without the whole city beating with them. It is a second material and not a
+   * second call: their tile already had a mesh of its own. A city with no
+   * building in it has none. (spec 08-88, 07-44)
+   */
+  readonly ladders: THREE.MeshLambertMaterial | null;
+  /** The one mesh the nine pieces of the three gateways share. (spec 02-27) */
+  readonly gateways: THREE.InstancedMesh;
+  /** When each gateway last flared, in ms, or -1 for one standing quiet. */
+  readonly flared: Float32Array;
 }
 
 /**
@@ -325,11 +346,16 @@ export function buildCity(city: City, plan: CityPlan, sheet: THREE.Texture): Cit
   const meshes = new Map<TileId, THREE.InstancedMesh>();
   // One sheet, one setting of it, and every tile of the city shares it. (spec 07-43)
   const paint = new THREE.MeshLambertMaterial({ map: sheet });
+  // The ladders apart, because they alone ever beat. Same sheet, same tile, same
+  // one call their tile already cost. (spec 08-87, 08-88, 07-44)
+  let ladders: THREE.MeshLambertMaterial | null = null;
 
   for (const tile of TILES) {
     const count = owed.get(tile.id) ?? 0;
     if (count === 0) continue;
-    const mesh = new THREE.InstancedMesh(quadOf(tile.id), paint, count);
+    if (tile.id === 'ladder') ladders = new THREE.MeshLambertMaterial({ map: sheet });
+    const stuff = tile.id === 'ladder' && ladders !== null ? ladders : paint;
+    const mesh = new THREE.InstancedMesh(quadOf(tile.id), stuff, count);
     mesh.name = tile.id;
     meshes.set(tile.id, mesh);
     node.add(mesh);
@@ -348,8 +374,13 @@ export function buildCity(city: City, plan: CityPlan, sheet: THREE.Texture): Cit
   const gateways = gatewaysOf(city, plan);
   node.add(gateways);
   draws.push(gateways);
-  return { node, draws };
+  const flared = new Float32Array(city.gateways.x.length);
+  flared.fill(-1);
+  return { node, draws, ladders, gateways, flared };
 }
+
+/** Two uprights and the lintel that crowns them, and that is a gateway. (spec 02-27) */
+const GATEWAY_PIECES = 3;
 
 /**
  * The three gateways: two uprights and the lintel that crowns them, seven blocks
@@ -360,7 +391,7 @@ export function buildCity(city: City, plan: CityPlan, sheet: THREE.Texture): Cit
  */
 function gatewaysOf(city: City, plan: CityPlan): THREE.InstancedMesh {
   const streets = city.gateways.x.length;
-  const pieces = 3;
+  const pieces = GATEWAY_PIECES;
   const mesh = new THREE.InstancedMesh(
     new THREE.BoxGeometry(1, 1, 1),
     new THREE.MeshLambertMaterial(),
@@ -400,6 +431,91 @@ function gatewaysOf(city: City, plan: CityPlan): THREE.InstancedMesh {
   }
 
   return mesh;
+}
+
+// ------------------------------------------------- the two moments of the city
+
+/**
+ * How long a gateway stays flared, in ms: the two seconds the arrow of its
+ * street takes to be born, so the hud and the world say the one thing over the
+ * one length. (spec 08-85, 08-86)
+ */
+export const FLARE_SPAN = 2000;
+
+/**
+ * How far into white the ladders go at the top of their beat. The rate is
+ * chapter 7's — the slow one a blink already answers to, so the game has one
+ * beat and never two — and the depth is the drawing's own, as the depth of the
+ * breathing diamond is. (spec 07-41, 08-88)
+ */
+const LADDER_DEEP = 0.35;
+
+/** The scratch the two of them borrow, allocated once. (spec 10-14) */
+const HUE = new THREE.Color();
+const FLARE = new THREE.Color();
+
+/**
+ * A street opening: its gateway goes white and settles back into its own colour
+ * over two seconds, alongside the arrow of the hud being born. That is the
+ * "effet appuyé" of 03-30 and the whole of it — **there is no cinematic here and
+ * no camera taken from the child**, at the most important moment of the game
+ * least of all. (spec 03-30, 08-86, 08-45, 04-20)
+ *
+ * The colour a street keeps for the whole game is never touched: the flare
+ * starts at white and comes home to it. (spec 02-28)
+ */
+export function flareGateway(view: CityView, street: number, now: number): void {
+  if (street < 0 || street >= view.flared.length) return;
+  view.flared[street] = now;
+}
+
+/**
+ * One frame of what moves on the city, and there are two things: the gateway of
+ * a street that has just opened, and the ladders while the child is being told
+ * to climb. Both are the stuff a thing is made of and neither is a light — this
+ * game has no point light at all — and neither costs a call of its own.
+ * (spec 07-4, 08-86, 08-88)
+ *
+ * `calling` is settled by the rules and handed over already read: the ladders
+ * beat from the fact that says a first cannon is payable and stop for good on
+ * the one that says a cannon has gone down. Nothing here compares two states.
+ * (spec 10-2, 10-19)
+ */
+export function beatCity(view: CityView, calling: boolean, now: number): void {
+  const ladders = view.ladders;
+  if (ladders !== null) {
+    // Nought at the bottom of the beat and LADDER_DEEP at the top, at the slow
+    // rate of chapter 7. A city that is not being called sits at nought, and the
+    // one writing that puts it there is all it ever costs. (spec 07-41, 08-88)
+    const beat = calling
+      ? (LADDER_DEEP * (1 - Math.cos((2 * Math.PI * BLINK_SLOW * now) / 1000))) / 2
+      : 0;
+    if (calling || ladders.emissive.r !== 0) ladders.emissive.setRGB(beat, beat, beat);
+  }
+
+  let flared = false;
+  for (let k = 0; k < view.flared.length; k += 1) {
+    const from = view.flared[k];
+    if (from < 0) continue;
+    const gone = (now - from) / FLARE_SPAN;
+    const home = gone >= 1;
+    if (home) view.flared[k] = -1;
+    HUE.set(GATEWAY_COLOURS[k % GATEWAY_COLOURS.length]);
+    // White at nought and its own colour at one, which is a gateway lighting and
+    // then being what it always was. (spec 02-28, 07-12)
+    const share = home ? 1 : gone < 0 ? 0 : gone;
+    FLARE.setRGB(
+      1 + (HUE.r - 1) * share,
+      1 + (HUE.g - 1) * share,
+      1 + (HUE.b - 1) * share,
+    );
+    for (let piece = 0; piece < GATEWAY_PIECES; piece += 1) {
+      view.gateways.setColorAt(k * GATEWAY_PIECES + piece, FLARE);
+    }
+    flared = true;
+  }
+  const painted = view.gateways.instanceColor;
+  if (flared && painted !== null) painted.needsUpdate = true;
 }
 
 /**
