@@ -15,10 +15,10 @@ Ce chapitre décide les assaillants : les quatre types et leurs chiffres, le rai
 **Le rail**
 
 6. Chaque rue porte un **rail** : une polyligne fixe, tracée une fois pour toutes, de l'entrée de la rue à la face de la mairie — **92 blocs** ([chapitre 2](02-la-ville.md)).
-7. Un zombie n'a qu'une position : son **avancement** le long du rail, plus un décalage latéral tiré dans **± 2 blocs**, pour que le paquet occupe la largeur de la rue au lieu d'une file indienne.
+7. Un zombie n'a qu'une position : son **avancement** le long du rail, plus un **décalage** latéral dans **± 2 blocs**, pour que le paquet occupe la largeur de la rue au lieu d'une file indienne. Ce décalage est **réparti, jamais tiré** : les quatre zombies d'un paquet prennent les couloirs **− 1,5, − 0,5, + 0,5 et + 1,5 bloc**, chacun brouillé d'un tirage dans **± 0,25 bloc**. Un zombie qui n'entre dans aucun paquet — l'escorte d'un Colosse — le tire dans ± 2 blocs.
 8. **L'avancement ne décroît jamais** : c'est la garantie formelle qu'un assaut se termine toujours.
 9. Un zombie n'a **aucune collision avec le décor** : il ne peut ni se coincer, ni tomber hors de la ville, ni devenir inatteignable.
-10. Entre eux, les zombies ne se bloquent pas : une **poussée latérale** modifie le décalage, jamais l'avancement.
+10. Entre eux, les zombies ne se bloquent pas, ils se **poussent** : deux corps d'une **même rue** dont les positions sont distantes de moins de **1 bloc** — l'écart se mesure sur l'avancement et le décalage ensemble — s'écartent chacun de **la moitié de leur recouvrement**. C'est le **décalage** qui cède, jamais l'avancement, et il reste borné à ± 2 blocs. La poussée ne consulte **jamais le générateur** : à décalage égal, c'est le rang dans le pool qui départage, le plus petit allant vers les valeurs négatives.
 11. Un zombie dont l'avancement n'a pas bougé pendant **3 secondes** est poussé de force le long de son rail.
 12. Aucun zombie ne quitte jamais son rail et **aucun ne poursuit le joueur** : ils ne ciblent que la mairie.
 13. Rien ne ralentit l'avancement **sauf un coup d'épée** (chapitre 4) : le joueur est le seul ralentisseur du jeu.
@@ -115,6 +115,19 @@ La **rue seule** est le temps passé sous le feu des canons ; le **rail entier**
 
 Les 4 blocs d'écart sont la **profondeur du hangar** ([chapitre 2](02-la-ville.md)). Les traversées ci-dessus sont celles du **rail** et ne bougent pas : sur la rue 1 un corps s'arrête simplement quatre blocs plus tôt — 2,7 secondes d'avance pour un Traînard —, et la table des vagues reste calée sur les 92 blocs.
 
+### Le paquet en travers de la rue
+
+| Grandeur | Valeur |
+|---|---:|
+| Décalage, l'amplitude entière | ± 2 blocs |
+| Couloirs d'un paquet de 4 | − 1,5 / − 0,5 / + 0,5 / + 1,5 bloc |
+| Écart de deux couloirs voisins | 1 bloc |
+| Brouillage d'un couloir | ± 0,25 bloc |
+| Rayon de poussée | 1 bloc |
+| Ce qu'un corps reprend du recouvrement | la moitié |
+
+Le rayon de poussée vaut exactement l'écart de deux couloirs : un paquet neuf entre **au bord** de la poussée, et le brouillage suffit tout juste à la franchir — les quatre corps se desserrent d'un demi-bloc au plus, ce qui leur retire le rang de soldats sans jamais les mêler. La poussée travaille donc pour de bon là où le paquet a **cessé d'être un paquet** : un corps rattrapé par le paquet suivant, une colonne qui s'accumule à la face du bâti, une escorte massée autour de son Colosse.
+
 ### La table des vagues
 
 | Vague | Traînards | Sprinteurs | Costauds | Colosse | **Total** | Rues | Fenêtre d'entrée |
@@ -185,6 +198,9 @@ Une fuite depuis le **fond d'une rue** coûte **15 secondes** au lieu de 6 : c'e
 - **Jamais un calcul de chemin** — ni A\*, ni navmesh, ni champ de flux : ils coûtent du CPU JavaScript, la ressource rare, pour résoudre un problème qui n'existe pas sur un décor figé, et ils peuvent échouer, coincer ou tourner en rond.
 - **Jamais un zombie qui quitte son rail, jamais un zombie qui poursuit le joueur** — un zombie parti à la chasse peut se perdre, ce qui casse la garantie qu'un assaut se termine ; et l'enfant doit pouvoir dire « ils vont tous là-bas » d'un coup d'œil.
 - **Jamais un avancement qui décroît** — c'est la garantie, et elle est formelle, pas statistique.
+- **Jamais une poussée qui touche l'avancement** — le décalage cède, et lui seul : une poussée qui recule un corps casserait la garantie de terminaison, et une poussée qui l'avance rendrait un paquet serré plus rapide que le type qui le compose.
+- **Jamais un décalage de paquet tiré au sort** — quatre tirages indépendants dans quatre blocs empilent les corps **par construction** : ce n'est pas une mauvaise graine, c'est la loi des grands nombres. La poussée les défait ensuite, mais elle les défait sous les yeux du joueur ; un paquet doit entrer **déjà lisible**.
+- **Jamais une poussée entre deux rues** — un décalage se lit relativement à son rail, et deux rails n'ont aucun repère commun ; les rues ne se rejoignent qu'à la mairie, et chacune sur sa propre face.
 - **Jamais un zombie qui s'immobilise sur un canon au sol** — il redeviendrait une barricade, et un assaut pourrait caler devant un mur de canons.
 - **Jamais un zombie qui disparaît en atteignant la mairie** — il reste une cible, donc le joueur peut toujours réparer sa négligence en courant.
 - **Jamais un zombie qui traverse le bâti** — la rue 1 a le hangar devant la mairie, et un assaillant qui s'arrête derrière lui frappe hors de vue : ce qui coûte des points de mairie doit se voir le coûter.
@@ -207,6 +223,10 @@ Une fuite depuis le **fond d'une rue** coûte **15 secondes** au lieu de 6 : c'e
 
 **Pourquoi le rail garde ses 92 blocs alors que la rue 1 s'arrête à 88.** L'arrêt est une **borne sur l'avancement**, jamais une collision qui repousse : rien ne décroît, rien ne se calcule, et un zombie a toujours un rail et un avancement. Raccourcir le rail de la rue 1 serait l'autre écriture, et elle est fausse à trois titres — les 92 blocs sont le chiffre du [chapitre 2](02-la-ville.md), les traversées et la table des vagues sont calées dessus, et la rue 1 cesserait d'être la même rue que les deux autres. Le hangar est du bâti, donc il arrête ; il n'est pas une construction de plus, donc il n'encaisse rien.
 
+**Pourquoi le décalage est réparti, et pourquoi il faut une poussée en plus.** La poussée était écrite dès la première version de la règle 10, mais elle n'était **pas chiffrée** — et une règle sans chiffre ne se code pas. En attendant, le décalage se tirait : quatre tirages indépendants dans une bande de 4 blocs, pour des corps larges de moins d'un bloc. Deux qui tombent au même endroit n'y sont pas l'accident rare, ils sont le cas courant. Les quatre **couloirs** referment cela à l'entrée, et pour rien de plus : ils ne tiennent que tant que le paquet est un paquet. À la face du bâti l'avancement s'arrête **définitivement**, donc tous les arrivants d'une rue convergent sur le même avancement et il ne reste que quatre couloirs pour les séparer — au neuvième paquet, trente-six corps pour quatre couloirs. Il faut donc les deux : les couloirs posent un paquet lisible, la poussée tient la colonne quand elle s'entasse.
+
+**Pourquoi la moitié du recouvrement, et pourquoi un rayon qui ne dépend pas du type.** La moitié chacun est ce qui rend la poussée **symétrique et convergente** : elle ne privilégie aucun des deux corps, et elle referme l'écart en un pas. Si chacun reprenait tout le recouvrement, les deux se croiseraient et se repousseraient sans fin. Le rayon, lui, ne se lit **pas** sur les quatorze boîtes : typé, il vaudrait plus du double pour un Colosse à l'échelle 2,2 que pour un Sprinteur à 0,8, et le géant éjecterait de lui-même l'escorte que la règle 34 masse à 3 blocs autour de lui. Un bloc pour tout le monde — la largeur d'un Traînard — laisse les six Costauds tenir leur rassemblement.
+
 **Pourquoi le total d'une vague est le nombre de zombies vivants.** Une vague entre en 6 à 48 secondes, et un Traînard vit 61 secondes sur son rail : **la vague entre plus vite qu'elle ne se vide**. Le nombre de vivants ne peut donc pas dépasser le total de la vague, et ce total est dans la table. C'est ce qui rend inutile tout garde-fou à l'exécution, et c'est aussi ce qui donne à un assaut sa forme : non pas un goutte-à-goutte, mais une **colonne** étirée sur les 80 blocs de la rue.
 
 **Pourquoi le plafond n'est plus tenu par la géométrie.** Une rue porte neuf paquets, soit 36 zombies ; deux rues en portent 72 et trois 108 — bien au-delà des 60 du budget de performance. Rien n'arrête donc plus physiquement un total trop grand : ce qui l'arrête est **la table elle-même**, et c'est pour cela qu'une assertion testée remplace la garantie perdue. Sans elle, une retouche d'équilibrage casserait le budget en silence.
@@ -225,7 +245,7 @@ Une fuite depuis le **fond d'une rue** coûte **15 secondes** au lieu de 6 : c'e
 
 **Pourquoi le Colosse est budgété à zéro dans les 166 points.** Ses 25 points de vie valent cinquante secondes-canon, un canon le tient une trentaine de secondes dans sa portée : **deux canons sur sa rue l'arrêtent**, et il passe cent secondes sous le feu. Une partie correctement jouée ne le laisse donc jamais arriver. S'il arrive quand même, ses cent points restent dramatiques et non fatals — c'est le contrat.
 
-**Pourquoi l'escorte n'est pas le danger qu'on croit.** La fauchée balaie un secteur de 120° sur 3 blocs, et les six Costauds massés y tiennent ensemble : deux secondes d'épée pour les six. Leur vrai coût est en points de vie du joueur, par contact (chapitre 4), et en boulets détournés — les canons qui tirent sur le Colosse les touchent aussi, et il faut choisir.
+**Pourquoi l'escorte n'est pas le danger qu'on croit.** La fauchée balaie un secteur de 120° sur 3 blocs, et les six Costauds massés y tiennent ensemble : deux secondes d'épée pour les six — et depuis que la poussée leur interdit d'occuper le même point, ils tiennent la place que leur rassemblement leur donne. On a craint que la fauchée ne les prenne plus ensemble ; le banc dit le contraire. La partie de référence, qui porte la poussée, les couloirs et la préparation raccourcie **ensemble**, encaisse **228 coups au lieu de 244** et voit ses fuites tomber de 26 à 23 : des corps qui ne se cachent plus les uns dans les autres se tuent mieux qu'un tas. Leur vrai coût est en points de vie du joueur, par contact (chapitre 4), et en boulets détournés — les canons qui tirent sur le Colosse les touchent aussi, et il faut choisir.
 
 **Pourquoi les canons au sol s'usent, et pas ceux des toits.** Rien n'interdit d'aligner des canons en travers d'une rue, mais ils y fondent : un canon posé en pleine rue survit environ deux vagues, un canon posé à l'écart du rail ne s'use jamais, un canon de toit est éternel. L'arbitrage sol/toit devient franc et se **voit** — en bas, le ravitaillement est rapide mais le canon se paie ; en haut, il est intouchable mais chaque bombe coûte une montée.
 

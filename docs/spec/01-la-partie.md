@@ -23,7 +23,7 @@ Ce chapitre décide le cadre : ce qu'est *Apocalypse Zombie*, sur quoi il se jou
 12. **Aucun chrono ne tourne pendant l'assaut** : il s'achève à la mort du dernier zombie, et rien d'autre ne l'achève.
 13. Un assaut **se termine toujours** — les zombies avancent sur rails de façon monotone, et trois filets ramènent les derniers (chapitre 3).
 14. La **préparation** est de durée fixe et s'écoule seule : aucun bouton ne la déclenche, ne l'allonge ni ne l'abrège, et il n'existe pas de bouton « prêt ».
-15. Elle dure **40 secondes pour les vagues 1 à 3** et **30 secondes à partir de la vague 4**, Rallonge comprise.
+15. Elle dure **25 secondes pour les vagues 1 à 3** et **30 secondes à partir de la vague 4**, Rallonge comprise.
 16. La partie s'ouvre **sur l'assaut de la vague 1** : aucune préparation ne le précède, et une partie gagnée compte donc **dix assauts et neuf préparations**.
 17. La préparation de la vague 10 n'a lieu **que si le joueur prend la Rallonge**.
 18. Toute partie commence par un **appui dans le Sas** (chapitre 8) : rien ne démarre ni ne reprend jamais tout seul.
@@ -70,12 +70,12 @@ Ce chapitre décide le cadre : ce qu'est *Apocalypse Zombie*, sur quoi il se jou
 | Vagues de la partie principale | 10 |
 | Assauts d'une partie gagnée | 10 |
 | Préparations d'une partie gagnée | 9 |
-| Préparation, vagues 1 à 3 | 40 s |
+| Préparation, vagues 1 à 3 | 25 s |
 | Préparation, vagues 4 et suivantes | 30 s |
-| Préparations cumulées, partie gagnée | 300 s |
+| Préparations cumulées, partie gagnée | 255 s |
 | Assauts cumulés, bien joué | ≈ 613 s |
-| **Partie bien jouée** | **≈ 15,2 min** |
-| Partie au pire, joueur passif | ≈ 19 min |
+| **Partie bien jouée** | **≈ 14,5 min** |
+| Partie au pire, joueur passif | ≈ 18,3 min |
 | *pour mémoire, la visée du cadre* | *10 à 15 min* |
 
 ### Les premières secondes, et les dernières
@@ -105,7 +105,7 @@ La composition par type, la cadence d'entrée et les fenêtres sont au chapitre 
 
 - **Jamais un chrono pendant l'assaut** — l'urgence doit venir des dégâts de la mairie, définitifs, et non d'une horloge qui punit la lenteur puis efface la faute.
 - **Jamais un bouton « prêt », jamais une préparation qu'on allonge ou qu'on abrège** — le seul rythme que le joueur contrôle est celui de son nettoyage.
-- **Jamais une préparation sous 30 secondes, Rallonge comprise** — l'aller-retour de ravitaillement le plus long coûte 33,5 s ([chapitre 2](02-la-ville.md)) : rogner la préparation ne rend pas les vagues plus dures, ça rend le jet de feu inutile et le tapis roulant obligatoire. C'est un gonflage déguisé en horloge.
+- **Jamais une préparation sous 30 secondes à partir de la vague 4, Rallonge comprise** — dès qu'un canon est posé, la préparation n'est plus du temps mort : c'est le gradient de ravitaillement du [chapitre 2](02-la-ville.md), calibré au tiers de seconde près sur ces 30 s — le pied d'une rue à 10,9 s, le milieu à 19,8, le fond à 28,8 et le toit le plus lointain à 33,5. Rogner là ne rend pas les vagues plus dures, ça écrase le gradient sur le seul pied de rue et rend le jet de feu inutile. C'est un gonflage déguisé en horloge. **Avant** la vague 4, il n'y a rien à ravitailler : l'interdit ne protège rien et ne s'applique pas.
 - **Jamais un jeu infini sans victoire** — à 8 ans, un jeu sans ligne d'arrivée garantit qu'on perd toujours ; c'est un mauvais contrat.
 - **Jamais une difficulté qui monte par les statistiques** — un Traînard qui survit soudain à un coup ne se lit pas « le zombie est plus fort », il se lit « mon épée est cassée ».
 - **Jamais un prix indexé sur le numéro de vague** — c'est le même gonflage, appliqué au portefeuille : invisible, illisible, ressenti comme une triche.
@@ -127,9 +127,9 @@ La composition par type, la cadence d'entrée et les fenêtres sont au chapitre 
 
 **Ce que la boucle en deux temps garantit à l'économie.** Un assaut ne s'achevant qu'à la mort du dernier zombie, **jouer mal ne coûte aucun revenu** : tous les zombies de la table finissent par mourir, donc la masse monétaire d'une partie est indépendante du niveau du joueur. C'est ce qui rend le Renfort de la mairie toujours payable, et ce qui empêche la spirale — celui qui va mal garde exactement les moyens de s'en sortir (chapitre 6).
 
-**Pourquoi 40 secondes puis 30.** Les trois premières préparations sont celles où l'enfant apprend à poser un canon, à monter une échelle et à revenir à la base ; les suivantes sont celles où il sait quoi faire. En dessous de 30 secondes, ce n'est plus une difficulté qu'on ajoute, c'est le ravitaillement qu'on supprime.
+**Pourquoi 25 secondes puis 30, et pourquoi la plus courte est la première.** Les trois premières préparations avaient d'abord reçu 40 secondes, au motif que l'enfant y apprend à poser un canon, à monter une échelle et à revenir à la base. Le compte de l'argent dit que c'est le contraire qui se passe : la vague 1 rend 4 Traînards, soit 8 pièces à l'épée et 10 de prime, quand un canon en coûte 40 ([chapitre 6](06-l-argent.md)). Il n'y a **rien à acheter et rien à ravitailler** avant la troisième prime — ce sont les préparations les plus longues du jeu, et ce sont les seules qui soient vides. Elles tombent donc à 25 secondes, ce qui reste au-dessus des 19,8 s qu'un aller-retour au milieu d'une rue demande le jour où il devient possible. À partir de la vague 4 le joueur a un canon à nourrir, et les 30 secondes redeviennent ce que le gradient du [chapitre 2](02-la-ville.md) exige : elles ne bougent plus, Rallonge comprise.
 
-**Pourquoi la durée n'est pas garantie, et pourquoi on accepte 15 minutes.** Depuis la boucle en deux temps, la durée appartient au rythme du joueur : elle ne peut plus être une promesse. Le compte complet — rails de 92 blocs, filet du dernier zombie à 4 blocs par seconde, Colosse à 115 secondes — donne environ 15,2 minutes bien jouée et 19 au pire. On l'accepte tel quel, sans compenser ailleurs : ce n'est pas la difficulté qui s'est allongée, c'est le trajet. Les trois leviers d'équilibrage — la table, les prix, la portée — resteraient tous à côté du sujet.
+**Pourquoi la durée n'est pas garantie, et pourquoi on accepte 15 minutes.** Depuis la boucle en deux temps, la durée appartient au rythme du joueur : elle ne peut plus être une promesse. Le compte complet — rails de 92 blocs, filet du dernier zombie à 4 blocs par seconde, Colosse à 115 secondes — donne environ 14,5 minutes bien jouée et 18,3 au pire. On l'accepte tel quel, sans compenser ailleurs : ce n'est pas la difficulté qui s'est allongée, c'est le trajet. Les trois leviers d'équilibrage — la table, les prix, la portée — resteraient tous à côté du sujet.
 
 **Pourquoi la première vague est un tutoriel déguisé.** Rien n'apparaît au lever de rideau : quatre Traînards descendent déjà la rue, le joueur a l'épée en main sur la place, la caméra ouvre dégagée derrière lui et le portique de la rue 1 est dans le cadre, et la seule chose qu'il puisse faire est de frapper. Le zombie se désintègre, une pièce tombe, elle est aimantée : la boucle entière du jeu — frapper, gagner, acheter — est enseignée en un geste, sans une ligne de texte et sans qu'on ait rien scripté.
 

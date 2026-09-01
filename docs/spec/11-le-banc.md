@@ -161,7 +161,7 @@ Tous jouent **le profil de l'enfant** et **la graine 1**, un seul axe à la fois
 | Pièces gagnées, l'enfant | 823 | [chapitre 6](06-l-argent.md) |
 | Plancher garanti, le guetteur | 584 | [chapitre 6](06-l-argent.md) |
 | Pire cas réel, le pressé | 924 | [chapitre 6](06-l-argent.md) |
-| Durée d'une partie bien jouée | ≈ 15,2 min | [chapitre 1](01-la-partie.md) |
+| Durée d'une partie bien jouée | ≈ 14,5 min | [chapitre 1](01-la-partie.md) |
 | Canons de la fin de partie type | 7 | [chapitre 6](06-l-argent.md) |
 | Pic au palier de la Rallonge | ≈ 55 sur 60 | [chapitre 3](03-les-zombies.md) |
 | Durée d'une fuite depuis la place | 6 s | [chapitre 3](03-les-zombies.md) |
@@ -189,7 +189,7 @@ bench/
 - **Jamais un pilote qui écrive autre chose qu'un `InputState`** — s'il court-circuite les entrées, il éprouve un jeu que personne ne joue.
 - **Jamais `Math.random()` ni une horloge dans `bench/`** — tout le banc repose sur le fait qu'une partie se rejoue à l'identique.
 - **Jamais un seuil sur les écroulements** — leur nombre est une conséquence du réglage `care`, donc du profil : en faire un critère reviendrait à noter ce qu'on a soi-même programmé.
-- **Jamais un seuil de durée à 15 minutes** — le cadre a lui-même dégarantie la durée depuis la boucle en deux temps, et le [chapitre 1](01-la-partie.md) accepte 15,2 min : un seuil à 15 refuserait la spec telle qu'elle est écrite.
+- **Jamais un seuil de durée à 15 minutes** — le cadre a lui-même dégarantie la durée depuis la boucle en deux temps : la durée est ce que le banc **relève**, jamais ce qu'il exige. Le compte du [chapitre 1](01-la-partie.md) est passé sous les 15 min en raccourcissant les trois premières préparations, mais il y passe de justesse et par le calcul : un seuil à 15 ferait juger le banc sur une marge de trente secondes qu'aucune mesure ne défend.
 - **Jamais la moyenne des cinq graines** — une moyenne noie exactement le cas qu'on cherche.
 - **Jamais un seuil sur un balayage, jamais un code de sortie autre que 0 pour un balayage** — il explore, il ne juge pas, et c'est ce qui le sépare du verdict.
 - **Jamais un banc qui corrige un chiffre** — il refuse, un humain arbitre, et la retouche passe par une PR qui touche la spec, `balance.ts`, les tests et `reference.json` ensemble.
@@ -209,7 +209,7 @@ bench/
 
 **Pourquoi un second générateur.** Si le pilote et le monde tiraient au même générateur, changer une virgule dans le pilote décalerait toute la suite des tirages du monde : deux barèmes ne seraient plus comparables, et le diff de `reference.json` cesserait de vouloir dire quoi que ce soit. Semés à part, ils sont indépendants — on peut retoucher le pilote et lire ce que ça change, ou retoucher le barème et lire ce que ça change, jamais les deux mélangés.
 
-**Pourquoi le banc ne fait pas respecter les 10 à 15 minutes.** La visée est un but de conception, pas une garantie : depuis la boucle en deux temps, la durée appartient au rythme du joueur, et le compte complet du [chapitre 1](01-la-partie.md) donne 15,2 minutes bien jouée. Un seuil à 15 refuserait le jeu tel qu'il est décidé — c'est-à-dire qu'il transformerait le banc en machine à contredire la spec. On mesure donc, et on regarde : 12 à 18 minutes est la fenêtre dans laquelle la partie reste celle qu'on a écrite.
+**Pourquoi le banc ne fait pas respecter les 10 à 15 minutes.** La visée est un but de conception, pas une garantie : depuis la boucle en deux temps, la durée appartient au rythme du joueur. Le compte complet du [chapitre 1](01-la-partie.md) donnait 15,2 minutes bien jouée et en donne 14,5 depuis que les trois premières préparations sont tombées à 25 secondes — la partie de référence, elle, en mesure **14,49**, ce qui est la première fois que le calcul du chapitre 1 et le relevé du banc tombent l'un sur l'autre au centième. Le chiffre rentre donc dans la visée, mais il n'y rentre que de trente secondes. Accrocher un seuil à 15 reviendrait à faire juger le banc sur cette marge-là. On mesure donc, et on regarde : 12 à 18 minutes est la fenêtre dans laquelle la partie reste celle qu'on a écrite.
 
 **Pourquoi le seuil de profondeur se retourne.** Le banc ne saura jamais jusqu'où un enfant de 8 ans descend dans une rue : ça se relève sur un enfant, pas dans une simulation. La question utile n'est donc pas « descend-il assez loin ? » mais **le barème est-il acceptable à toutes les profondeurs ?** Ainsi posée, elle est mesurable, elle se refuse, et elle protège l'enfant timide autant que le téméraire. Les 40 points de marche entre deux profondeurs voisines en sont la traduction chiffrée : c'est la définition réfutable de « c'est un gradient et pas un mur ».
 

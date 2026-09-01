@@ -3,21 +3,21 @@
   "seed": 1,
   "waves": 10,
   "indicators": {
-    "townHallHits": 244,
-    "minutes": 15.223,
+    "townHallHits": 228,
+    "minutes": 14.491,
     "peak": 40,
-    "swordShare": 62.992,
-    "coins": 763,
+    "swordShare": 60.236,
+    "coins": 738,
     "cannons": [
-      8,
+      9,
       1,
       0
     ],
     "collapses": 0,
     "breaches": {
-      "count": 26,
-      "meanFor": 7.103,
-      "longestFor": 20.917
+      "count": 23,
+      "meanFor": 5.877,
+      "longestFor": 14.017
     }
   }
 }

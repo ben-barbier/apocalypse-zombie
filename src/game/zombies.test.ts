@@ -170,6 +170,91 @@ describe('the rail', () => {
     expect(seen.size).toBeGreaterThan(30);
   });
 
+  it('poses the four of a pack in four lanes, and never on one another', () => {
+    // spec 03-7: the four take − 1,5, − 0,5, + 0,5 and + 1,5 blocks, each blurred
+    // by a quarter of a block. Four free draws in four blocks pile bodies up by
+    // construction, which is what this replaces.
+    const game = createGame(BALANCE, 20260829);
+    const lanes = [-1.5, -0.5, 0.5, 1.5];
+    for (let lane = 0; lane < lanes.length; lane += 1) {
+      const at = spawnZombie(game, ZOMBIE.SHAMBLER, 0, 0, lane);
+      const offset = game.assault.zombies.offset[at];
+      expect(Math.abs(offset - lanes[lane]!)).toBeLessThanOrEqual(0.25);
+    }
+  });
+
+  it('takes two off the one spot, by the offset and never the advance', () => {
+    // spec 03-10: closer than a block and each gives up half of what they
+    // overlap; the offset gives way, the advance never does.
+    const game = createGame(BALANCE, 20260829);
+    const one = put(game, ZOMBIE.SHAMBLER, 0, 30, 0);
+    const two = put(game, ZOMBIE.SHAMBLER, 0, 30, 0);
+    const pool = game.assault.zombies;
+    const was = [pool.progress[one]!, pool.progress[two]!];
+
+    stepZombies(game, 0); // no time passes, so nothing but the shove can move
+
+    expect(Math.abs(pool.offset[two]! - pool.offset[one]!)).toBeCloseTo(1, 6);
+    expect(pool.offset[one]).toBeLessThan(0); // the lower slot goes the negative way
+    expect(pool.progress[one]).toBe(was[0]);
+    expect(pool.progress[two]).toBe(was[1]);
+  });
+
+  it('leaves two of one street alone once a block apart', () => {
+    // spec 03-10: a block is the range, and a pack walks in right at it.
+    const game = createGame(BALANCE, 20260829);
+    const one = put(game, ZOMBIE.SHAMBLER, 0, 30, -0.5);
+    const two = put(game, ZOMBIE.SHAMBLER, 0, 30, 0.5);
+    stepZombies(game, 0);
+    expect(game.assault.zombies.offset[one]).toBe(-0.5);
+    expect(game.assault.zombies.offset[two]).toBe(0.5);
+  });
+
+  it('never shoves across two streets', () => {
+    // spec 03-10: an offset reads against its own rail, and two rails share no
+    // bearing; the streets only meet at the town hall, each on its own face.
+    const game = createGame(BALANCE, 20260829);
+    const one = put(game, ZOMBIE.SHAMBLER, 0, 30, 0);
+    const two = put(game, ZOMBIE.SHAMBLER, 1, 30, 0);
+    stepZombies(game, 0);
+    expect(game.assault.zombies.offset[one]).toBe(0);
+    expect(game.assault.zombies.offset[two]).toBe(0);
+  });
+
+  it('holds a shove inside the width of the street, however many pile in', () => {
+    // spec 03-10: the offset stays inside the spread, because a street has a
+    // width — thirty-six bodies on one advance cannot each have their block.
+    const game = createGame(BALANCE, 20260829);
+    for (let i = 0; i < 36; i += 1) put(game, ZOMBIE.SHAMBLER, 0, 30, 0);
+    walk(game, 120);
+    const pool = game.assault.zombies;
+    for (let at = 0; at < pool.count; at += 1) {
+      expect(Math.abs(pool.offset[at]!)).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it('shoves without ever drawing, so a game replays off its seed alone', () => {
+    // spec 03-10, 10-29: ties are broken on the slot and never on the generator.
+    const game = createGame(BALANCE, 20260829);
+    put(game, ZOMBIE.SHAMBLER, 0, 30, 0);
+    put(game, ZOMBIE.SHAMBLER, 0, 30, 0);
+    put(game, ZOMBIE.SHAMBLER, 0, 30, 0);
+    const before = game.snapshot.random.draws;
+    walk(game, 30);
+    expect(game.snapshot.random.draws).toBe(before);
+  });
+
+  it('costs the generator one draw a zombie, lane or no lane', () => {
+    // spec 03-7, 10-29: what a body costs the stream cannot depend on how it
+    // walked in, or a pack and an escort would put a game on two different rails.
+    const game = createGame(BALANCE, 20260829);
+    const before = game.snapshot.random.draws;
+    spawnZombie(game, ZOMBIE.SHAMBLER, 0, 0, 2);
+    expect(game.snapshot.random.draws).toBe(before + 1);
+    spawnZombie(game, ZOMBIE.SHAMBLER, 0, 0);
+    expect(game.snapshot.random.draws).toBe(before + 2);
+  });
+
   it('never lets an advance decrease, whatever holds it', () => {
     // spec 03-8: the advance never decreases, and that is the formal guarantee
     // that an assault always ends. spec 04-34: a sword blow shifts sideways.

@@ -95,8 +95,12 @@ function place(game: Game, at: number): void {
  * pool — or -1 when the pool is full, which the table of the waves makes
  * unreachable and which nothing here defends against. (spec 03-42, 03-43, 10-13)
  *
- * Its offset is drawn in ±2 blocks off the rail, from the one generator of the
- * game, so a pack takes the width of a street instead of walking in single file.
+ * Its offset puts it across the street rather than in single file, and where it
+ * lands is the whole of the difference between a pack and a heap. One of the
+ * four **lanes** when it walks in with a pack — four independent draws in four
+ * blocks, for bodies under a block wide, pile them up by construction, and that
+ * is not a bad seed but the law of large numbers. A draw in ±2 blocks when it
+ * belongs to no pack, which is the escort of a colossus and nothing else.
  * (spec 03-7, 10-27)
  */
 export function spawnZombie(
@@ -104,6 +108,7 @@ export function spawnZombie(
   type: ZombieType,
   street: number,
   progress: number,
+  lane = -1,
 ): number {
   const pool = game.assault.zombies;
   const at = pool.count;
@@ -112,7 +117,7 @@ export function spawnZombie(
   pool.type[at] = type;
   pool.street[at] = street;
   pool.progress[at] = progress;
-  pool.offset[at] = (nextFloat(game.snapshot.random) * 2 - 1) * game.balance.assault.lateralSpread;
+  pool.offset[at] = offsetOf(game, lane);
   pool.hp[at] = balanceOf(game.balance, type).hp; // in sword hits (spec 03-3)
   pool.escort[at] = 0;
   pool.knockedFor[at] = 0;
@@ -127,6 +132,24 @@ export function spawnZombie(
   pool.zPrev[at] = pool.z[at];
   pool.angPrev[at] = pool.ang[at];
   return at;
+}
+
+/**
+ * Where one sits across its rail. A lane of a pack is the width of the spread
+ * shared out over the pack — ±2 blocks over four gives − 1,5, − 0,5, + 0,5 and
+ * + 1,5 —, blurred by a quarter of a block either way so that four bodies read
+ * as a pack and not as a rank of soldiers. A lane of -1 is no lane at all and
+ * draws the whole spread.
+ *
+ * Either way it costs the generator exactly one draw, which is what keeps a
+ * game replayable off its seed alone. (spec 03-7, 10-27, 10-29)
+ */
+function offsetOf(game: Game, lane: number): number {
+  const assault = game.balance.assault;
+  const blur = (nextFloat(game.snapshot.random) * 2 - 1);
+  if (lane < 0) return blur * assault.lateralSpread;
+  const width = (assault.lateralSpread * 2) / assault.packSize;
+  return -assault.lateralSpread + width * (lane + 0.5) + blur * assault.laneJitter;
 }
 
 /**
@@ -436,6 +459,66 @@ function touchPlayer(game: Game, at: number): void {
 }
 
 /**
+ * Takes two bodies of one street off the same spot. Closer than a block and
+ * each gives up half of what they overlap — half each, because that is what
+ * makes it even-handed and what closes the gap in a single step: were each to
+ * give up the whole overlap, the two would cross and shove each other back for
+ * ever.
+ *
+ * It is the **offset** that gives way and never the advance: an advance that
+ * went backwards would break the one formal guarantee an assault has, and an
+ * advance pushed forward would make a tight pack faster than the kind that
+ * makes it up. The offset stays inside the spread, because a street has a
+ * width. And a street is where it stops — an offset reads against its own rail,
+ * two rails share no bearing, and the streets only ever meet at the town hall,
+ * each on its own face.
+ *
+ * The range is one block for everyone rather than the width of the body: read
+ * off the fourteen boxes it would run over twice as wide for a colossus at
+ * scale 2,2 as for a sprinter at 0,8, and the giant would throw off the very
+ * escort rule 34 masses three blocks around him.
+ *
+ * Sixty standing is the budget, so this is under eighteen hundred pairs a step,
+ * most of them dropped on the street or on the advance before the square root.
+ * Nothing here draws: ties are broken on the slot, the lower one going the
+ * negative way, which is what keeps a game replayable off its seed alone.
+ * (spec 03-10, 03-8, 10-13, 10-29)
+ */
+function shoveZombies(game: Game): void {
+  const pool = game.assault.zombies;
+  const range = game.balance.assault.shoveRange;
+  const spread = game.balance.assault.lateralSpread;
+
+  for (let a = 0; a < pool.count; a += 1) {
+    for (let b = a + 1; b < pool.count; b += 1) {
+      if (pool.street[a] !== pool.street[b]) continue;
+
+      const along = pool.progress[b] - pool.progress[a];
+      if (along >= range || along <= -range) continue;
+      const across = pool.offset[b] - pool.offset[a];
+      if (across >= range || across <= -range) continue;
+
+      const apart = Math.sqrt(along * along + across * across);
+      if (apart >= range) continue;
+
+      // On the same offset it is the slot that tells them apart, and b is the
+      // higher of the two, so b goes the positive way.
+      const half = (range - apart) / 2;
+      const way = across < 0 ? -half : half;
+      pool.offset[a] = bounded(pool.offset[a] - way, spread);
+      pool.offset[b] = bounded(pool.offset[b] + way, spread);
+    }
+  }
+}
+
+/** Holds an offset inside the width of a street. (spec 03-10) */
+function bounded(offset: number, spread: number): number {
+  if (offset < -spread) return -spread;
+  if (offset > spread) return spread;
+  return offset;
+}
+
+/**
  * One step of the whole assault: every zombie walks its rail, grazes the ground
  * cannons it passes, and takes from the player what a touch takes. The blows
  * against the town hall are not here — they are the last thing a step does, in
@@ -449,7 +532,15 @@ export function stepZombies(game: Game, seconds: number): void {
     pool.xPrev[at] = pool.x[at];
     pool.zPrev[at] = pool.z[at];
     pool.angPrev[at] = pool.ang[at];
+  }
 
+  // Bodies come apart before they walk, on the standing they were left in, so
+  // the shove is a sideways move the drawing gets to interpolate like any
+  // other. It reads no x and no z: an advance and an offset are the whole of a
+  // position, and they are what it works on. (spec 03-10)
+  shoveZombies(game);
+
+  for (let at = 0; at < pool.count; at += 1) {
     const was = pool.progress[at];
     advance(game, at, seconds);
     place(game, at);

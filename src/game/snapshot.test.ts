@@ -257,8 +257,8 @@ describe('the resumed game', () => {
     const other = newGame();
     applySnapshot(other, stored);
     expect(other.assault.phase).toBe(PHASE.PREP);
-    // Forty seconds for waves 1 to 3, thirty from wave 4 on. (spec 01-15)
-    expect(other.assault.prepLeft).toBe(40);
+    // Twenty-five seconds for waves 1 to 3, thirty from wave 4 on. (spec 01-15)
+    expect(other.assault.prepLeft).toBe(25);
 
     game.snapshot.wave = 6;
     applySnapshot(other, pass(game));

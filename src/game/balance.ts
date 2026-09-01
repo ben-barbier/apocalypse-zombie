@@ -42,11 +42,16 @@ export interface PoolBalance {
 export interface PaceBalance {
   /** Waves of the main game; wave 11 and beyond are overtime. (spec 01-10) */
   readonly mainWaves: number;
-  /** Prep before waves 2 to 4, in seconds. (spec 01-15) */
+  /**
+   * Prep before waves 2 to 4, in seconds — the short one. Nothing is for sale
+   * that early: wave one hands back eighteen coins against a cannon at forty,
+   * so these are the only preps of the game with nothing to spend and nothing
+   * to resupply. (spec 01-15, 01 "Pourquoi 25 secondes puis 30")
+   */
   readonly earlyPrep: number;
   /** Prep before wave 5 and beyond, overtime included, in seconds. */
   readonly latePrep: number;
-  /** The last wave whose prep is the long one. (spec 01-15) */
+  /** The last wave whose prep is the short one. (spec 01-15) */
   readonly lastEarlyPrepWave: number;
   /** How long the end of a game fades, in seconds. (spec 01-29) */
   readonly fadeOut: number;
@@ -128,6 +133,10 @@ export interface AssaultBalance {
   readonly streetStagger: number;
   /** How far a zombie sits off its rail, either way, in blocks. (spec 03-7) */
   readonly lateralSpread: number;
+  /** How far a lane of a pack is blurred, either way, in blocks. (spec 03-7) */
+  readonly laneJitter: number;
+  /** Closer than this and two zombies of one street shove. In blocks. (spec 03-10) */
+  readonly shoveRange: number;
   /** Seconds of frozen progress before a zombie is pushed along. (spec 03-11) */
   readonly unstickAfter: number;
   /** Seconds between two blows against a construction. (spec 03-4) */
@@ -383,7 +392,7 @@ export const BALANCE: Balance = freeze({
 
   pace: {
     mainWaves: 10,
-    earlyPrep: 40,
+    earlyPrep: 25,
     latePrep: 30,
     lastEarlyPrepWave: 3,
     fadeOut: 3,
@@ -431,6 +440,8 @@ export const BALANCE: Balance = freeze({
     packSize: 4,
     streetStagger: 8,
     lateralSpread: 2,
+    laneJitter: 0.25,
+    shoveRange: 1,
     unstickAfter: 3,
     blowPeriod: 1,
     grazeRange: 1.5,
